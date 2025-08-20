@@ -34,6 +34,9 @@ const Login = () => {
        {/* Right Login */}
 
       <div class="flex-1 flex items-center justify-center p-6 sm:p-10">
+
+        {/* Sử dụng SignIn từ Clerk để hiển thị form đăng nhập */}
+        {/* SignIn sẽ tự động quản lý trạng thái đăng nhập và đăng ký người dùng */}
         <SignIn />
       </div>
     </div>

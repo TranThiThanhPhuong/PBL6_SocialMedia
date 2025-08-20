@@ -7,18 +7,17 @@ import { UserButton, useClerk } from "@clerk/clerk-react";
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
-    // Hàm để điều hướng đến trang chính khi nhấn vào logo
-    const navigate = useNavigate();
+    const navigate = useNavigate(); // Hàm để điều hướng đến trang chính khi nhấn vào logo
 
     const user = dummyUserData; // Giả lập dữ liệu người dùng, có thể thay thế bằng dữ liệu thực từ API hoặc context
 
     const { signOut } = useClerk(); // Lấy hàm signOut từ Clerk để đăng xuất người dùng
 
   return (
-    <div
-      className={`w-60 xl:w-72 bg-white border-r border-gray-200 flex flex-col justify-between items-center max-sm:absolute top-0 bottom-0 z-20 ${
+    <div className={`w-60 xl:w-72 bg-white border-r border-gray-200 flex flex-col justify-between items-center max-sm:absolute top-0 bottom-0 z-20 ${
         sidebarOpen ? "translate-x-0" : "max-sm:-translate-x-full"
       } transition-all duration-300 ease-in-out `}>
+
         <div className="w-full">
             <h1 onClick={()=> navigate('/')} className="logo-text logo-sidebar w-26 ml-7 my-2 cursor-pointer">Safe Post</h1>
             <hr className="border-gray-300 mb-8" />
@@ -38,8 +37,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
               <h1 className="text-sm font-medium">{user.full_name}</h1>
               <p className="text-xs text-gray-500">{user.username}</p>
             </div>
-
           </div>
+
           <LogOut onClick={signOut} className="lucide lucide-log-out w-4.5 text-gray-400 hover:text-gray-700 transition cursor-pointer" />
         </div>
       </div>
