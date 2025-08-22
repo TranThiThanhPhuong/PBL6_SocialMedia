@@ -1,5 +1,5 @@
 import { Inngest } from "inngest";
-import User from "./models/User.js";
+import User from "../models/User.js";
 
 // tao 1 client để gửi và nhận sự kiện
 export const inngest = new Inngest({ id: "safepost-app" });
