@@ -5,8 +5,7 @@
     "use": "@vercel/node" ,
     "config": {
       "includeFiles": [
-        "server/inngest/index.js",
-        "server/inngest/functions.js"
+        "server/inngest/index.js"
       ]
     }
     }

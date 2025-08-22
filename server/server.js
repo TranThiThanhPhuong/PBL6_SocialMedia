@@ -3,6 +3,7 @@ import cors from 'cors'
 import 'dotenv/config' ;  
 import connectDB from './configs/db.js' // import hàm connectDB từ file db.js trong thư mục config
 import { inngest, functions} from './inngest/index.js' // import các hàm Inngest từ file index.js trong thư mục inngest
+import { serve } from 'inngest/express' // import hàm serve từ thư viện inngest để xử lý các yêu cầu liên quan đến Inngest
 
 // express dùng để tạo server
 const app = express()
@@ -21,7 +22,11 @@ app.use(express.json())
 app.get('/', (req, res) => res.send('Hello World!'))
 
 // serve là middleware của inngest để xử lý các yêu cầu liên quan đến Inngest
-app.use("/api/inngest", serve({ client: inngest, functions }));
+app.use("/api/inngest", serve({
+  client: inngest,
+  functions,
+}));
+
 
 // PORT là biến môi trường để xác định cổng mà server sẽ lắng nghe
 // nếu không có biến môi trường PORT thì sẽ sử dụng cổng 4000
