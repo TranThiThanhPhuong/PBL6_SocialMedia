@@ -27,7 +27,6 @@ app.use("/api/inngest", serve({
   functions,
 }));
 
-
 // PORT là biến môi trường để xác định cổng mà server sẽ lắng nghe
 // nếu không có biến môi trường PORT thì sẽ sử dụng cổng 4000
 const PORT = process.env.PORT || 4000

@@ -12,20 +12,21 @@ const syncUserCreation = inngest.createFunction(
   // mô tả hàm này sẽ được gọi khi có sự kiện 'clerk/user.created'
   async ({ event }) => {
     const { id, first_name, last_name, email_address, image_url } = event.data; // destructuring dữ liệu từ sự kiện
-    let username = email_address[0].email_address.split("@")[0]; // lấy username từ email
+    // Clerk lưu email trong mảng email_addresses
+    const primaryEmail = email_addresses[0]?.email_address;  
 
-    const user = await User.findOne({ username }); // tìm người dùng trong cơ sở dữ liệu theo username
+    let username = primaryEmail.split("@")[0];
 
-    if (user) {
-      // nếu tìm thấy người dùng
-      username = username + Math.floor(Math.random() * 10000 ); // thêm một số ngẫu nhiên vào username
+    const existingUser = await User.findOne({ username });
+    if (existingUser) {
+      username = username + Math.floor(Math.random() * 10000);
     }
 
     // tạo một đối tượng người dùng mới với các thông tin từ sự kiện va luu vào cơ sở dữ liệu
     const userData = {
       id, // lấy id từ dữ liệu sự kiện
       email: email_address[0].email_address, // lấy email từ dữ liệu sự kiện
-      full_name: first_name + " " + last_name, // kết hợp first_name và last_name thành full_name
+      full_name: `${first_name || ""} ${last_name || ""}`.trim(), // kết hợp first_name và last_name thành full_name
       profile_picture: image_url, // lấy ảnh từ dữ liệu sự kiện
       username, // sử dụng username đã được xử lý
     };
@@ -36,7 +37,7 @@ const syncUserCreation = inngest.createFunction(
 
 const syncUserUpdation = inngest.createFunction(
   { id: "update-user-from-clerk" }, 
-  { event: "clerk/user.update" }, 
+  { event: "clerk/user.updated" }, 
 
   async ({ event }) => {
     const { id, first_name, last_name, email_address, image_url } = event.data;
@@ -54,7 +55,7 @@ const syncUserUpdation = inngest.createFunction(
 
 const syncUserDeletion = inngest.createFunction(
   { id: "delete-user-with-clerk" }, 
-  { event: "clerk/user.delete" }, 
+  { event: "clerk/user.deleted" }, 
 
   async ({ event }) => {
     const { id } = event.data;
