@@ -11,26 +11,22 @@ const syncUserCreation = inngest.createFunction(
 
   // mô tả hàm này sẽ được gọi khi có sự kiện 'clerk/user.created'
   async ({ event }) => {
-    const { id, first_name, last_name, email_address, image_url } = event.data; // destructuring dữ liệu từ sự kiện
+    const { id, first_name, last_name, email_addresses, image_url } = event.data; // destructuring dữ liệu từ sự kiện
     // Clerk lưu email trong mảng email_addresses
-    const primaryEmail = email_addresses[0]?.email_address;  
+    let username = email_addresses[0].email_address.split("@")[0]; // lấy phần trước dấu @ làm username
 
-    let username = primaryEmail.split("@")[0];
-
-    const existingUser = await User.findOne({ username });
-    if (existingUser) {
-      username = username + Math.floor(Math.random() * 10000);
+    const user = await User.findOne({ username }); // kiểm tra xem username đã tồn tại trong cơ sở dữ liệu chưa
+    if (user) {
+      username = username + Math.floor(Math.random() * 10000); // nếu đã tồn tại, thêm số ngẫu nhiên vào cuối username
     }
 
-    // tạo một đối tượng người dùng mới với các thông tin từ sự kiện va luu vào cơ sở dữ liệu
     const userData = {
-      id, // lấy id từ dữ liệu sự kiện
-      email: email_address[0].email_address, // lấy email từ dữ liệu sự kiện
-      full_name: `${first_name || ""} ${last_name || ""}`.trim(), // kết hợp first_name và last_name thành full_name
-      profile_picture: image_url, // lấy ảnh từ dữ liệu sự kiện
-      username, // sử dụng username đã được xử lý
-    };
-
+      _id: id, // sử dụng Clerk userId làm _id trong MongoDB
+      email: email_addresses[0].email_address, // lấy email đầu tiên
+      full_name: first_name + " " + last_name, // ghép họ và tên
+      profile_picture: image_url, // ảnh đại diện
+      username
+    }; 
     await User.create(userData); // tạo người dùng mới trong cơ sở dữ liệu
   }
 );
@@ -40,10 +36,10 @@ const syncUserUpdation = inngest.createFunction(
   { event: "clerk/user.updated" }, 
 
   async ({ event }) => {
-    const { id, first_name, last_name, email_address, image_url } = event.data;
+    const { id, first_name, last_name, email_addresses, image_url } = event.data;
 
     const updatedUserData = {
-      email: email_address[0].email_address, 
+      email: email_addresses[0].email_address, 
       full_name: first_name + " " + last_name, 
       profile_picture: image_url,
     };

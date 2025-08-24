@@ -1,10 +1,14 @@
-import mongoose from 'mongoose';
-
 // userSchema định nghĩa cấu trúc của tài liệu người dùng trong MongoDB
 // Nó bao gồm các trường như _id, email, full_name, username, bio, profile_picture, cover_photo, location, followers, following và connections
 // Mỗi trường có kiểu dữ liệu và một số trường có ràng buộc như required hoặc unique
+// Tạo mô hình User từ userSchema
+// Mô hình này sẽ được sử dụng để tương tác với bộ sưu tập người dùng trong MongoDB
+
+import mongoose from 'mongoose';
+
+// Định nghĩa schema User
 const userSchema = new mongoose.Schema({
-    _id: {
+    _id: {  // Clerk userId sẽ được dùng làm _id trong MongoDB
         type: String,
         required: true,
     },
@@ -50,8 +54,8 @@ const userSchema = new mongoose.Schema({
     }]
 }, {timestamps: true, minimize: false});
 
-// Tạo mô hình User từ userSchema
-// Mô hình này sẽ được sử dụng để tương tác với bộ sưu tập người dùng trong MongoDB
+// Tạo model User
 const User = mongoose.model('User', userSchema);
 
 export default User;
+

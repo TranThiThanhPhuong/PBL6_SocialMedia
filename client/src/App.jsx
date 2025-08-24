@@ -8,17 +8,28 @@ import Connections from "./pages/Connections";
 import Discover from "./pages/Discover";
 import Profile from "./pages/Profile";
 import CreatePost from "./pages/CreatePost";
-import { useUser } from "@clerk/clerk-react"; 
+import { useUser, useAuth } from "@clerk/clerk-react"; 
 import Layout from "./pages/Layout";
+import { Toaster } from "react-hot-toast"; 
+import { useEffect } from "react";
 
 const App = () => {
 
   // Sử dụng useUser để lấy thông tin người dùng hiện tại
   const {user} = useUser();
+  const { getToken } = useAuth(); // Sử dụng useAuth để lấy hàm getToken để lấy token JWT xác thực của người dùng hiện tại  
+
+  useEffect(() => {
+    // Hàm để thiết lập token vào header của tất cả các yêu cầu fetch)
+    if (user) {
+      getToken().then((token) => console.log(token));
+    }
+  }, [user]);
   return (
     <>
     {/* Route: dieu huong trang web  */}
     {/* xd url hien thi component nao, Nó giúp ứng dụng chuyển trang mà không cần reload lại toàn bộ website. */}
+      <Toaster /> {/* Toaster: hien thi cac thong bao */}
       <Routes>
         <Route path='/' element={ !user ? <Login /> : <Layout />}> 
           <Route index element={<Feed />} />
