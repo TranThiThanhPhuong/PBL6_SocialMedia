@@ -26,10 +26,7 @@ app.use(express.json())
 app.get('/', (req, res) => res.send('Hello World!'))
 
 // serve là middleware của inngest để xử lý các yêu cầu liên quan đến Inngest
-app.use("/api/inngest", serve({
-  client: inngest,
-  functions,
-}));
+app.use("/api/inngest", serve({client: inngest, functions})); 
 
 // su dung userRouter cho các route liên quan đến người dùng
 app.use('/api/user', userRouter)
