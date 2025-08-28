@@ -39,3 +39,6 @@ const PORT = process.env.PORT || 5000
 app.listen(PORT, () => console.log(`Server is running on port ${PORT}`))        
 
 // file server.js sẽ lắng nghe các yêu cầu từ client 
+
+// install: clerk, express, mongoose, cors, dotenv, multer, imagekit, inngest, nodemailer
+// brevo, vercel, 

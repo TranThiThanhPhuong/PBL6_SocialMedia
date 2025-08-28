@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import Connection from "../models/Connection.js";
 import fs from "fs";
 import imagekit from "../configs/imageKit.js";
 
@@ -11,10 +12,10 @@ export const getUserData = async (req, res) => {
     const user = await User.findById(userId);
 
     if (!user) {
-      return res.json({ success: false, message: "User not found in database" });
-    }
+      return res.json({ success: false, message: "User not found" });
+    } // neu khong tim thay user thi tra ve loi
 
-    res.json({ success: true, data: user });
+    res.json({ success: true, data: user }); // tra ve du lieu nguoi dung
   } catch (error) {
     console.error("Error in getUserData:", error);
     res.json({ success: false, message: error.message });
@@ -24,13 +25,13 @@ export const getUserData = async (req, res) => {
 export const updateUserData = async (req, res) => {
   try {
     const { userId } = req.auth();
-    const { username, bio, location, full_name } = req.body;
-    const tempUser = await User.findById(userId);
+    let { username, bio, location, full_name } = req.body; // lay du lieu tu body, su dung let de co the gan lai gia tri(vi thay doi)
+    const tempUser = await User.findById(userId); // lay thong tin nguoi dung hien tai
 
     !username && (username = tempUser.username);
 
     if (tempUser.username !== username) {
-      const user = User.findOne(username);
+      const user = await User.findOne(username);
       if (user) {
         username = tempUser.username;
       }
@@ -43,9 +44,8 @@ export const updateUserData = async (req, res) => {
       full_name,
     };
     const profile = req.files.profile && req.files.profile[0]; // req.files.profile là mảng các file, lấy phần tử đầu tiên
-    const cover = req.files.cover && req.files.cover[0];
+    const cover = req.files.cover && req.files.cover[0]; // req.files.cover là mảng các file, lấy phần tử đầu tiên
 
-    // neu profile ton tai thi upload len imagekit
     if (profile) {
       const buffer = fs.readFileSync(profile.path);
       const response = await imagekit.upload({
@@ -63,16 +63,15 @@ export const updateUserData = async (req, res) => {
           },
         ],
       });
-      updatedData.profile = url;
-    }
+      updatedData.profile_picture = url;
+    } // neu upload thanh cong se tra ve mot object chua thong tin ve file vua upload
 
-    // neu cover ton tai thi upload len imagekit
     if (cover) {
       const buffer = fs.readFileSync(cover.path);
       const response = await imagekit.upload({
         file: buffer, // dung de upload file
-        fileName: profile.originalname, // ten file
-      });
+        fileName: cover.originalname, // ten file
+      }); // neu upload thanh cong se tra ve mot object chua thong tin ve file vua upload
 
       const url = imagekit.url({
         path: response.filePath,
@@ -83,21 +82,21 @@ export const updateUserData = async (req, res) => {
             width: "1280",
           },
         ],
-      });
-      updatedData.cover_photo = url;
+      }); // tao url voi kich thuoc va dinh dang mong muon 
+      updatedData.cover_photo = url; // luu url vao updatedData de cap nhat vao csdl
     }
 
-    // Cập nhật dữ liệu người dùng trong cơ sở dữ liệu
     const user = await User.findByIdAndUpdate(userId, updatedData, {
       new: true,
-    });
+    }); // Tìm và cập nhật dữ liệu người dùng, trả về dữ liệu đã được cập nhật
 
-    // Xóa file tạm trên server
     res.json({
       success: true,
       user,
+      updatedData,
       message: "User data updated successfully",
-    });
+    }); // Trả về dữ liệu người dùng đã được cập nhật
+
   } catch (error) {
     console.log(error);
     res.json({ success: false, message: error.message });
@@ -180,5 +179,97 @@ export const unfollowUser = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
+
+export const sendConnectionRequest = async (req, res) => {
+  try {
+    const { userId } = req.auth(); 
+    const { id } = req.body; // id nguoi dung can ket noi
+
+    const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24h truoc ngay hien tai 
+    const connectionRequests = await Connection.find({from_user_id: userId, created_at: {$gt: last24Hours}}); // tim tat ca cac yeu cau ket ban trong 24h qua
+
+    if (connectionRequests.length >= 20) {
+      return res.json({ success: false, message: "You have reached the limit of 20 connection requests in the last 24 hours. Please try again later." });
+    } // neu da gui 20 yeu cau trong 24h thi khong cho gui nua, dieu nay de ngan chan spam
+
+    const connection = await Connection.findOne({
+      $or: [
+        { from_user_id: userId, to_user_id: id }, // nguoi gui la userId, nguoi nhan la id
+        { from_user_id: id, to_user_id: userId,} // nguoi gui la id, nguoi nhan la userId
+      ]
+    }); // kiem tra xem da gui yeu cau ket ban chua
+
+    if (!connection) {
+      await Connection.create({
+        from_user_id: userId,
+        to_user_id: id,
+      });
+      return res.json({ success: true, message: "Connection request sent successfully" });
+    }  // neu chua gui yeu cau ket ban thi tao moi yeu cau ket noi
+    else if (connection && connection.status === "accepted") {
+      return res.json({ success: false, message: "You are already connected with this user" });
+    } // neu da ket ban roi thi khong cho gui yeu cau nua
+
+    return res.json({ success: false, message: "Connection request pending" });
+    // neu da gui yeu cau ket ban roi thi thong bao da gui yeu cau roi
+  } 
+
+  catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+export const getUserConnections = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    const user = await User.findById(userId).populate('connections followers following'); // lay thong tin nguoi dung hien tai
+
+    const connections = user.connections; // lay danh sach ket noi
+    const followers = user.followers; // lay danh sach nguoi theo doi
+    const following = user.following; // lay danh sach nguoi dang theo doi
+
+    const pendingConnections = (await Connection.find({ to_user_id: userId, status: 'pending' }).populate('from_user_id')).map(connection=> connection.from_user_id); // lay danh sach ket noi dang cho duyet
+
+    res.json({ success: true, connections, followers, following, pendingConnections });
+  } 
+  
+  catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+export const acceptConnectionRequest = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    const { id } = req.body; // id nguoi dung can chap nhan ket noi
+
+    const connection = await Connection.findOne({ from_user_id: id, to_user_id: userId}); // tim yeu cau ket noi tu id den userId
+
+    if (!connection) {
+      return res.json({ success: false, message: "Connection request not found" });
+    } // neu khong tim thay yeu cau ket noi thi thong bao loi
+
+    const user = await User.findById(userId);
+    user.connections.push(id); // them id vao danh sach ket noi cua nguoi dung hien tai
+    await user.save(); // luu thay doi
+
+    const toUser = await User.findById(id);
+    toUser.connections.push(userId); // them userId vao danh sach ket noi cua nguoi gui yeu cau ket noi
+    await toUser.save(); // luu thay doi
+
+    connection.status = "accepted"; // cap nhat trang thai yeu cau ket noi thanh da chap nhan
+    await connection.save(); // luu thay doi
+
+    res.json({ success: true, message: "Connection request accepted" });    
+  } 
+  
+  catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
 
 // file userController.js sẽ lấy dữ liệu người dùng từ cơ sở dữ liệu dựa trên userId từ token xác thực

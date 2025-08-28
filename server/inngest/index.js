@@ -1,5 +1,7 @@
 import { Inngest } from "inngest";
 import User from "../models/User.js";
+import Connection from "../models/Connection.js";
+import sendEmail  from "../configs/nodeMailer.js";
 
 // tao 1 client để gửi và nhận sự kiện
 export const inngest = new Inngest({ id: "safepost-app" });
@@ -61,9 +63,66 @@ const syncUserDeletion = inngest.createFunction(
   }
 );
 
+const sendNewConnectionRequestReminder = inngest.createFunction(
+  { id: "send-new-connection-request-reminder" },
+  { event: "app/connection-request" },
+  async ({ event, step }) => { // step dùng để chia nhỏ các bước trong hàm
+    const {connectionId} = event.data; 
+    
+    await step.run("send-connection-request-mail", async () => {
+      const connection = await Connection.findById(connectionId).populate('from_user_id', 'to_user_id'); // populate để lấy thông tin người gửi và người nhận
+      const subject = 'New Connection Request';
+      const body = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; color: #333;">
+        <h2>Hi ${connection.to_user_id.full_name}, </h2>
+        <p>You have a new connection request from ${connection.from_user_id.full_name} - @${connection.from_user_id.username}</p>
+        <p>Click <a href="${process.env.FRONTEND_URL}/connections" style="color: #10b981;">here</a> to accept or reject to the request.</p>
+        <br/>
+        <p>Thanks, <br/>PBL6 - LPT</p>
+      </div>
+      `;
+
+      await sendEmail({
+        to: connection.to_user_id.email,
+        subject,
+        body
+      });
+    });
+
+    const in24Hours = new Date(Date.now() + 24 * 60 * 60 * 1000); 
+    await step.sleepUntil("wait-24-hours", in24Hours); // ngủ đến 24 giờ sau
+    await step.run("send-connection-request-reminder", async () => {
+      const connection = await Connection.findById(connectionId).populate('from_user_id', 'to_user_id'); // lấy thông tin người gửi và người nhận
+      if(connection.status === "accepted"){
+        return {message: "Already accepted."};
+      }
+
+      const subject = 'New Connection Request';
+      const body = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; color: #333;">
+        <h2>Hi ${connection.to_user_id.full_name}, </h2>
+        <p>You have a new connection request from ${connection.from_user_id.full_name} - @${connection.from_user_id.username}</p>
+        <p>Click <a href="${process.env.FRONTEND_URL}/connections" style="color: #10b981;">here</a> to accept or reject to the request.</p>
+        <br/>
+        <p>Thanks, <br/>PBL6 - LPT</p>
+      </div>
+      `;
+
+      await sendEmail({
+        to: connection.to_user_id.email,
+        subject,
+        body
+      });
+
+      return ({message: "Reminder email sent."})
+    })
+  }
+)
+
 // tao 1 mảng rỗng để xuất các hàm Inngest 
 export const functions = [
     syncUserCreation, 
     syncUserUpdation,
-    syncUserDeletion
+    syncUserDeletion,
+    sendNewConnectionRequestReminder
 ];
