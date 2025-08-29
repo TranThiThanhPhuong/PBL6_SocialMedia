@@ -1,7 +1,9 @@
 import User from "../models/User.js";
+import Post from "../models/Post.js";
 import Connection from "../models/Connection.js";
 import fs from "fs";
 import imagekit from "../configs/imageKit.js";
+import { inngest } from "../inngest/index.js";
 
 // Lấy dữ liệu người dùng dựa trên userId từ token xác thực
 export const getUserData = async (req, res) => {
@@ -93,7 +95,6 @@ export const updateUserData = async (req, res) => {
     res.json({
       success: true,
       user,
-      updatedData,
       message: "User data updated successfully",
     }); // Trả về dữ liệu người dùng đã được cập nhật
 
@@ -200,12 +201,19 @@ export const sendConnectionRequest = async (req, res) => {
     }); // kiem tra xem da gui yeu cau ket ban chua
 
     if (!connection) {
-      await Connection.create({
+      const newConnection = await Connection.create({
         from_user_id: userId,
         to_user_id: id,
-      });
+      }); // tao moi yeu cau ket ban
+
+      await inngest.send({
+        name: 'app/connection-request',
+        data: { connectionId: newConnection._id }
+      }); // gui su kien connection-request den inngest de gui email
+
       return res.json({ success: true, message: "Connection request sent successfully" });
-    }  // neu chua gui yeu cau ket ban thi tao moi yeu cau ket noi
+    }  // neu chua gui yeu cau thi tao moi yeu cau ket ban
+    
     else if (connection && connection.status === "accepted") {
       return res.json({ success: false, message: "You are already connected with this user" });
     } // neu da ket ban roi thi khong cho gui yeu cau nua
@@ -271,5 +279,22 @@ export const acceptConnectionRequest = async (req, res) => {
   }
 };
 
+export const getUserProfiles = async (req, res) => {
+  try {
+    const { profileId } = req.body; // id nguoi dung can lay thong tin
+    const profile = await User.findById(profileId); // tim nguoi dung theo id
+    if (!profile) {
+      return res.json({ success: false, message: "Profile not found" });
+    }
+    const posts = await Post.find({ user: profileId })
+    .populate('user') // populate de lay thong tin nguoi dung cho moi bai viet
+    
+    res.json({ success: true, profile, posts });
+  }
+  catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+}
 
 // file userController.js sẽ lấy dữ liệu người dùng từ cơ sở dữ liệu dựa trên userId từ token xác thực

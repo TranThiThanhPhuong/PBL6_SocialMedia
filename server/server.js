@@ -6,37 +6,28 @@ import { inngest, functions} from './inngest/index.js' // import các hàm Innge
 import { serve } from 'inngest/express' // import hàm serve từ thư viện inngest để xử lý các yêu cầu liên quan đến Inngest
 import { clerkMiddleware } from '@clerk/express' // import middleware từ thư viện Clerk để xác thực người dùng
 import userRouter from './routes/userRoutes.js';
+import postRouter from './routes/postRoutes.js';
+import storyRouter from './routes/storyRoutes.js';
+import messageRouter from './routes/messageRoutes.js';
 
-// express dùng để tạo server
-const app = express()
+const app = express() // tạo một ứng dụng server Express, 
 
 await connectDB() // gọi hàm connectDB để kết nối đến MongoDB
 
-// cors dùng để xử lý các vấn đề liên quan đến cross-origin resource sharing
-app.use(cors())
-
+app.use(cors()) // sử dụng middleware CORS để cho phép các yêu cầu từ các nguồn khác nhau
 app.use(clerkMiddleware()) // sử dụng middleware của Clerk để xác thực người dùng
+app.use(express.json()) // middleware để phân tích cú pháp JSON trong các yêu cầu đến
 
-// express.json() dùng để parse dữ liệu JSON từ client
-app.use(express.json())
+app.get('/', (req, res) => res.send('Hello World!')) // định nghĩa một route cơ bản để kiểm tra server có hoạt động không
+app.use("/api/inngest", serve({client: inngest, functions})); // sử dụng hàm serve để xử lý các yêu cầu đến đường dẫn /api/inngest liên quan đến Inngest
+app.use('/api/user', userRouter) // su dung userRouter cho các route liên quan
+app.use('/api/post', postRouter) // su dung postRouter cho các route liên quan
+app.use('/api/story', storyRouter) // su dung postRouter cho các route liên quan
+app.use('/api/message', messageRouter) // su dung messageRouter cho cac route lien quan
 
-// get là phương thức HTTP để lấy dữ liệu từ server
-// khi client gửi yêu cầu GET đến đường dẫn '/', server sẽ trả về 'Hello World!'
-// app.get() dùng để định nghĩa một route cho phương thức GET
-app.get('/', (req, res) => res.send('Hello World!'))
-
-// serve là middleware của inngest để xử lý các yêu cầu liên quan đến Inngest
-app.use("/api/inngest", serve({client: inngest, functions})); 
-
-// su dung userRouter cho các route liên quan đến người dùng
-app.use('/api/user', userRouter)
-
-// PORT là biến môi trường để xác định cổng mà server sẽ lắng nghe
-// nếu không có biến môi trường PORT thì sẽ sử dụng cổng 4000
 const PORT = process.env.PORT || 5000
 
-// app.listen() dùng để lắng nghe các yêu cầu từ client trên cổng PORT
-app.listen(PORT, () => console.log(`Server is running on port ${PORT}`))        
+app.listen(PORT, () => console.log(`Server is running on port ${PORT}`)) // khởi động server và lắng nghe các yêu cầu trên cổng được chỉ định       
 
 // file server.js sẽ lắng nghe các yêu cầu từ client 
 
