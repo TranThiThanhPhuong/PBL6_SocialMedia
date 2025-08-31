@@ -4,12 +4,13 @@ import { useNavigate, Link } from "react-router-dom"; // Import useNavigate đ�
 import MenuItems from "./MenuItems";
 import { CirclePlus, LogOut } from "lucide-react";
 import { UserButton, useClerk } from "@clerk/clerk-react";
+import { useSelector } from "react-redux";
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
     const navigate = useNavigate(); // Hàm để điều hướng đến trang chính khi nhấn vào logo
 
-    const user = dummyUserData; // Giả lập dữ liệu người dùng, có thể thay thế bằng dữ liệu thực từ API hoặc context
+    const user = useSelector((state) => state.user.value); // Giả lập dữ liệu người dùng, có thể thay thế bằng dữ liệu thực từ API hoặc context
 
     const { signOut } = useClerk(); // Lấy hàm signOut từ Clerk để đăng xuất người dùng
 

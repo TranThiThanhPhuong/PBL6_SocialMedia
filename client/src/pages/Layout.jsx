@@ -4,11 +4,12 @@ import { Outlet } from "react-router-dom";
 import { Menu, X } from "lucide-react"; // them vào lucide-react để sử dụng biểu tượng
 import { dummyUserData } from "../assets/assets"; // dummyUserData là một đối tượng chứa thông tin người dùng giả lập, có thể được sử dụng để kiểm tra giao diện
 import Loading from "../components/Loading"; // Import component Loading để hiển thị khi dữ liệu đang được tải
+import { useSelector } from 'react-redux'; 
 
 const Layout = () => {
 
-  const user = dummyUserData; // Giả lập dữ liệu người dùng, có thể thay thế bằng dữ liệu thực từ API hoặc context
-  
+  const user = useSelector((state) => state.user.value); // Lấy thông tin người dùng từ Redux store
+
   // sidebarOpen là biến trạng thái, setSidebarOpen là hàm để cập nhật trạng thái
   // ban đầu sidebarOpen là false, nghĩa là sidebar đóng
   const [sidebarOpen, setSidebarOpen] = useState(false);

@@ -1,12 +1,10 @@
 import React from 'react'
 import { dummyUserData } from '../assets/assets'
 import { MessageCircle, MapPin, Plus, UserPlus } from 'lucide-react'
-
-
-
+import { useSelector } from 'react-redux';
 
 const UserCard = ({user}) => {
-  const currentUser = dummyUserData
+  const currentUser = useSelector((state) => state.user.value); // Lấy thông tin người dùng hiện tại từ Redux store
 
   const handleFollow = async () => {
   }
