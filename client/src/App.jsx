@@ -10,6 +10,7 @@ import Profile from "./pages/Profile";
 import CreatePost from "./pages/CreatePost";
 import { useUser } from "@clerk/clerk-react"; 
 import Layout from "./pages/Layout";
+import {Toaster} from 'react-hot-toast';
 
 const App = () => {
 
@@ -17,8 +18,10 @@ const App = () => {
   const {user} = useUser();
   return (
     <>
+    
     {/* Route: dieu huong trang web  */}
     {/* xd url hien thi component nao, Nó giúp ứng dụng chuyển trang mà không cần reload lại toàn bộ website. */}
+      <Toaster />
       <Routes>
         <Route path='/' element={ !user ? <Login /> : <Layout />}> 
           <Route index element={<Feed />} />
