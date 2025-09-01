@@ -10,3 +10,6 @@ export const store = configureStore({
     messages: messagesReducer,
   },
 });
+
+// file store.js gom toàn bộ slice lại để quản lý state tập trung.
+// giúp bạn xử lý state phức tạp (như social app, chat app).

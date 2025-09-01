@@ -1,17 +1,28 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import api from '../../api/axios.js'
+import { toast } from 'react-hot-toast'
 
 const initialState = {
     value: null
 } // trang thai ban dau
 
 // ham bat dong bo de lay du lieu nguoi dung tu server
+// export const fetchUser = createAsyncThunk('user/fetchUser', async (token) => {
+//     const { data } = await api.get('/api/user/data', {
+//         headers: { Authorization: `Bearer ${token}` }
+//     }) 
+//     return data.success ? data.user : null
+// })
+
 export const fetchUser = createAsyncThunk('user/fetchUser', async (token) => {
-    const { data } = await api.get('/api/user/data', {
+    const res = await api.get('/api/user/data', {
         headers: { Authorization: `Bearer ${token}` }
-    }) 
-    return data.success ? data.user : null
-}) 
+    });
+    console.log("Fetch user response:", res.data);
+
+    // Nếu backend trả về { success: true, data: { user info } }
+    return res.data.success ? res.data.data : null;
+});
 
 // ham bat dong bo de cap nhat du lieu nguoi dung tren server
 // userData chua du lieu nguoi dung can cap nhat

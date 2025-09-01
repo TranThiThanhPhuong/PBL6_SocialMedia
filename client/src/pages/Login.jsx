@@ -25,15 +25,15 @@ const Login = () => {
               
             </div>
           </div>
-          <h1 class="text-3xl md:text-6xl md:pb-2 font-bold bg-gradient-to-r from-indigo-950 to-indigo-800 bg-clip-text text-transparent">Hơn cả những người bạn thực sự kết nối</h1>
-          <p class="text-xl md:text-3xl text-indigo-900 max-w-72 md:max-w-md">kết nối với cộng đồng toàn cầu trên Safe Post.</p>
+          <h1 className="text-3xl md:text-6xl md:pb-2 font-bold bg-gradient-to-r from-indigo-950 to-indigo-800 bg-clip-text text-transparent">Hơn cả những người bạn thực sự kết nối</h1>
+          <p className="text-xl md:text-3xl text-indigo-900 max-w-72 md:max-w-md">kết nối với cộng đồng toàn cầu trên Safe Post.</p>
         </div>
-        <span class="md:h-10"></span>
+        <span className="md:h-10"></span>
        </div>
 
        {/* Right Login */}
 
-      <div class="flex-1 flex items-center justify-center p-6 sm:p-10">
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
 
         {/* Sử dụng SignIn từ Clerk để hiển thị form đăng nhập */}
         {/* SignIn sẽ tự động quản lý trạng thái đăng nhập và đăng ký người dùng */}

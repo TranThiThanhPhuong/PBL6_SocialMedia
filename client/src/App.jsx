@@ -34,8 +34,8 @@ const App = () => {
 
   return (
     <>
-    {/* Route: dieu huong trang web  */}
-    {/* xd url hien thi component nao, Nó giúp ứng dụng chuyển trang mà không cần reload lại toàn bộ website. */}
+      {/* Route: dieu huong trang web  */}
+      {/* xd url hien thi component nao, Nó giúp ứng dụng chuyển trang mà không cần reload lại toàn bộ website. */}
       <Toaster /> {/* Toaster: hien thi cac thong bao */}
       <Routes>
         <Route path="/" element={!user ? <Login /> : <Layout />}>

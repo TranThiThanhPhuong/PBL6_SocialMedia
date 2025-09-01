@@ -5,19 +5,19 @@ import StoriesBar from "../components/StoriesBar";
 const Feed = () => {
 
   const [feeds, setfeeds] = useState([]);
-const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
 
 
   const fetchFeeds = async () => {
-  setfeeds(dummyPostsData);
-  setLoading(false);
-}
+    setfeeds(dummyPostsData);
+    setLoading(false);
+  }
 
   useEffect(() => {
     fetchFeeds()
   }, [])
 
-    return !loading ? (
+  return !loading ? (
   <div className='h-full overflow-y-scroll no-scrollbar py-10 xl:pr-5 flex items-start justify-center xl:gap-8'>
     {/* Stories and post list */}
     <div>
@@ -37,5 +37,6 @@ const [loading, setLoading] = useState(true);
 
   </div>
 ) : <Loading />
+};
 
 export default Feed;

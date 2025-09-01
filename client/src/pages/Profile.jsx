@@ -1,18 +1,51 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, use } from "react";
 import { useParams } from "react-router-dom";
-import { dummyUserData, dummyPostsData } from "../assets/assets";
+import { dummyUserData, dummyPostData } from "../assets/assets";
 import Loading from "../components/Loading";
+import { useAuth } from "@clerk/clerk-react";
+import moment from "moment";
+import api from "../api/axios";
+import toast from "react-hot-toast";
+import { useSelector } from "react-redux";
 
 const Profile = () => {
+  // 10:11p
+  const currentUser = useSelector((state) => state.user.value);
+
+  const { getToken } = useAuth();
   const { profileId } = useParams();
   const [user, setUser] = useState(null);
   const [posts, setPosts] = useState([]);
   const [activeTab, setActiveTab] = useState("posts");
   const [showEdit, setShowEdit] = useState(false);
 
-  const fetchUser = async () => {
-    setUser(dummyUserData);
-    setPosts(dummyPostData);
+  const fetchUser = async (profileId) => {
+    const token = await getToken()
+    try {
+      const { data } = await api('/api/user/profiles', {profileId}, {
+        headers: {Authorization: 'Bearer ${token}'}
+      })
+      if (data.success){
+        setUser(data.profile)
+        setPosts(data.posts)
+      }
+      else {
+        toast.error(data.message)
+      }
+    } catch (error) {
+      toast.error(error.message)
+    }
+
+    useEffect(()=>{
+      if(profileId){
+        fetchUser(profileId)
+      }
+      else {
+        fetchUser(currentUser._id)
+      }
+    }, [profileId, currentUser])
+    // setUser(dummyUserData);
+    // setPosts(dummyPostData);
   };
 
   useEffect(() => {
