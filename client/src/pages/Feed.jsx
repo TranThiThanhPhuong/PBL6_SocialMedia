@@ -2,6 +2,7 @@ import { dummyPostsData } from "../assets/assets";
 import React, { useEffect, useState } from "react";
 import Loading from "../components/Loading";
 import StoriesBar from "../components/StoriesBar";
+
 const Feed = () => {
 
   const [feeds, setfeeds] = useState([]);
@@ -37,5 +38,6 @@ const [loading, setLoading] = useState(true);
 
   </div>
 ) : <Loading />
+}
 
 export default Feed;
