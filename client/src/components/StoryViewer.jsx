@@ -1,5 +1,5 @@
 import React from 'react';
-import { BadgeCheck, X } from 'lucide-react'; // Thêm import các icon
+import { BadgeCheck, X } from 'lucide-react'; 
 
 const StoryViewer = ({ viewStory, setViewStory }) => {
   if (!viewStory) return null;
@@ -26,10 +26,6 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
       <button onClick={handleClose} className='absolute top-4 right-4 text-white text-3xl font-bold focus:outline-none'>
         <X className='w-8 h-8 hover:scale-110 transition cursor-pointer' />
       </button>
-      {/* Story Content */}
-      {viewStory.media_type === 'image' && <img src={viewStory.media_url} alt="Story" className='max-h-full max-w-full object-contain' />}
-      {viewStory.media_type === 'video' && <video src={viewStory.media_url} className='max-h-full max-w-full object-contain' autoPlay controls />}
-      {viewStory.media_type === 'text' && <p className='text-white text-center p-4'>{viewStory.text}</p>}
     </div>
   );
 };

@@ -20,19 +20,9 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
   };
 
   const handleCreateStory = async () => {
-  try {
-    // Thực hiện logic tạo story, ví dụ gọi API
-    const response = await fetch('/api/create-story', { /* ... options */ });
-    if (!response.ok) {
-      throw new Error("Failed to create story");
-    }
-    // Trả về một giá trị nếu thành công (Promise sẽ được resolve)
-    return response.json(); 
-  } catch (error) {
-    // Ném lỗi nếu thất bại (Promise sẽ bị reject)
-    throw error;
+    
   }
-};
+
 
   return (
     <div className='fixed inset-0 z-110 min-h-screen bg-black/80 backdrop-blur text-white flex items-center justify-center p-4'>
@@ -93,7 +83,7 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
   }`}
 >
   <input 
-    onChange={(e) => { handleMediaUpload(e); setMode('media'); }} 
+    onChange={(e) => { handleMediaUpload(e); setMode('media') }} 
     type="file" 
     accept="image/*, video/*" 
     className='hidden' 
@@ -102,11 +92,14 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
 </label>
 
 </div>
-<button onClick={() => toast.promise(handleCreateStory(), {
+<button onClick={() => toast.promise(
+  handleCreateStory(), 
+  {
   loading: 'Saving...',
   success: <p>Story Added</p>,
   error: e => <p>{e.message}</p>,
-})} className='flex items-center justify-center gap-2 text-white py-3 mt-4 w-full rounded bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 transition cursor-pointer'>
+}
+)} className='flex items-center justify-center gap-2 text-white py-3 mt-4 w-full rounded bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 transition cursor-pointer'>
   <Sparkle size={18}/> Create Story
 </button>
 
