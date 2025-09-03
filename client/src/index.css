@@ -22,3 +22,7 @@
 .logo-sidebar {
   padding: 5px 30px;
 }
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
