@@ -7,22 +7,12 @@ const initialState = {
 } // trang thai ban dau
 
 // ham bat dong bo de lay du lieu nguoi dung tu server
-// export const fetchUser = createAsyncThunk('user/fetchUser', async (token) => {
-//     const { data } = await api.get('/api/user/data', {
-//         headers: { Authorization: `Bearer ${token}` }
-//     }) 
-//     return data.success ? data.user : null
-// })
-
 export const fetchUser = createAsyncThunk('user/fetchUser', async (token) => {
-    const res = await api.get('/api/user/data', {
+    const { data } = await api.get('/api/user/data', {
         headers: { Authorization: `Bearer ${token}` }
-    });
-    console.log("Fetch user response:", res.data);
-
-    // Nếu backend trả về { success: true, data: { user info } }
-    return res.data.success ? res.data.data : null;
-});
+    }) 
+    return data.success ? data.user : null
+})
 
 // ham bat dong bo de cap nhat du lieu nguoi dung tren server
 // userData chua du lieu nguoi dung can cap nhat

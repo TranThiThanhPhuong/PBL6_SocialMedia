@@ -1,18 +1,14 @@
 import { useState } from "react";
-import { useSelector } from "react-redux";
 import React from "react";
 import { BadgeCheck, Heart, MessageCircle, Share2 } from "lucide-react";
 import moment from "moment";
-import { dummyUserData } from "../assets/assets";
+import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
 const PostCard = ({ post }) => {
   const currentUser = useSelector((state) => state.user.value); // Lấy thông tin người dùng hiện tại từ Redux store
 
-  const postWithHashtags = post.content.replace(
-    /(#\w+)/g,
-    '<span class="text-indigo-600">$1</span>'
-  );
+  const postWithHashtags = post.content.replace(/(#\w+)/g,'<span class="text-indigo-600">$1</span>');
   const [likes, setLikes] = React.useState(post.likes_count);
 
   const handleLike = async () => {};

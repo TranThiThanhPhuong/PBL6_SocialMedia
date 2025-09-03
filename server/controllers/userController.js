@@ -17,7 +17,7 @@ export const getUserData = async (req, res) => {
       return res.json({ success: false, message: "User not found" });
     } // neu khong tim thay user thi tra ve loi
 
-    res.json({ success: true, data: user }); // tra ve du lieu nguoi dung
+    res.json({ success: true, user }); // tra ve du lieu nguoi dung
   } catch (error) {
     console.error("Error in getUserData:", error);
     res.json({ success: false, message: error.message });

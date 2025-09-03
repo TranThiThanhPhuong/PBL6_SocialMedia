@@ -1,10 +1,9 @@
 import { useDispatch, useSelector } from "react-redux";
 import { updateUser } from "../features/user/userSlice";
 import { useAuth } from "@clerk/clerk-react";
-import { useState } from "react";
 import React, { useState } from "react";
-import { dummyUserData } from "../assets/assets";
 import { Pencil } from "lucide-react";
+import toast from "react-hot-toast";
 
 const ProfileModal = ({ setShowEdit }) => {
   const dispatch = useDispatch();
@@ -39,10 +38,15 @@ const ProfileModal = ({ setShowEdit }) => {
       userData.append("location", location);
       userData.append("full_name", full_name);
       profile_picture && userData.append("profile", profile_picture);
-      cover_photo &&
-        //const token = await getToken();
-        dispatch(updateUser({ userData, token }));
-    } catch (error) {}
+      cover_photo && userData.append("cover", cover_photo);
+
+      const token = await getToken();
+      dispatch(updateUser({ userData, token }));
+
+      setShowEdit(false)
+    } catch (error) {
+      toast.error(error.message)
+    }
   };
 
   return (
@@ -53,7 +57,9 @@ const ProfileModal = ({ setShowEdit }) => {
             Edit Profile
           </h1>
 
-          <form className="space-y-4" onSubmit={handleSaveProfile}>
+          <form className="space-y-4" onSubmit={e=> toast.promise(
+            handleSaveProfile(e), {loading: 'Saving...'}
+          )}>
             {/* Profile Picture */}
             <div className="flex flex-col items-start gap-3">
               <label

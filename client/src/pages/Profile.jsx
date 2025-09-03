@@ -4,7 +4,6 @@ import { useSelector } from "react-redux";
 import { useAuth } from "@clerk/clerk-react";
 import moment from "moment";
 import toast from "react-hot-toast";
-
 import api from "../api/axios";
 import Loading from "../components/Loading";
 import UserProfileInfo from "../components/UserProfileInfo";
@@ -14,20 +13,19 @@ import ProfileModal from "../components/ProfileModal";
 const Profile = () => {
   const currentUser = useSelector((state) => state.user.value);
   const { getToken } = useAuth();
-  const { profileId } = useParams();
 
+  const { profileId } = useParams();
   const [user, setUser] = useState(null);
   const [posts, setPosts] = useState([]);
   const [activeTab, setActiveTab] = useState("posts");
   const [showEdit, setShowEdit] = useState(false);
 
-  const fetchUser = async (id) => {
+  const fetchUser = async (profileId) => {
+    const token = await getToken();
     try {
-      const token = await getToken();
       const { data } = await api.post(
         "/api/user/profiles",
-        { profileId: id },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { profileId}, { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (data.success) {
@@ -44,14 +42,12 @@ const Profile = () => {
   useEffect(() => {
     if (profileId) {
       fetchUser(profileId);
-    } else if (currentUser?._id) {
+    } else {
       fetchUser(currentUser._id);
     }
   }, [profileId, currentUser]);
 
-  if (!user) return <Loading />;
-
-  return (
+  return user ? (
     <div className="relative h-full overflow-y-scroll bg-gray-50 p-6">
       <div className="max-w-3xl mx-auto">
         {/* Profile Card */}
@@ -137,6 +133,8 @@ const Profile = () => {
       {/* Show Profile Edit Modal */}
       {showEdit && <ProfileModal setShowEdit={setShowEdit} />}
     </div>
+  ) : (
+    <Loading />
   );
 };
 

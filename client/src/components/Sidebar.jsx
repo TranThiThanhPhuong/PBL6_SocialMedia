@@ -1,5 +1,4 @@
 import React from "react";
-import { assets, dummyUserData } from "../assets/assets";
 import { useNavigate, Link } from "react-router-dom"; // Import useNavigate để điều hướng trang
 import MenuItems from "./MenuItems";
 import { CirclePlus, LogOut } from "lucide-react";

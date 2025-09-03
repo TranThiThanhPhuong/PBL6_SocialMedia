@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import { Image } from "lucide-react";
 import toast from "react-hot-toast";
+import api from "../api/axios";
 
 const CreatePost = () => {
   const user = useSelector((state) => state.user.value); // Lấy thông tin user từ Redux
@@ -11,17 +12,45 @@ const CreatePost = () => {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
+    if (!images.length && !content) {
+      return toast.error("please add at least one image or text");
+    }
+    setLoading(true);
+
+    const postType =
+      images.length && content
+        ? "text_with_image"
+        : images.length
+        ? "image"
+        : "text";
+
     try {
-      setLoading(true);
+      const formData = new FormData();
+      formData.append("content", content);
+      formData.append("post_type", postType);
+      images.map((image) => {
+        formData.append("images", image);
+      });
 
-      // Giả lập API call tạo post
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const { data } = await api.post("/api/post/add", formData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      // Sau khi thành công
-      setContent("");
-      setImages([]);
-      setLoading(false);
-      return Promise.resolve(); // để toast.promise nhận success
+      if (data.success) {
+        console.log(data.message)
+        throw new Error(data.message)
+      } else {
+        console.error(error.message);
+      }
+
+      // // Giả lập API call tạo post
+      // await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // // Sau khi thành công
+      // setContent("");
+      // setImages([]);
+      // setLoading(false);
+      // return Promise.resolve(); // để toast.promise nhận success
     } catch (err) {
       setLoading(false);
       return Promise.reject(); // để toast.promise nhận error
@@ -33,7 +62,9 @@ const CreatePost = () => {
       <div className="max-w-6xl mx-auto p-6">
         {/* Title */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Create Post</h1>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">
+            Create Post
+          </h1>
           <p className="text-slate-600">Share your thoughts with the world</p>
         </div>
 

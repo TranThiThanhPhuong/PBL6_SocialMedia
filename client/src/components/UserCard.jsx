@@ -1,5 +1,4 @@
 import React from "react";
-import { dummyUserData } from "../assets/assets";
 import { MessageCircle, MapPin, Plus, UserPlus } from "lucide-react";
 import { useSelector } from "react-redux";
 
@@ -17,8 +16,8 @@ const UserCard = ({ user }) => {
     >
       <div className="text-center">
         <img
-          src={user.profile_picture}
-          alt=""
+          src={user.profile_picture || "/default-avatar.png"}
+          alt={user.full_name}
           className="rounded-full w-16 shadow-md mx-auto"
         />
         <p className="mt-4 font-semibold">{user.full_name}</p>
@@ -45,7 +44,7 @@ const UserCard = ({ user }) => {
         {/* Follow Button */}
         <button
           onClick={handleFollow}
-          disabled={currentUser?.following.includes(user._id)}
+          disabled={currentUser?.following?.includes(user._id)}
           className="w-full py-2 rounded-md flex justify-center items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 transition text-white cursor-pointer"
         >
           <UserPlus className="w-4 h-4" />{" "}
