@@ -1,13 +1,12 @@
-import React, {useState} from "react"; // useState để quản lý trạng thái của sidebar
+import React, { useState } from "react"; // useState để quản lý trạng thái của sidebar
 import Sidebar from "../components/Sidebar";
 import { Outlet } from "react-router-dom";
 import { Menu, X } from "lucide-react"; // them vào lucide-react để sử dụng biểu tượng
 import { dummyUserData } from "../assets/assets"; // dummyUserData là một đối tượng chứa thông tin người dùng giả lập, có thể được sử dụng để kiểm tra giao diện
 import Loading from "../components/Loading"; // Import component Loading để hiển thị khi dữ liệu đang được tải
-import { useSelector } from 'react-redux'; 
+import { useSelector } from "react-redux";
 
 const Layout = () => {
-
   const user = useSelector((state) => state.user.value); // Lấy thông tin người dùng từ Redux store
 
   // sidebarOpen là biến trạng thái, setSidebarOpen là hàm để cập nhật trạng thái
@@ -18,32 +17,36 @@ const Layout = () => {
   // Nếu có người dùng (user không phải null hoặc undefined), hiển thị giao diện
   return user ? (
     <div className="w-full flex h-screen">
-
       {/* Hiển thị Sidebar với các props sidebarOpen và setSidebarOpen */}
-      {/* sidebarOpen để xác định trạng thái mở/đóng của sidebar */} 
+      {/* sidebarOpen để xác định trạng thái mở/đóng của sidebar */}
       <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
       <div className="flex-1 bg-slate-50">
-      {/* Phần này sẽ hiển thị các trang con bên trong Layout */}
-      {/* Outlet sẽ hiển thị các component con được định nghĩa trong Routes */}
+        {/* Phần này sẽ hiển thị các trang con bên trong Layout */}
+        {/* Outlet sẽ hiển thị các component con được định nghĩa trong Routes */}
         <Outlet />
       </div>
 
-      {
-        sidebarOpen ?
+      {sidebarOpen ? (
         // Nếu sidebarOpen là true, hiển thị biểu tượng đóng (X) và khi nhấn vào biểu tượng này, gọi hàm setSidebarOpen để đóng
-        <X className='absolute top-3 right-3 p-2 z-100 bg-white rounded-md shadow w-10 h-10 text-gray-600 sm:hidden' onClick={() => setSidebarOpen(false)} />
-        :
+        <X
+          className="absolute top-3 right-3 p-2 z-100 bg-white rounded-md shadow w-10 h-10 text-gray-600 sm:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      ) : (
         // Nếu sidebarOpen là false, hiển thị biểu tượng menu (Menu)
         // và khi nhấn vào biểu tượng này, gọi hàm setSidebarOpen để mở
-        <Menu className='absolute top-3 right-3 p-2 z-100 bg-white rounded-md shadow w-10 h-10 text-gray-600 sm:hidden' onClick={() => setSidebarOpen(true)}  />
-      }
+        <Menu
+          className="absolute top-3 right-3 p-2 z-100 bg-white rounded-md shadow w-10 h-10 text-gray-600 sm:hidden"
+          onClick={() => setSidebarOpen(true)}
+        />
+      )}
     </div>
   ) : (
     <Loading />
   );
   // Nếu không có người dùng (user là null hoặc undefined), hiển thị "Loading"
-}
+};
 
 // export Layout để có thể sử dụng trong các file khác
 export default Layout;
