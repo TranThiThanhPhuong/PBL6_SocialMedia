@@ -41,7 +41,7 @@ export const addPost = async (req, res) => {
       image_urls,
       post_type
     });
-    res.json({success:true, message: "Post created successfully" });
+    res.json({success:true, message: "Tạo bài viết thành công" });
   } 
   catch (error) {
     console.log(error);
@@ -79,13 +79,13 @@ export const likePosts = async (req, res) => {
             // neu da like thi bo like
             post.likes_count = post.likes_count.filter(user => user !== userId); // loc bo userId khoi mang likes_count
             await post.save(); // luu lai thay doi
-            res.json({ success: true, message: "Post unliked successfully" });
+            res.json({ success: true, message: "Đã bỏ thích bài viết" });
         }
         else {
             // neu chua like thi like
             post.likes_count.push(userId); // them userId vao mang likes_count
             await post.save(); // luu lai thay doi
-            res.json({ success: true, message: "Post liked successfully" });
+            res.json({ success: true, message: "Đã thích bài viết" });
         }
 
     } 

@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { dummyStoriesData } from "../assets/assets";
 import moment from "moment";
 import StoryModal from "./StoryModal";
+import StoryViewer from "./StoryViewer";
 
 const StoriesBar = () => {
   const [stories, setStories] = useState([]);
@@ -91,7 +92,7 @@ const StoriesBar = () => {
       )}
       {/* View Story Modal  */}
       {viewStory && (
-        <StoryModal story={viewStory} setviewStory={setviewStory} />
+        <StoryViewer story={viewStory} setviewStory={setviewStory} />
       )}
     </div>
   );

@@ -2,18 +2,31 @@ import { dummyPostsData, assets } from "../assets/assets";
 import React, { useEffect, useState } from "react";
 import Loading from "../components/Loading";
 import StoriesBar from "../components/StoriesBar";
-import PostCard from "../components/Postcard";
+import PostCard from "../components/PostCard";
 import RecentMessages from "../components/RecentMessages";
-
 import { toast } from "react-hot-toast";
+import { useAuth } from "@clerk/clerk-react";
+import api from "../api/axios";
 
 const Feed = () => {
   const [feeds, setFeeds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const {getToken} = useAuth();
 
   const fetchFeeds = async () => {
-    // giả lập gọi API => tạm lấy dummy data
-    setFeeds(dummyPostsData);
+    try {
+      setLoading(true);
+      const { data } = await api.get('/api/post/feed', {headers: { Authorization: `Bearer ${await getToken()}` }})
+      
+      if (data.success) {
+        setFeeds(data.posts)
+      } else {
+        toast.error(data.message);
+      }
+      
+    } catch (error) {
+        toast.error(error.message);
+    }
     setLoading(false);
   };
 

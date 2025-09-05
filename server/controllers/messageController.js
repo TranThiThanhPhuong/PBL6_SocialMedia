@@ -4,6 +4,7 @@ import Message from '../models/Message.js';
 
 const connections = {};
 
+// mở kết nối một chiều từ server → client.
 export const sseController = (req, res) => {
     const { userId } = req.parmams; // lay userId tu params tren url
     console.log('New client connected:', userId);

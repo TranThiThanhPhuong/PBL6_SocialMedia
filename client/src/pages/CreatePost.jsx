@@ -1,12 +1,17 @@
 import React, { useState } from "react";
 import { useSelector } from "react-redux";
-import { Image } from "lucide-react";
+import { Image, X } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../api/axios";
+import { useAuth } from '@clerk/clerk-react'
+import { useNavigate } from "react-router-dom";
 
 const CreatePost = () => {
   const user = useSelector((state) => state.user.value); // Lấy thông tin user từ Redux
+  const { getToken } = useAuth();
 
+  const navigate = useNavigate();
+  
   const [content, setContent] = useState("");
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -33,14 +38,14 @@ const CreatePost = () => {
       });
 
       const { data } = await api.post("/api/post/add", formData, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${await getToken()}` },
       });
 
       if (data.success) {
-        console.log(data.message)
-        throw new Error(data.message)
+        navigate('/')
       } else {
-        console.error(error.message);
+        console.error(data.message);
+        throw new Error(data.message)
       }
 
       // // Giả lập API call tạo post
@@ -51,10 +56,12 @@ const CreatePost = () => {
       // setImages([]);
       // setLoading(false);
       // return Promise.resolve(); // để toast.promise nhận success
-    } catch (err) {
-      setLoading(false);
-      return Promise.reject(); // để toast.promise nhận error
+    } catch (error) {
+      // return Promise.reject(); // để toast.promise nhận error
+      console.error(error.message);
+      throw new Error(error.message)
     }
+    setLoading(false);
   };
 
   return (
