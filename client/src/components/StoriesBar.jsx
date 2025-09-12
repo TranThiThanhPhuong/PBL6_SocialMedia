@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
-import { dummyStoriesData } from "../assets/assets";
 import moment from "moment";
 import StoryModal from "./StoryModal";
 import StoryViewer from "./StoryViewer";
@@ -18,7 +17,6 @@ const StoriesBar = () => {
 
   const fetchStories = async () => {
     try {
-
       const token = await getToken();
       const {data} = await api.get('/api/story/get', {
         headers: { Authorization: `Bearer ${token}` }
@@ -29,8 +27,6 @@ const StoriesBar = () => {
       else{
         toast(data.message)
       }
-
-      // setStories(dummyStoriesData);
     } catch (error) {
       toast.error(error.message)
     }
@@ -53,7 +49,7 @@ const StoriesBar = () => {
               <Plus className="w-5 h-5 text-white" />
             </div>
             <p className="text-sm font-medium text-slate-700 text-center">
-              Create Story
+              Tạo tin
             </p>
           </div>
         </div>
@@ -74,8 +70,9 @@ const StoriesBar = () => {
                 {story.content}
               </p>
               <p className="text-white absolute bottom-1 right-2 z-10 text-xs">
-                {moment(story.created_at).fromNow()}
+                {moment(story.createdAt).fromNow()}
               </p>
+              
               {story.media_type !== "text" && (
                 <div className="absolute inset-0 z-1 rounded-lg bg-black overflow-hidden">
                   {story.media_type === "image" ? (
@@ -92,18 +89,6 @@ const StoriesBar = () => {
                   )}
                 </div>
               )}
-              {story.media_type === "image" ? (
-                <img
-                  src={story.media_url}
-                  alt=""
-                  className="h-full w-full object-cover hover:scale-110 transition duration-500 opacity-70 hover:opacity-80"
-                />
-              ) : (
-                <video
-                  src={story.media_url}
-                  className="h-full w-full object-cover hover:scale-110 transition duration-500 opacity-70 hover:opacity-80"
-                />
-              )}
             </div>
           );
         })}
@@ -114,7 +99,7 @@ const StoriesBar = () => {
       )}
       {/* View Story Modal  */}
       {viewStory && (
-        <StoryViewer story={viewStory} setviewStory={setviewStory} />
+        <StoryViewer viewStory={viewStory} setViewStory={setviewStory} />
       )}
     </div>
   );

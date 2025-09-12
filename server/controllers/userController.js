@@ -33,7 +33,7 @@ export const updateUserData = async (req, res) => {
     !username && (username = tempUser.username);
 
     if (tempUser.username !== username) {
-      const user = await User.findOne({ username });
+      const user = await User.findOne(username );
       if (user) {
         username = tempUser.username;
       }
@@ -56,7 +56,7 @@ export const updateUserData = async (req, res) => {
       });
       // Đọc file → upload lên ImageKit.
       // Sau khi upload thành công → xóa file local.
-      fs.unlinkSync(profile.path);
+      // fs.unlinkSync(profile.path);
 
       const url = imagekit.url({
         path: response.filePath,
@@ -79,7 +79,7 @@ export const updateUserData = async (req, res) => {
       }); // neu upload thanh cong se tra ve mot object chua thong tin ve file vua upload
       // Đọc file → upload lên ImageKit.
       // Sau khi upload thành công → xóa file local.
-      fs.unlinkSync(profile.path);
+      // fs.unlinkSync(profile.path);
 
       const url = imagekit.url({
         path: response.filePath,
@@ -101,7 +101,7 @@ export const updateUserData = async (req, res) => {
     res.json({
       success: true,
       user,
-      message: "Cập nhật thông tin người dùng thành công"",
+      message: "Cập nhật thông tin người dùng thành công",
     }); // Trả về dữ liệu người dùng đã được cập nhật
   } catch (error) {
     console.log(error);

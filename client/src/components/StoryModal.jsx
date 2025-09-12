@@ -25,7 +25,7 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
   const MAX_VIDEO_DURATION = 60;
   const MAX_VIDEO_SIZE_MB = 50; //mb
 
-  const handleMediaUpload = (e) => {
+  const handleMediaUpload = (e)=> {
     const file = e.target.files?.[0];
     if (file) {
       if (file.type.startsWith("video")){
@@ -37,7 +37,7 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
         }
         const video = document.createElement('video');
         video.preload = 'metadata';
-        video.onloadedmetadata = () => {
+        video.onloadedmetadata = ()=> {
           window.URL.revokeObjectURL(video.src)
           if(video.duration > MAX_VIDEO_DURATION){
             toast.error('video duration cannot excedd 1 minute')
@@ -48,7 +48,7 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
             setMedia(file)
             setPreviewUrl(URL.createObjectURL(file))
             setText('')
-            setMedia('media')
+            setMode('media')
           }
         }
         video.src = URL.createObjectURL(file)
@@ -57,7 +57,7 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
         setMedia(file);
         setPreviewUrl(URL.createObjectURL(file));
         setText('')
-        setMedia('media')
+        setMode('media')
       }
     }
   };
@@ -66,7 +66,7 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
     const media_type = mode === 'media' ? media?.type.startsWith('image') ? 'image' : "video" : "text";
 
     if (media_type === "text" && !text) {
-      throw new Error ("Pless enter some text")
+      throw new Error ("Hãy nhập tin")
     }
 
     let formData = new FormData();
@@ -77,11 +77,11 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
 
     const token = await getToken();
     try {
-      const { data } = await api.post('/api/story/create', formData, {headers: { Authorization: `Bearer ${await getToken()}` }})
+      const { data } = await api.post('/api/story/create', formData, {headers: { Authorization: `Bearer ${token}` }})
 
       if (data.success) {
         setShowModal(false);
-        toast.success("story created success")
+        toast.success("Đăng tin thành công")
         fetchStories();
       }
       else {
@@ -102,7 +102,7 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
           >
             <ArrowLeft />
           </button>
-          <h2 className="text-lg font-semibold">Create Story</h2>
+          <h2 className="text-lg font-semibold">Tạo tin</h2>
           <span className="w-10"></span>
         </div>
         <div
@@ -159,9 +159,7 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
             }`}
           >
             <input
-              onChange={(e) => {
-                handleMediaUpload;
-              }}
+              onChange={handleMediaUpload}
               type="file"
               accept="image/*, video/*"
               className="hidden"
@@ -179,7 +177,7 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
           }
           className="flex items-center justify-center gap-2 text-white py-3 mt-4 w-full rounded bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 transition cursor-pointer"
         >
-          <Sparkle size={18} /> Create Story
+          <Sparkle size={18} /> Tạo tin
         </button>
       </div>
     </div>
