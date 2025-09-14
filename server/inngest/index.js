@@ -122,16 +122,18 @@ const sendNewConnectionRequestReminder = inngest.createFunction(
 )
 
 const deleteStory = inngest.createFunction(
-  { id: "story-delete" },
-  { event: "app/story.delete" },
+  { id: 'story-delete' },
+  { event: 'app/story.delete' },
   async ({ event, step }) => {
     const {storyId} = event.data; 
-    const in24Hours = new Date(Date.now() + 24 * 60 * 60 * 1000); 
+    const story = await Story.findById(storyId);
+    if (!story) return;
+    const in24Hours = new Date(story.createdAt.getTime() + 24 * 60 * 60 * 1000); 
 
     await step.sleepUntil("wait-for-24-hours", in24Hours); // ngủ đến 24 giờ sau
     await step.run("delete-story", async () => {
       await Story.findByIdAndDelete(storyId); // xóa story khỏi cơ sở dữ liệu theo id
-      return ({message: "Story deleted after 24 hours."})
+      return ({message: "Xóa tin sau 24h."})
     }) 
   }
 )

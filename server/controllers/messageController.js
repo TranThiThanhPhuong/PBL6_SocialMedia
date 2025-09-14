@@ -6,7 +6,7 @@ const connections = {};
 
 // mở kết nối một chiều từ server → client.
 export const sseController = (req, res) => {
-    const { userId } = req.parmams; // lay userId tu params tren url
+    const { userId } = req.params; // lay userId tu params tren url
     console.log('New client connected:', userId);
 
     res.setHeader('Content-Type', 'text/event-stream'); // set header de biet day la SSE
@@ -16,12 +16,14 @@ export const sseController = (req, res) => {
 
     connections[userId] = res; // luu res vao trong connections voi key la userId
 
-    res.write('log: Connected to SEE stream\n\n'); // gui tin nhan ket noi thanh cong
+    res.write('log: Connected to SSE stream\n\n'); // gui tin nhan ket noi thanh cong
 
     req.on('close', () => { // khi client ngat ket 
         delete connections[userId]; // xoa res khoi connections
         console.log('Client disconnected:'); 
     });
+
+    // SSE (Server-Sent Events) cho phép server đẩy tin nhắn real-time về client qua HTTP stream.
 }
 
 export const sendMessage = async (req, res) => {

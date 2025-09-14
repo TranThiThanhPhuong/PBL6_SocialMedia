@@ -19,7 +19,7 @@ export const getUserData = async (req, res) => {
 
     res.json({ success: true, user }); // tra ve du lieu nguoi dung
   } catch (error) {
-    console.error("Error in getUserData:", error);
+    console.error("Lỗi khi tìm người dùng:", error);
     res.json({ success: false, message: error.message });
   }
 };

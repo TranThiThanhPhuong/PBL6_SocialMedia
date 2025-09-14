@@ -30,7 +30,7 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
     if (file) {
       if (file.type.startsWith("video")){
         if(file.size > MAX_VIDEO_SIZE_MB * 1024 * 1024){
-          toast.error(`video file size cannot exceed ${MAX_VIDEO_SIZE_MB}`)
+          toast.error(`Video có dung lượng lớn hơn ${MAX_VIDEO_SIZE_MB}`)
           setMedia(null)
           setPreviewUrl(null)
           return;
@@ -40,7 +40,7 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
         video.onloadedmetadata = ()=> {
           window.URL.revokeObjectURL(video.src)
           if(video.duration > MAX_VIDEO_DURATION){
-            toast.error('video duration cannot excedd 1 minute')
+            toast.error('Video không được quá 1 phút')
             setMedia(null)
             setPreviewUrl(null)
           }
@@ -65,8 +65,13 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
   const handleCreateStory = async () => {
     const media_type = mode === 'media' ? media?.type.startsWith('image') ? 'image' : "video" : "text";
 
-    if (media_type === "text" && !text) {
-      throw new Error ("Hãy nhập tin")
+    // if (media_type === "text" && !text) {
+    //   throw new Error ("Hãy nhập tin")
+    // }
+
+    if (media_type === "text" && !text.trim()) {
+      toast.error("Hãy nhập tin");
+      return;
     }
 
     let formData = new FormData();
@@ -112,14 +117,14 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
           {mode === "text" && (
             <textarea
               className="bg-transparent text-white w-full h-full p-6 text-lg resize-none focus:outline-none"
-              placeholder="What's on your mind?"
+              placeholder="Bạn đang nghĩ gì?"
               onChange={(e) => setText(e.target.value)}
               value={text}
             />
           )}
-          {mode === "media" &&
+          {mode === 'media' &&
             previewUrl &&
-            (media?.type.startsWith("image") ? (
+            (media?.type.startsWith('image') ? (
               <img
                 src={previewUrl}
                 alt=""
@@ -129,6 +134,8 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
               <video src={previewUrl} className="object-contain max-h-full" />
             ))}
         </div>
+
+        {/* Chọn màu cho tin */}
         <div className="flex mt-4 gap-2">
           {bgColors.map((color) => (
             <button
@@ -140,6 +147,7 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
           ))}
         </div>
 
+        {/* khung text, photo/video */}
         <div className="flex gap-2 mt-4">
           <button
             onClick={() => {
@@ -148,14 +156,14 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
               setPreviewUrl(null);
             }}
             className={`flex-1 flex items-center justify-center gap-2 p-2 rounded cursor-pointer ${
-              mode === "text" ? "bg-white text-black" : "bg-zinc-800"
+              mode === 'text' ? "bg-white text-black" : "bg-zinc-800"
             }`}
           >
             <TextIcon size={18} /> Text
           </button>
           <label
             className={`flex-1 flex items-center justify-center gap-2 p-2 rounded cursor-pointer ${
-              mode === "media" ? "bg-white text-black" : "bg-zinc-800"
+              mode === 'media' ? "bg-white text-black" : "bg-zinc-800"
             }`}
           >
             <input
@@ -170,9 +178,8 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
         <button
           onClick={() =>
             toast.promise(handleCreateStory(), {
-              loading: "Saving...",
-              // success: <p>Story Added</p>,
-              // error: (e) => <p>{e.message}</p>,
+              loading: "Đang lưu...",
+              error: (err) => err.message || "Có lỗi xảy ra",
             })
           }
           className="flex items-center justify-center gap-2 text-white py-3 mt-4 w-full rounded bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 transition cursor-pointer"

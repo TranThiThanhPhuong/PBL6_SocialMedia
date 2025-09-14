@@ -8,7 +8,7 @@ import api from "../api/axios";
 import toast from "react-hot-toast";
 
 const PostCard = ({ post }) => {
-  const currentUser = useSelector((state) => state.user.value); // Lấy thông tin người dùng hiện tại từ Redux store
+  const currentUser = useSelector((state) => state.user.value);
   const {getToken} = useAuth();
 
   const postWithHashtags = post.content.replace(/(#\w+)/g,'<span class="text-indigo-600">$1</span>');
@@ -42,15 +42,8 @@ const PostCard = ({ post }) => {
   return (
     <div className="bg-white rounded-xl shadow p-4 space-y-4 w-full max-w-2xl">
       {/* User Info */}
-      <div
-        onClick={() => navigate("/profile/" + post.user._id)}
-        className="inline-flex items-center gap-3 cursor-pointer"
-      >
-        <img
-          src={post.user.profile_picture}
-          alt=""
-          className="w-10 h-10 rounded-full shadow"
-        />
+      <div onClick={() => navigate("/profile/" + post.user._id)} className="inline-flex items-center gap-3 cursor-pointer">
+        <img src={post.user.profile_picture} className="w-10 h-10 rounded-full shadow"/>
         <div>
           <div className="flex items-center space-x-1">
             <span>{post.user.full_name}</span>
@@ -66,8 +59,7 @@ const PostCard = ({ post }) => {
       {post.content && (
         <div
           className="text-gray-800 text-sm whitespace-pre-line"
-          dangerouslySetInnerHTML={{ __html: postWithHashtags }}
-        />
+          dangerouslySetInnerHTML={{ __html: postWithHashtags }}/>
       )}
 
       {/* Images */}
@@ -78,20 +70,17 @@ const PostCard = ({ post }) => {
             key={index}
             className={`w-full h-48 object-cover rounded-lg ${
               post.image_urls.length === 1 && "col-span-2 h-auto"
-            }`}
-            alt=""
-          />
+            }`}/>
         ))}
       </div>
+
       {/* Actions */}
       <div className="flex items-center gap-4 text-gray-600 text-sm pt-2 border-t border-gray-300">
         <div className="flex items-center gap-1">
           <Heart
             className={`w-4 h-4 cursor-pointer ${
               likes.includes(currentUser._id) && "text-red-500 fill-red-500"
-            }`}
-            onClick={handleLike}
-          />
+            }`} onClick={handleLike}/>
           <span>{likes.length}</span>
         </div>
 

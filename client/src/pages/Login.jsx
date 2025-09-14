@@ -9,13 +9,12 @@ const Login = () => {
       {/* background img */}
       <img
         src={assets.bgImage}
-        alt=""
         className="absolute top-0 left-0 -z-1 w-full h-full object-cover"
       />
 
       {/* banding */}
       <div className="flex-1 flex flex-col items-start justify-between p-6 md:p-10 lg:pl-40">
-        <h1 className="logo-text">Safe Post</h1>
+        <h1 className="logo-text">Social Media</h1>
         {/* <img src={assets.logo} alt="logo" className="h-12 object-contain" /> */}
         <div>
           <div className="flex items-center gap-3 mb-4 max-md:mt-10">
@@ -38,14 +37,13 @@ const Login = () => {
             Hơn cả những người bạn thực sự kết nối
           </h1>
           <p className="text-xl md:text-3xl text-indigo-900 max-w-72 md:max-w-md">
-            kết nối với cộng đồng toàn cầu trên Safe Post.
+            kết nối với cộng đồng toàn cầu trên ứng dụng của chúng tôi.
           </p>
         </div>
         <span className="md:h-10"></span>
       </div>
 
       {/* Right Login */}
-
       <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
         {/* Sử dụng SignIn từ Clerk để hiển thị form đăng nhập */}
         {/* SignIn sẽ tự động quản lý trạng thái đăng nhập và đăng ký người dùng */}

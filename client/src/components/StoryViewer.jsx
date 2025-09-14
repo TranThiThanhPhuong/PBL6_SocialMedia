@@ -33,34 +33,37 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
   }, [viewStory, setViewStory])
 
   const handleClose = () => {
+    setProgress(0);
     setViewStory(null);
   };
 
   if (!viewStory) return null;
 
+  // Xem tin 
   const renderContent = () => {
     switch (viewStory.media_type) {
-      case "image":
+      case 'image':
         return (
           <img
             src={viewStory.media_url}
-            alt=""
+            alt={viewStory.content || "story image"}
             className="max-w-full max-h-screen object-contain"
           />
         );
 
-      case "video":
+      case 'video':
         return (
           <video
             src={viewStory.media_url}
             onEnded={() => setViewStory(null)}
             className="max-h-screen"
+            aria-label="Story video"
             autoPlay
             controls
           />
         );
 
-      case "text":
+      case 'text':
         return (
           <div className="w-full h-full flex items-center justify-center p-8 text-white text-2xl text-center">
             {viewStory.content}
@@ -74,12 +77,12 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
 
   return (
     <div
-      className="fixed inset-0 h-screen bg-black bg-opacity-90 z-50 flex items-center justify-center"
+      className="fixed inset-0 h-screen bg-black bg-opacity-90 z-110 flex items-center justify-center"
       style={{
         backgroundColor:
-          viewStory.media_type === "text"
+          viewStory.media_type === 'text'
             ? viewStory.background_color
-            : "#000000",
+            : '#000000'
       }}
     >
       {/* Progress Bar */}
@@ -89,6 +92,7 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
           style={{ width: `${progress}%` }}
         ></div>
       </div>
+
       {/* User Info - Top Left */}
       <div className="absolute top-4 left-4 flex items-center space-x-3 p-2 px-4 sm:p-4 sm:px-8 backdrop-blur-xl rounded bg-black/50">
         <img
@@ -101,6 +105,7 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
           <BadgeCheck size={18} />
         </div>
       </div>
+
       {/* Close Button */}
       <button
         onClick={handleClose}
@@ -108,6 +113,7 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
       >
         <X className="w-8 h-8 hover:scale-110 transition cursor-pointer" />
       </button>
+
       {/* Content Wrapper */}
       <div className="max-w-[90vw] max-h-[90vh] flex items-center justify-center">
         {renderContent()}

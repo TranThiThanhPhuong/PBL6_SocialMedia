@@ -16,7 +16,6 @@ if (!PUBLISHABLE_KEY) {
 
 // Khoi tao React va render App vao phan tu co id 'root'
 createRoot(document.getElementById('root')).render(
-  // Bao bo App trong ClerkProvider va BrowserRouter de cung cap cac chuc nang dang nhap va dieu huong
   <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
     <BrowserRouter>
       <Provider store={store}> 
@@ -25,3 +24,7 @@ createRoot(document.getElementById('root')).render(
     </BrowserRouter>
   </ClerkProvider>
 )
+
+// ClerkProvider: cung cấp context về authentication (login, user info).
+// BrowserRouter: cung cấp điều hướng cho SPA (Single Page Application).
+// Provider store={store}: cung cấp Redux store để quản lý state toàn cục.
