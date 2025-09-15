@@ -35,7 +35,7 @@ const Profile = () => {
         toast.error(data.message);
       }
     } catch (error) {
-      toast.error(error.message || "Failed to fetch profile");
+      toast.error(error.message);
     }
   };
 
@@ -75,7 +75,7 @@ const Profile = () => {
         {/* Tabs */}
         <div className="mt-6">
           <div className="bg-white rounded-xl shadow p-1 flex max-w-md mx-auto">
-            {["posts", "media", "likes"].map((tab) => (
+            {["Bài viết", "Ảnh", "Thích"].map((tab) => (
               <button
                 onClick={() => setActiveTab(tab)}
                 key={tab}
@@ -91,18 +91,21 @@ const Profile = () => {
           </div>
 
           {/* Posts */}
-          {activeTab === "posts" && (
+          {activeTab === "Bài viết" && (
             <div className="mt-6 flex flex-col items-center gap-6">
               {posts.length > 0 ? (
-                posts.map((post) => <PostCard key={post._id} post={post} />)
+                posts
+                .slice() // copy mảng để tránh mutate state gốc
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // sắp xếp mới nhất trước
+                .map((post) => <PostCard key={post._id} post={post} />)
               ) : (
-                <p className="text-gray-500">No posts yet.</p>
+                <p className="text-gray-500">Chưa có bài viết nào.</p>
               )}
             </div>
           )}
 
           {/* Media */}
-          {activeTab === "media" && (
+          {activeTab === "Ảnh" && (
             <div className="flex flex-wrap mt-6 max-w-6xl gap-3">
               {posts
                 .filter((post) => post.image_urls.length > 0)
@@ -120,7 +123,7 @@ const Profile = () => {
                         alt=""
                       />
                       <p className="absolute bottom-0 right-0 text-xs p-1 px-3 backdrop-blur-xl text-white opacity-0 group-hover:opacity-100 transition duration-300">
-                        Posted {moment(post.createdAt).fromNow()}
+                        Bài viết {moment(post.createdAt).fromNow()}
                       </p>
                     </Link>
                   ))

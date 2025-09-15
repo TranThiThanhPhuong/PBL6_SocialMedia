@@ -25,7 +25,7 @@ const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => (
               <Verified className="w-6 h-6 text-blue-500" />
             </div>
             <p className="text-gray-600">
-              {user.username ? `@${user.username}` : "Add a username"}
+              {user.username ? `@${user.username}` : "Thêm tên người dùng"}
             </p>
           </div>
 
@@ -36,7 +36,7 @@ const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => (
               className="flex items-center gap-2 border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-lg font-medium transition-colors mt-4 md:mt-0 cursor-pointer"
             >
               <PenBox className="w-4 h-4" />
-              Edit
+              Chỉnh sửa
             </button>
           )}
         </div>
@@ -53,7 +53,7 @@ const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => (
 
           <span className="flex items-center gap-1.5">
             <Calendar className="w-4 h-4" />
-            Joined{" "}
+            Tham gia {" "}
             <span className="font-medium">
               {moment(user.createdAt).fromNow()}
             </span>
@@ -67,7 +67,7 @@ const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => (
               {posts.length}
             </span>
             <span className="text-xs sm:text-sm text-gray-500 ml-1.5">
-              Posts
+              Bài viết
             </span>
           </div>
 
@@ -76,7 +76,7 @@ const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => (
               {user.followers.length}
             </span>
             <span className="text-xs sm:text-sm text-gray-500 ml-1.5">
-              Followers
+              Người theo dõi
             </span>
           </div>
 
@@ -85,7 +85,7 @@ const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => (
               {user.following.length}
             </span>
             <span className="text-xs sm:text-sm text-gray-500 ml-1.5">
-              Following
+              Đang theo dõi 
             </span>
           </div>
         </div>

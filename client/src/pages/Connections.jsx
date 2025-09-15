@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 
 const Connections = () => {
 
-  const [currentTab, setCurrentTab] = useState("Followers");
+  const [currentTab, setCurrentTab] = useState("Người theo dõi");
 
   const navigate = useNavigate();
   const { getToken } = useAuth(); 
@@ -18,10 +18,10 @@ const Connections = () => {
   const { connections, pendingConnections, followers, following } = useSelector((state)=>state.connections)
 
   const dataArray = [
-    { label: "Followers", value: followers, icon: User },
-    { label: "Following", value: following, icon: UserCheck },
-    { label: "Pending", value: pendingConnections, icon: UserRoundPen },
-    { label: "Connections", value: connections, icon: UserPlus },
+    { label: "Người theo dõi", value: followers, icon: User },
+    { label: "Đang theo dõi", value: following, icon: UserCheck },
+    { label: "Chờ phản hồi", value: pendingConnections, icon: UserRoundPen },
+    { label: "Bạn bè", value: connections, icon: UserPlus },
   ];
 
   const handleUnfollow = async (userId) => {
@@ -71,10 +71,10 @@ const Connections = () => {
         {/* Title */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">
-            Connections
+            Kết nối
           </h1>
           <p className="text-gray-600">
-            Manage your network and discover new connections
+            Kết nối với mọi người trên thế giới.
           </p>
         </div>
 
@@ -140,26 +140,26 @@ const Connections = () => {
                         onClick={() => navigate(`/profile/${user._id}`)}
                         className="w-full p-2 text-sm rounded bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 transition text-white cursor-pointer"
                       >
-                        View Profile
+                        Xem trang cá nhân
                       </button>
                     }
-                    {currentTab === "Following" && (
+                    {currentTab === "Đang theo dõi" && (
                       <button onClick={()=> handleUnfollow(user._id)} className="w-full p-2 text-sm rounded bg-slate-100 hover:bg-slate-200 text-black active:scale-95 transition cursor-pointer">
-                        Unfollow
+                        Bỏ theo dõi
                       </button>
                     )}
-                    {currentTab === "Pending" && (
+                    {currentTab === "Chờ phản hồi" && (
                       <button onClick={()=> acceptConnection(user._id)} className="w-full p-2 text-sm rounded bg-slate-100 hover:bg-slate-200 text-black active:scale-95 transition cursor-pointer">
-                        Accept
+                        Chấp nhận
                       </button>
                     )}
-                    {currentTab === "Connections" && (
+                    {currentTab === "Bạn bè" && (
                       <button
                         onClick={() => navigate(`/messages/${user._id}`)}
                         className="w-full p-2 text-sm rounded bg-slate-100 hover:bg-slate-200 text-slate-800 active:scale-95 transition cursor-pointer flex items-center justify-center gap-1"
                       >
                         <MessageSquare className="w-4 h-4" />
-                        Message
+                        Nhắn tin
                       </button>
                     )}
                   </div>

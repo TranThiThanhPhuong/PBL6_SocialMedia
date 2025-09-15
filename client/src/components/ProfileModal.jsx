@@ -54,11 +54,11 @@ const ProfileModal = ({ setShowEdit }) => {
       <div className="max-w-2xl sm:py-6 mx-auto">
         <div className="bg-white rounded-lg shadow p-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-6">
-            Edit Profile
+            Chỉnh sửa thông tin
           </h1>
 
           <form className="space-y-4" onSubmit={e=> toast.promise(
-            handleSaveProfile(e), {loading: 'Saving...'}
+            handleSaveProfile(e), {loading: 'Đang lưu...'}
           )}>
             {/* Profile Picture */}
             <div className="flex flex-col items-start gap-3">
@@ -66,7 +66,7 @@ const ProfileModal = ({ setShowEdit }) => {
                 htmlFor="profile_picture"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                Profile Picture
+                Ảnh đại diện
                 <input
                   hidden
                   type="file"
@@ -104,7 +104,7 @@ const ProfileModal = ({ setShowEdit }) => {
                 htmlFor="cover_photo"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                Cover Photo
+                Ảnh bìa
                 <input
                   hidden
                   type="file"
@@ -138,7 +138,7 @@ const ProfileModal = ({ setShowEdit }) => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name
+                Họ và tên
               </label>
               <input
                 type="text"
@@ -153,7 +153,7 @@ const ProfileModal = ({ setShowEdit }) => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Username
+                Tên người dùng
               </label>
               <input
                 type="text"
@@ -168,7 +168,7 @@ const ProfileModal = ({ setShowEdit }) => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Bio
+                Tiểu sử
               </label>
               <textarea
                 row={3}
@@ -183,7 +183,7 @@ const ProfileModal = ({ setShowEdit }) => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Location
+                Vị trí
               </label>
               <input
                 type="text"
@@ -201,14 +201,14 @@ const ProfileModal = ({ setShowEdit }) => {
                 type="button"
                 className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
               >
-                Cancel
+                Hủy
               </button>
 
               <button
                 type="submit"
                 className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition cursor-pointer"
               >
-                Save Changes
+                Lưu
               </button>
             </div>
           </form>
