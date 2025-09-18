@@ -17,7 +17,7 @@ const Profile = () => {
   const { profileId } = useParams();
   const [user, setUser] = useState(null);
   const [posts, setPosts] = useState([]);
-  const [activeTab, setActiveTab] = useState("posts");
+  const [activeTab, setActiveTab] = useState("Bài viết");
   const [showEdit, setShowEdit] = useState(false);
 
   const fetchUser = async (profileId) => {
