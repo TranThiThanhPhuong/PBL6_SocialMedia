@@ -72,7 +72,7 @@ const CreatePost = () => {
           <h1 className="text-3xl font-bold text-slate-900 mb-2">
             Tạo bài viết 
           </h1>
-          <p className="text-slate-600">Chia sẽ bài viết với tất cả mọi người</p>
+          <p className="text-slate-600">Chia sẻ bài viết với tất cả mọi người</p>
         </div>
 
         {/* Header */}
