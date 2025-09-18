@@ -70,9 +70,9 @@ const CreatePost = () => {
         {/* Title */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900 mb-2">
-            Create Post
+            Tạo bài viết 
           </h1>
-          <p className="text-slate-600">Share your thoughts with the world</p>
+          <p className="text-slate-600">Chia sẽ bài viết với tất cả mọi người</p>
         </div>
 
         {/* Header */}
@@ -91,7 +91,7 @@ const CreatePost = () => {
         {/* Text Area */}
         <textarea
           className="w-full resize-none max-h-20 mt-4 text-sm outline-none placeholder-gray-400"
-          placeholder="What's happening?"
+          placeholder="Bạn đang nghĩ gi?"
           onChange={(e) => setContent(e.target.value)}
           value={content}
         />
@@ -143,14 +143,14 @@ const CreatePost = () => {
             disabled={loading}
             onClick={() =>
               toast.promise(handleSubmit(), {
-                loading: "Uploading...",
-                success: "Post Added!",
-                error: "Error creating post",
+                loading: "Đang tải lên...",
+                success: "Đã tạo bài thành công!",
+                error: "Lỗi khi đăng bài.",
               })
             }
             className="text-sm bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 transition text-white font-medium px-8 py-2 rounded-md cursor-pointer"
           >
-            {loading ? "Publishing..." : "Publish Post"}
+            {loading ? "Đăng bài..." : "Đăng bài viết"}
           </button>
         </div>
       </div>
