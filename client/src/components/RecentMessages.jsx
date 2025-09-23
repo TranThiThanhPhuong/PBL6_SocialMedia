@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import moment from "moment";
+import { formatPostTime } from '../app/formatDate' 
 import { useAuth, useUser } from "@clerk/clerk-react";
 import api from "../api/axios";
 import toast from "react-hot-toast";
@@ -68,7 +68,7 @@ const RecentMessages = () => {
               <div className="flex justify-between">
                 <p className="font-medium">{message.from_user_id.full_name}</p>
                 <p className="text-[10px] text-slate-400">
-                  {moment(message.createdAt).fromNow()}
+                  {formatPostTime(message.createdAt)}
                 </p>
               </div>
 

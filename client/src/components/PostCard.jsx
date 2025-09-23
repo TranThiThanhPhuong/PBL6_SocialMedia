@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { BadgeCheck, Heart, MessageCircle, Share2 } from "lucide-react";
-import moment from "moment";
+import { formatPostTime } from '../app/formatDate' 
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
@@ -50,7 +50,7 @@ const PostCard = ({ post }) => {
             <BadgeCheck className="w-4 h-4 text-blue-500" />
           </div>
           <div className="text-gray-500 text-sm">
-            @{post.user.username} • {moment(post.createdAt).fromNow()}
+            @{post.user.username} • {formatPostTime(post.createdAt)}
           </div>
         </div>
       </div>

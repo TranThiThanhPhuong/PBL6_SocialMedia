@@ -94,4 +94,3 @@ export const likePosts = async (req, res) => {
         res.json({ success: false, message: error.message });
     }
 }
-

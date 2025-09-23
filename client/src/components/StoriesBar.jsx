@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
-import moment from "moment";
 import StoryModal from "./StoryModal";
 import StoryViewer from "./StoryViewer";
 import { useAuth } from "@clerk/clerk-react";
 import api from "../api/axios";
 import toast from "react-hot-toast";
+import { formatPostTime } from '../app/formatDate' 
 
 const StoriesBar = () => {
   const { getToken } = useAuth();
@@ -61,7 +61,7 @@ const StoriesBar = () => {
                 {story.content}
               </p>
               <p className="text-white absolute bottom-1 right-2 z-10 text-xs">
-                {moment(story.createdAt).fromNow()}
+                {formatPostTime(story.createdAt)}
               </p>
               
               {

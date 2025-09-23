@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useAuth } from "@clerk/clerk-react";
-import moment from "moment";
+import { formatPostTime } from '../app/formatDate' 
 import toast from "react-hot-toast";
 import api from "../api/axios";
 import Loading from "../components/Loading";
@@ -123,7 +123,7 @@ const Profile = () => {
                         alt=""
                       />
                       <p className="absolute bottom-0 right-0 text-xs p-1 px-3 backdrop-blur-xl text-white opacity-0 group-hover:opacity-100 transition duration-300">
-                        Bài viết {moment(post.createdAt).fromNow()}
+                        Bài viết {formatPostTime(post.createdAt)}
                       </p>
                     </Link>
                   ))

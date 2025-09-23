@@ -1,5 +1,5 @@
 import React from "react";
-import moment from "moment";
+import { formatPostTime } from '../app/formatDate' 
 import { Verified, PenBox, MapPin, Calendar } from "lucide-react";
 
 const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => (
@@ -55,7 +55,7 @@ const UserProfileInfo = ({ user, posts, profileId, setShowEdit }) => (
             <Calendar className="w-4 h-4" />
             Tham gia {" "}
             <span className="font-medium">
-              {moment(user.createdAt).fromNow()}
+              {formatPostTime(user.createdAt)}
             </span>
           </span>
         </div>
