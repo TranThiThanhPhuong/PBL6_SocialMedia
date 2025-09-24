@@ -1,6 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 import { updateUser } from "../features/user/userSlice";
 import { useAuth } from "@clerk/clerk-react";
+import { PROVINCES } from "../app/provinces";
 import React, { useState } from "react";
 import { Pencil } from "lucide-react";
 import toast from "react-hot-toast";
@@ -43,9 +44,9 @@ const ProfileModal = ({ setShowEdit }) => {
       const token = await getToken();
       dispatch(updateUser({ userData, token }));
 
-      setShowEdit(false)
+      setShowEdit(false);
     } catch (error) {
-      toast.error(error.message)
+      toast.error(error.message);
     }
   };
 
@@ -57,9 +58,12 @@ const ProfileModal = ({ setShowEdit }) => {
             Chỉnh sửa thông tin
           </h1>
 
-          <form className="space-y-4" onSubmit={e=> toast.promise(
-            handleSaveProfile(e), {loading: 'Đang lưu...'}
-          )}>
+          <form
+            className="space-y-4"
+            onSubmit={(e) =>
+              toast.promise(handleSaveProfile(e), { loading: "Đang lưu..." })
+            }
+          >
             {/* Profile Picture */}
             <div className="flex flex-col items-start gap-3">
               <label
@@ -182,18 +186,20 @@ const ProfileModal = ({ setShowEdit }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Vị trí
-              </label>
-              <input
-                type="text"
+              <select
                 className="w-full p-3 border border-gray-200 rounded-lg"
-                placeholder="Please enter your location"
+                value={editForm.location}
                 onChange={(e) =>
                   setEditForm({ ...editForm, location: e.target.value })
                 }
-                value={editForm.location}
-              />
+              >
+                <option value="">-- Chọn tỉnh/thành --</option>
+                {PROVINCES.map((province, index) => (
+                  <option key={index} value={province}>
+                    {province}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="flex justify-end space-x-3 pt-6">
               <button
