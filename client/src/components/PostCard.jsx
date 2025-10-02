@@ -1,11 +1,14 @@
+// client/src/components/PostCard.jsx
 import React, { useState } from "react";
 import { BadgeCheck, Heart, MessageCircle, Share2 } from "lucide-react";
-import { formatPostTime } from '../app/formatDate' 
+import { formatPostTime } from '../app/formatDate'
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import api from "../api/axios";
 import toast from "react-hot-toast";
+import CommentModal from "./CommentModal"; // Import CommentModal
+import SharePostModal from "./SharePostModal"; // Import SharePostModal
 
 const PostCard = ({ post }) => {
   const currentUser = useSelector((state) => state.user.value);
@@ -13,6 +16,8 @@ const PostCard = ({ post }) => {
 
   const postWithHashtags = post.content.replace(/(#\w+)/g,'<span class="text-indigo-600">$1</span>');
   const [likes, setLikes] = useState(post.likes_count);
+  const [showCommentModal, setShowCommentModal] = useState(false); // Thêm state cho CommentModal
+  const [showShareModal, setShowShareModal] = useState(false); // Thêm state cho SharePostModal
 
   const handleLike = async () => {
     try {
@@ -53,48 +58,55 @@ const PostCard = ({ post }) => {
             @{post.user.username} • {formatPostTime(post.createdAt)}
           </div>
         </div>
+
+        {/* Content */}
+        {post.content && (
+          <div
+            className="text-gray-800 text-sm whitespace-pre-line"
+            dangerouslySetInnerHTML={{ __html: postWithHashtags }}/>
+        )}
+
+        {/* Images */}
+        <div className="grid grid-cols-2 gap-2">
+          {post.image_urls.map((img, index) => (
+            <img
+              src={img}
+              key={index}
+              className={`w-full h-48 object-cover rounded-lg ${
+                post.image_urls.length === 1 && "col-span-2 h-auto"
+              }`}/>
+          ))}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-4 text-gray-600 text-sm pt-2 border-t border-gray-300">
+          <div className="flex items-center gap-1">
+            <Heart
+              className={`w-4 h-4 cursor-pointer ${
+                likes.includes(currentUser._id) && "text-red-500 fill-red-500"
+              }`} onClick={handleLike}/>
+            <span>{likes.length}</span>
+          </div>
+
+          <div className="flex items-center gap-1 cursor-pointer" onClick={() => setShowCommentModal(true)}>
+            <MessageCircle className="w-4 h-4" />
+            <span>{post.commentCount || 0}</span>
+          </div>
+
+          <div className="flex items-center gap-1 cursor-pointer" onClick={() => setShowShareModal(true)}>
+            <Share2 className="w-4 h-4" />
+            <span>Share</span>
+          </div>
+        </div>
       </div>
 
-      {/* Content */}
-      {post.content && (
-        <div
-          className="text-gray-800 text-sm whitespace-pre-line"
-          dangerouslySetInnerHTML={{ __html: postWithHashtags }}/>
+      {showCommentModal && (
+        <CommentModal post={post} setShowCommentModal={setShowCommentModal} />
       )}
-
-      {/* Images */}
-      <div className="grid grid-cols-2 gap-2">
-        {post.image_urls.map((img, index) => (
-          <img
-            src={img}
-            key={index}
-            className={`w-full h-48 object-cover rounded-lg ${
-              post.image_urls.length === 1 && "col-span-2 h-auto"
-            }`}/>
-        ))}
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-4 text-gray-600 text-sm pt-2 border-t border-gray-300">
-        <div className="flex items-center gap-1">
-          <Heart
-            className={`w-4 h-4 cursor-pointer ${
-              likes.includes(currentUser._id) && "text-red-500 fill-red-500"
-            }`} onClick={handleLike}/>
-          <span>{likes.length}</span>
-        </div>
-
-        <div className="flex items-center gap-1">
-          <MessageCircle className="w-4 h-4" />
-          <span>{12}</span>
-        </div>
-
-        <div className="flex items-center gap-1">
-          <Share2 className="w-4 h-4" />
-          <span>{7}</span>
-        </div>
-      </div>
-    </div>
+      {showShareModal && (
+        <SharePostModal post={post} setShowShareModal={setShowShareModal} />
+      )}
+    </>
   );
 };
 
