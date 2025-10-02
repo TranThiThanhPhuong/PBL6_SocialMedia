@@ -58,4 +58,3 @@ export const getStories = async (req, res) => {
         res.json({success: false, message: error.message});
     }
 }
-
