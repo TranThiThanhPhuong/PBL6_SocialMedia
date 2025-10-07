@@ -18,7 +18,7 @@ const CreatePost = () => {
 
   const handleSubmit = async () => {
     if (!images.length && !content) {
-      return toast.error("please add at least one image or text");
+      return toast.error("Hãy thêm nội dung hoặc hình ảnh để đăng bài.");
     }
     setLoading(true);
 
@@ -48,16 +48,7 @@ const CreatePost = () => {
         throw new Error(data.message)
       }
 
-      // // Giả lập API call tạo post
-      // await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // // Sau khi thành công
-      // setContent("");
-      // setImages([]);
-      // setLoading(false);
-      // return Promise.resolve(); // để toast.promise nhận success
     } catch (error) {
-      // return Promise.reject(); // để toast.promise nhận error
       console.error(error.message);
       throw new Error(error.message)
     }

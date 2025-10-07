@@ -13,7 +13,7 @@ const SharePostModal = ({ post, setShowShareModal }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl transform transition-all duration-300 scale-100">
         <div className="p-4 border-b flex justify-between items-center">
           <h2 className="text-xl font-bold">Chia sẻ bài viết</h2>
           <button onClick={() => setShowShareModal(false)}>

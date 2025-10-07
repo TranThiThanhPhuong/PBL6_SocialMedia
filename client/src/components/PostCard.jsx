@@ -1,39 +1,45 @@
-// client/src/components/PostCard.jsx
 import React, { useState } from "react";
 import { BadgeCheck, Heart, MessageCircle, Share2 } from "lucide-react";
-import { formatPostTime } from '../app/formatDate'
+import { formatPostTime } from "../app/formatDate";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import api from "../api/axios";
 import toast from "react-hot-toast";
-import CommentModal from "./CommentModal"; // Import CommentModal
-import SharePostModal from "./SharePostModal"; // Import SharePostModal
+import CommentModal from "./CommentModal";
+import SharePostModal from "./SharePostModal";
 
 const PostCard = ({ post }) => {
   const currentUser = useSelector((state) => state.user.value);
-  const {getToken} = useAuth();
+  const { getToken } = useAuth();
 
-  const postWithHashtags = post.content.replace(/(#\w+)/g,'<span class="text-indigo-600">$1</span>');
+  const postWithHashtags = post.content.replace(
+    /(#\w+)/g,
+    '<span class="text-indigo-600">$1</span>'
+  );
   const [likes, setLikes] = useState(post.likes_count);
-  const [showCommentModal, setShowCommentModal] = useState(false); // Thêm state cho CommentModal
-  const [showShareModal, setShowShareModal] = useState(false); // Thêm state cho SharePostModal
+  const [cmts, setCmts] = useState(post.comments_count || 0);
+
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const handleLike = async () => {
     try {
-      const {data} = await api.post('/api/post/like', {postId: post._id},
-        {headers: { Authorization: `Bearer ${await getToken()}` }})
+      const { data } = await api.post(
+        "/api/post/like",
+        { postId: post._id },
+        { headers: { Authorization: `Bearer ${await getToken()}` } }
+      );
 
       if (data.success) {
-        toast.success(data.message)
-        setLikes(prev => {
-          if(prev.includes(currentUser._id)){
-            return prev.filter(id=> id !== currentUser._id)
+        toast.success(data.message);
+        setLikes((prev) => {
+          if (prev.includes(currentUser._id)) {
+            return prev.filter((id) => id !== currentUser._id);
+          } else {
+            return [...prev, currentUser._id];
           }
-          else{
-            return [...prev, currentUser._id]
-          }
-        })
+        });
       } else {
         toast.error(data.message);
       }
@@ -47,8 +53,14 @@ const PostCard = ({ post }) => {
   return (
     <div className="bg-white rounded-xl shadow p-4 space-y-4 w-full max-w-2xl">
       {/* User Info */}
-      <div onClick={() => navigate("/profile/" + post.user._id)} className="inline-flex items-center gap-3 cursor-pointer">
-        <img src={post.user.profile_picture} className="w-10 h-10 rounded-full shadow"/>
+      <div
+        onClick={() => navigate("/profile/" + post.user._id)}
+        className="inline-flex items-center gap-3 cursor-pointer"
+      >
+        <img
+          src={post.user.profile_picture}
+          className="w-10 h-10 rounded-full shadow"
+        />
         <div>
           <div className="flex items-center space-x-1">
             <span>{post.user.full_name}</span>
@@ -58,55 +70,78 @@ const PostCard = ({ post }) => {
             @{post.user.username} • {formatPostTime(post.createdAt)}
           </div>
         </div>
+      </div>
 
-        {/* Content */}
-        {post.content && (
-          <div
-            className="text-gray-800 text-sm whitespace-pre-line"
-            dangerouslySetInnerHTML={{ __html: postWithHashtags }}/>
-        )}
+      {/* Content */}
+      {post.content && (
+        <div
+          className="text-gray-800 text-sm whitespace-pre-line"
+          dangerouslySetInnerHTML={{ __html: postWithHashtags }}
+        />
+      )}
 
-        {/* Images */}
-        <div className="grid grid-cols-2 gap-2">
-          {post.image_urls.map((img, index) => (
-            <img
-              src={img}
-              key={index}
-              className={`w-full h-48 object-cover rounded-lg ${
-                post.image_urls.length === 1 && "col-span-2 h-auto"
-              }`}/>
-          ))}
+      {/* Images */}
+      <div className="grid grid-cols-2 gap-2">
+        {post.image_urls.map((img, index) => (
+          <img
+            src={img}
+            key={index}
+            className={`w-full h-48 object-cover rounded-lg ${
+              post.image_urls.length === 1 && "col-span-2 h-auto"
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-4 text-gray-600 text-sm pt-2 border-t border-gray-300">
+        <div className="flex items-center gap-1">
+          <Heart
+            className={`w-4 h-4 cursor-pointer ${
+              likes.includes(currentUser._id) && "text-red-500 fill-red-500"
+            }`}
+            onClick={handleLike}
+          />
+          <span>{likes.length}</span>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-4 text-gray-600 text-sm pt-2 border-t border-gray-300">
-          <div className="flex items-center gap-1">
-            <Heart
-              className={`w-4 h-4 cursor-pointer ${
-                likes.includes(currentUser._id) && "text-red-500 fill-red-500"
-              }`} onClick={handleLike}/>
-            <span>{likes.length}</span>
-          </div>
+        <div
+          className="flex items-center gap-1 cursor-pointer"
+          onClick={() => setShowCommentModal(true)}
+        >
+          <MessageCircle className="w-4 h-4" />
+          <span>{cmts}</span>
+        </div>
 
-          <div className="flex items-center gap-1 cursor-pointer" onClick={() => setShowCommentModal(true)}>
-            <MessageCircle className="w-4 h-4" />
-            <span>{post.commentCount || 0}</span>
-          </div>
-
-          <div className="flex items-center gap-1 cursor-pointer" onClick={() => setShowShareModal(true)}>
-            <Share2 className="w-4 h-4" />
-            <span>Share</span>
-          </div>
+        <div
+          className="flex items-center gap-1 cursor-pointer"
+          onClick={() => setShowShareModal(true)}
+        >
+          <Share2 className="w-4 h-4" />
+          <span>{7}</span>
         </div>
       </div>
 
+      {/* Comment Modal */}
       {showCommentModal && (
-        <CommentModal post={post} setShowCommentModal={setShowCommentModal} />
+        <CommentModal
+          post={post}
+          onClose={() => setShowCommentModal(false)}
+          onCommentAdded={() => setCmts((prev) => prev + 1)}
+          // onCommentRemoved={(n = 1) => setCmts((prev) => Math.max(0, prev - n))}
+        />
       )}
+
+      {/* Share Modal */}
       {showShareModal && (
-        <SharePostModal post={post} setShowShareModal={setShowShareModal} />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <SharePostModal
+            post={post}
+            onClose={() => setShowShareModal(false)}
+          />
+        </div>
       )}
-    </>
+    </div>
   );
 };
 

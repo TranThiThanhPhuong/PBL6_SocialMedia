@@ -1,12 +1,13 @@
 import mongoose from "mongoose";
 
 const commentSchema = new mongoose.Schema({
-  post: { type: mongoose.Schema.Types.ObjectId, ref: "Post", required: true },
-  user: { type: String, ref: "User", required: true }, 
-  content: { type: String, required: true, trim: true },
-  likes: [{ type: String, ref: "User" }],
+  post: { type: String, ref: "Post", required: true },
+  user: { type: String, ref: "User", required: true },
   image_urls: [{ type: String }],
-  parentComment: { type: mongoose.Schema.Types.ObjectId, ref: "Comment", default: null }, // null => top-level
+  content: { type: String, default: "" }, 
+  post_type: { type: String, enum: ['text', 'image', 'text_with_image'], required: true},
+  likes_count: [{ type: String, ref: 'User' }],
+  parentComment: { type: String, ref: "Comment", default: null },
   reply_count: { type: Number, default: 0 },
 }, { timestamps: true });
 
