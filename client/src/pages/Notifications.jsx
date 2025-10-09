@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { assets, menuItemsData, dummyUserData, dummyPostsData } from "../assets/assets";
 import { Link } from "react-router-dom";
 import { formatPostTime } from "../app/formatDate";
 import { Heart, MessageCircle, UserPlus } from "lucide-react";
@@ -9,8 +8,14 @@ const dummyNotifications = [
   {
     _id: "noti1",
     type: "like",
-    user: assets.dummyUser2Data,
-    post: dummyPostsData[0],
+    user: { 
+      full_name: "Richard Hendricks",
+      profile_picture: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"
+    },
+    post: {
+      _id: "post1",
+      content: "We're a small #team with a big vision — working day and night to turn dreams into products, and #products into something people love."
+    },
     message: "đã thích bài viết của bạn.",
     createdAt: new Date(Date.now() - 3600000), // 1 giờ trước
     read: false,
@@ -18,8 +23,14 @@ const dummyNotifications = [
   {
     _id: "noti2",
     type: "comment",
-    user: assets.dummyUser3Data,
-    post: dummyPostsData[1],
+    user: {
+      full_name: "Alexa james",
+      profile_picture: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=200&h=200&auto=format&fit=crop"
+    },
+    post: {
+      _id: "post2",
+      content: "This is a sample paragraph with some #hashtags like #socialmedia and #marketing."
+    },
     message: "đã bình luận về bài viết của bạn.",
     createdAt: new Date(Date.now() - 7200000), // 2 giờ trước
     read: true,
@@ -27,7 +38,10 @@ const dummyNotifications = [
   {
     _id: "noti3",
     type: "follow",
-    user: assets.dummyUser2Data,
+    user: {
+      full_name: "Richard Hendricks",
+      profile_picture: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200"
+    },
     post: null,
     message: "đã bắt đầu theo dõi bạn.",
     createdAt: new Date(Date.now() - 10800000), // 3 giờ trước
