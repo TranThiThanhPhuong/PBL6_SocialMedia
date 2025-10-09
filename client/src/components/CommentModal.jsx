@@ -73,7 +73,7 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
         setComments((prev) => [newComment, ...prev]);
         setContent("");
         setImages([]);
-        onCommentAdded && onCommentAdded(); // <-- thông báo parent tăng 1
+        onCommentAdded && onCommentAdded();// <-- thông báo parent tăng 1
         toast.success("Bình luận thành công!");
       } else {
         toast.error(data.message);
@@ -139,13 +139,13 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
       );
 
       if (data.success) {
-        const updated = data.comment; // populated comment object
+        const updated = data.comment;// populated comment object
         setComments((prev) =>
           prev.map((c) => {
             if (c._id === updated._id) {
               return { ...c, likes_count: updated.likes_count };
             }
-            // check in replies
+              // check in replies
             if (c.replies?.some((r) => r._id === updated._id)) {
               const newReplies = c.replies.map((r) =>
                 r._id === updated._id ? updated : r
@@ -167,12 +167,12 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
   return (
     <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50">
       <div className="bg-white w-full max-w-lg h-[80vh] rounded-2xl shadow-lg flex flex-col">
-        {/* Header */}
-        <div className="flex justify-between items-center px-5 py-3 border-b">
-          <h2 className="text-lg font-semibold">Bình luận</h2>
+        {/* Header - Căn giữa tiêu đề và làm mờ đường phân cách */}
+        <div className="flex justify-between items-center px-5 py-3 border-b border-gray-100 relative">
+          <h2 className="text-lg font-semibold flex-grow text-center">Bình luận</h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-black transition"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-black transition"
           >
             <X size={22} />
           </button>
@@ -290,7 +290,7 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
         </div>
 
         {/* Input - add top-level comment */}
-        <div className="p-4 border-t flex items-center gap-3">
+        <div className="p-4 border-t border-gray-100 flex items-center gap-3">
           <img
             src={currentUser.profile_picture}
             alt="me"
@@ -324,8 +324,8 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
                 alt="preview"
                 className="w-10 h-10 object-cover rounded-md border cursor-pointer"
                 onClick={(e) => {
-                  e.preventDefault(); // ngăn label trigger lại input
-                  setImages([]); // click ảnh sẽ xoá ảnh đã chọn
+                  e.preventDefault();// ngăn label trigger lại input
+                  setImages([]);// click ảnh sẽ xoá ảnh đã chọn
                 }}
               />
             ) : (

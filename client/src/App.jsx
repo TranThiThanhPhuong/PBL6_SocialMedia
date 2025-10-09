@@ -9,10 +9,11 @@ import Discover from "./pages/Discover";
 import CreatePost from "./pages/CreatePost";
 import Profile from "./pages/Profile";
 import Layout from "./pages/Layout";
+import Notifications from "./pages/Notifications";
 import { fetchUser } from "./features/user/userSlice";
 import { fetchConnections } from "./features/connections/connectionsSlice";
 import { addMessage } from "./features/messages/messagesSlice";
-import Notificaiton from "./components/Notificaiton.jsx";
+import Notificaiton from "./components/Notification.jsx";
 import { useUser, useAuth } from "@clerk/clerk-react";
 import toast, { Toaster } from "react-hot-toast";
 import { useEffect } from "react";
@@ -78,6 +79,7 @@ const App = () => {
           <Route path="discover" element={<Discover />} />
           <Route path="profile" element={<Profile />} />
           <Route path="profile/:profileId" element={<Profile />} />
+          <Route path="notifications" element={<Notifications />} />
           <Route path="create-post" element={<CreatePost />} />
         </Route>
       </Routes>
