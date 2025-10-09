@@ -6,7 +6,7 @@ import { UserButton, useClerk } from "@clerk/clerk-react";
 import { useSelector } from "react-redux";
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // Hàm để điều hướng đến trang chính khi nhấn vào logo
   const user = useSelector((state) => state.user.value);
   const { signOut } = useClerk();
 

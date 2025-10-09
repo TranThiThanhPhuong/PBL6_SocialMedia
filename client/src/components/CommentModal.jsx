@@ -73,7 +73,7 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
         setComments((prev) => [newComment, ...prev]);
         setContent("");
         setImages([]);
-        onCommentAdded && onCommentAdded();
+        onCommentAdded && onCommentAdded();// <-- thông báo parent tăng 1
         toast.success("Bình luận thành công!");
       } else {
         toast.error(data.message);
@@ -117,7 +117,7 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
         );
         setReplyText("");
         setReplyingTo(null);
-        onCommentAdded && onCommentAdded();
+        onCommentAdded && onCommentAdded(); // reply cũng tăng tổng comment của post
         toast.success("Trả lời thành công!");
       } else {
         toast.error(data.message);
@@ -139,12 +139,13 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
       );
 
       if (data.success) {
-        const updated = data.comment;
+        const updated = data.comment;// populated comment object
         setComments((prev) =>
           prev.map((c) => {
             if (c._id === updated._id) {
               return { ...c, likes_count: updated.likes_count };
             }
+              // check in replies
             if (c.replies?.some((r) => r._id === updated._id)) {
               const newReplies = c.replies.map((r) =>
                 r._id === updated._id ? updated : r
@@ -309,7 +310,7 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
             id="commentImage"
             onChange={(e) => {
               if (e.target.files[0]) {
-                setImages([e.target.files[0]]);
+                setImages([e.target.files[0]]); // chỉ giữ 1 ảnh duy nhất
               }
             }}
           />
@@ -323,8 +324,8 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
                 alt="preview"
                 className="w-10 h-10 object-cover rounded-md border cursor-pointer"
                 onClick={(e) => {
-                  e.preventDefault();
-                  setImages([]);
+                  e.preventDefault();// ngăn label trigger lại input
+                  setImages([]);// click ảnh sẽ xoá ảnh đã chọn
                 }}
               />
             ) : (
