@@ -16,32 +16,43 @@ export const addPost = async (req, res) => {
 
     // ✅ Log label + confidence
     if (aiResult.text_result) {
-      aiResult.text_result.forEach(r =>
-        console.log(`📝 Text: ${r.sentence} | Label: ${r.label} | Confidence: ${r.confidence}`)
+      aiResult.text_result.forEach((r) =>
+        console.log(
+          `📝 Text: ${r.sentence} | Label: ${r.label} | Confidence: ${r.confidence}`
+        )
       );
     }
     if (aiResult.image_result) {
       (Array.isArray(aiResult.image_result)
         ? aiResult.image_result
         : [aiResult.image_result]
-      ).forEach(r =>
+      ).forEach((r) =>
         console.log(`🖼️ Image Label: ${r.label} | Confidence: ${r.confidence}`)
       );
     }
 
-    // 🚫 Kiểm tra vi phạm
-    const hasViolation =
-      (aiResult.text_result?.some(r => r.label !== "an_toan" && r.confidence >= 0.65)) ||
-      (Array.isArray(aiResult.image_result)
-        ? aiResult.image_result.some(r => r.label !== "an_toan" && r.confidence >= 0.65)
-        : aiResult.image_result?.label !== "an_toan" && aiResult.image_result?.confidence >= 0.65);
+    // 🚫 Kiểm tra chi tiết vi phạm
+    const textViolations =
+      aiResult.text_result?.filter(
+        (r) => r.label !== "an_toan" && r.confidence >= 0.65
+      ) || [];
 
-    if (hasViolation) {
+    const imageViolations = (
+      Array.isArray(aiResult.image_result)
+        ? aiResult.image_result
+        : [aiResult.image_result]
+    ).filter((r) => r.label !== "an_toan" && r.confidence >= 0.65);
+
+    if (textViolations.length > 0 || imageViolations.length > 0) {
       images.forEach((img) => fs.unlinkSync(img.path));
       return res.status(400).json({
         success: false,
         message: "Bài viết chứa nội dung vi phạm, không thể đăng.",
         aiResult,
+        detail: {
+          textViolations,
+          imageViolations,
+        },
       });
     }
 
@@ -72,7 +83,9 @@ export const addPost = async (req, res) => {
     res.json({ success: true, message: "Tạo bài viết thành công", aiResult });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: "Lỗi máy chủ: " + error.message });
+    res
+      .status(500)
+      .json({ success: false, message: "Lỗi máy chủ: " + error.message });
   }
 };
 

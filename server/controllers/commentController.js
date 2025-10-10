@@ -43,13 +43,46 @@ export const addComment = async (req, res) => {
           aiResult.image_result?.confidence >= 0.65);
 
     if (hasViolation) {
-      images.forEach((img) => fs.unlinkSync(img.path));
-      return res.status(400).json({
-        success: false,
-        message: "Bài viết chứa nội dung vi phạm, không thể đăng.",
-        aiResult,
-      });
-    }
+  // 🔍 Lấy tất cả nhãn vi phạm (text + image)
+  const textLabels =
+    aiResult.text_result
+      ?.filter((r) => r.label !== "an_toan" && r.confidence >= 0.65)
+      .map((r) => r.label) || [];
+
+  const imageLabels = Array.isArray(aiResult.image_result)
+    ? aiResult.image_result
+        .filter((r) => r.label !== "an_toan" && r.confidence >= 0.65)
+        .map((r) => r.label)
+    : aiResult.image_result?.label !== "an_toan" &&
+      aiResult.image_result?.confidence >= 0.65
+    ? [aiResult.image_result.label]
+    : [];
+
+  const allLabels = [...textLabels, ...imageLabels];
+
+  // 🔁 Loại bỏ trùng lặp
+  const uniqueLabels = [...new Set(allLabels)];
+
+  // 🧾 Tạo message theo số lượng nhãn
+  let message = "";
+  if (uniqueLabels.length === 1) {
+    message = `Phát hiện nội dung vi phạm: ${uniqueLabels[0]}`;
+  } else {
+    message = `Phát hiện ${uniqueLabels.length} loại vi phạm: ${uniqueLabels.join(", ")}`;
+  }
+
+  // 🔥 Xóa ảnh tạm
+  images.forEach((img) => fs.unlinkSync(img.path));
+
+  // 🔁 Gửi về FE
+  return res.status(400).json({
+    success: false,
+    message,
+    labels: uniqueLabels,
+    aiResult,
+  });
+}
+
 
     // ✅ Nếu an toàn → upload ảnh + lưu DB
     let image_urls = [];

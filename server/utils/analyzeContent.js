@@ -15,7 +15,7 @@ export const analyzeContent = async (content, images) => {
       });
     }
 
-    const response = await axios.post("https://phuongsuga-pbl6-ai-app-test.hf.space/analyze", form, {
+    const response = await axios.post(`${process.env.API_HUGGING_FACE_SPACE}/analyze`, form, {
       headers: form.getHeaders(),
       timeout: 30000, // 30s phòng trường hợp AI xử lý chậm
     });

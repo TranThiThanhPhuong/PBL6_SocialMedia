@@ -15,16 +15,17 @@ const CommentModal = ({ post, onClose }) => {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState({ type: "", message: "" });
-  
-    const violationMessages = {
-      khieu_dam_doi_truy: "Bài viết chứa nội dung khiêu dâm / đồi trụy!",
-      ngon_tu_thu_ghet: "Bài viết chứa ngôn từ thù ghét / kích động!",
-      nhay_cam_chinh_tri: "Bài viết chứa nội dung nhạy cảm chính trị!",
-      bao_luc: "Bài viết chứa nội dung bạo lực / tàn ác!",
-    };
+
+  const violationMessages = {
+    khieu_dam_doi_truy: "Bình luận chứa nội dung khiêu dâm / đồi trụy!",
+    ngon_tu_thu_ghet: "Bình luận chứa ngôn từ thù ghét / kích động!",
+    nhay_cam_chinh_tri: "Bình luận chứa nội dung nhạy cảm chính trị!",
+    bao_luc: "Bình luận chứa nội dung bạo lực / tàn ác!",
+  };
 
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState("");
+  const [replyImages, setReplyImages] = useState([]);
   const [replyLoading, setReplyLoading] = useState(false);
 
   const fetchComments = async () => {
@@ -47,12 +48,20 @@ const CommentModal = ({ post, onClose }) => {
     fetchComments();
   }, []);
 
-  const isLikedBy = (c) =>
-    !!c.likes_count?.some((id) => id.toString() === currentUser._id);
+  // const isLikedBy = (c) =>
+  //   !!c.likes_count?.some((id) => id.toString() === currentUser._id);
+
+  const isLikedBy = (commentOrReply) => {
+    return Array.isArray(commentOrReply.likes_count)
+      ? commentOrReply.likes_count.some(
+          (id) => id.toString() === currentUser._id
+        )
+      : false;
+  };
 
   const handleAddComment = async () => {
     if (!images.length && !content.trim()) {
-      return toast.error("Hãy thêm nội dung hoặc hình ảnh để đăng.");
+      return toast.error("Hãy thêm nội dung hoặc hình ảnh để bình luận.");
     }
 
     setLoading(true);
@@ -82,7 +91,7 @@ const CommentModal = ({ post, onClose }) => {
         setComments((prev) => [newComment, ...prev]);
         setContent("");
         setImages([]);
-        setStatus({ type: "success", message: "Đăng bài thành công!" });
+        setStatus({ type: "success", message: "Trả lời thành công!" });
         toast.success("Bình luận thành công!");
       } else {
         toast.error(data.message);
@@ -91,15 +100,16 @@ const CommentModal = ({ post, onClose }) => {
       // toast.error(error.message);
       console.error("❌ Lỗi khi đăng:", error);
       if (error.response?.status === 400) {
-        const ai = error.response.data.aiResult;
-        let label = ai?.text_result?.[0]?.label || ai?.image_result?.[0]?.label || "unknown";
-        const message =
-          violationMessages[label] || "Bài viết chứa nội dung vi phạm!";
-        toast.error(message);
+        const { labels, message } = error.response.data;
+        if (labels?.length > 1) {
+          toast.error(`${message}`);
+        } else if (labels?.length === 1) {
+          const label = labels[0];
+          toast.error(violationMessages[label] || `Nội dung vi phạm: ${label}`);
+        } else {
+          toast.error(message || "Bình luận chứa nội dung vi phạm!");
+        }
         setStatus({ type: "violated", message });
-      } else {
-        toast.error("⚠️ Lỗi khi đăng bài.");
-        setStatus({ type: "error", message: "Lỗi khi đăng bài." });
       }
     } finally {
       setLoading(false);
@@ -107,14 +117,28 @@ const CommentModal = ({ post, onClose }) => {
   };
 
   const handleAddReply = async (parentCommentId) => {
-    if (!replyText.trim()) return toast.error("Hãy nhập nội dung trả lời!");
+    if (!replyImages.length && !replyText.trim()) {
+      return toast.error(
+        "Hãy thêm nội dung hoặc hình ảnh để trả lời bình luận."
+      );
+    }
     setReplyLoading(true);
+    setStatus({ type: "checking", message: "Đang kiểm duyệt nội dung..." });
+
+    const postType =
+      replyImages.length && replyText.trim()
+        ? "text_with_image"
+        : replyImages.length
+        ? "image"
+        : "text";
+
     try {
       const fd = new FormData();
       fd.append("postId", post._id);
       fd.append("content", replyText);
       fd.append("post_type", "text");
       fd.append("parentComment", parentCommentId);
+      replyImages.forEach((img) => fd.append("images", img));
 
       const token = await getToken();
       const { data } = await api.post("/api/comment/add", fd, {
@@ -136,13 +160,28 @@ const CommentModal = ({ post, onClose }) => {
           })
         );
         setReplyText("");
+        setReplyImages([]);
         setReplyingTo(null);
+        setStatus({ type: "success", message: "Trả lời thành công!" });
         toast.success("Trả lời thành công!");
       } else {
         toast.error(data.message);
       }
     } catch (error) {
-      toast.error(error.message);
+      // toast.error(error.message);
+      console.error("❌ Lỗi khi đăng:", error);
+      if (error.response?.status === 400) {
+        const { labels, message } = error.response.data;
+        if (labels?.length > 1) {
+          toast.error(`🚫 ${message}`);
+        } else if (labels?.length === 1) {
+          const label = labels[0];
+          toast.error(violationMessages[label] || `Nội dung vi phạm: ${label}`);
+        } else {
+          toast.error(message || "Bình luận chứa nội dung vi phạm!");
+        }
+        setStatus({ type: "violated", message });
+      }
     } finally {
       setReplyLoading(false);
     }
@@ -158,13 +197,13 @@ const CommentModal = ({ post, onClose }) => {
       );
 
       if (data.success) {
-        const updated = data.comment;// populated comment object
+        const updated = data.comment; // populated comment object
         setComments((prev) =>
           prev.map((c) => {
             if (c._id === updated._id) {
               return { ...c, likes_count: updated.likes_count };
             }
-              // check in replies
+            // check in replies
             if (c.replies?.some((r) => r._id === updated._id)) {
               const newReplies = c.replies.map((r) =>
                 r._id === updated._id ? updated : r
@@ -188,7 +227,9 @@ const CommentModal = ({ post, onClose }) => {
       <div className="bg-white w-full max-w-lg h-[80vh] rounded-2xl shadow-lg flex flex-col">
         {/* Header - Căn giữa tiêu đề và làm mờ đường phân cách */}
         <div className="flex justify-between items-center px-5 py-3 border-b border-gray-100 relative">
-          <h2 className="text-lg font-semibold flex-grow text-center">Bình luận</h2>
+          <h2 className="text-lg font-semibold flex-grow text-center">
+            Bình luận
+          </h2>
           <button
             onClick={onClose}
             className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-black transition"
@@ -266,6 +307,36 @@ const CommentModal = ({ post, onClose }) => {
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
                     />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="replyImage"
+                      onChange={(e) => {
+                        if (e.target.files[0]) {
+                          setReplyImages([e.target.files[0]]); // chỉ giữ 1 ảnh duy nhất
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor="replyImage"
+                      className="cursor-pointer text-sm text-blue-500"
+                    >
+                      {replyImages.length > 0 ? (
+                        <img
+                          src={URL.createObjectURL(replyImages[0])}
+                          alt="preview"
+                          className="w-10 h-10 object-cover rounded-md border cursor-pointer"
+                          onClick={(e) => {
+                            e.preventDefault(); // ngăn label trigger lại input
+                            setReplyImages([]);
+                            []; // click ảnh sẽ xoá ảnh đã chọn
+                          }}
+                        />
+                      ) : (
+                        <span className="text-sm text-blue-500">Ảnh</span>
+                      )}
+                    </label>
                     <button
                       disabled={replyLoading}
                       onClick={() => handleAddReply(cmt._id)}
@@ -295,9 +366,36 @@ const CommentModal = ({ post, onClose }) => {
                               {formatPostTime(reply.createdAt)}
                             </span>
                           </div>
+
                           <p className="text-xs text-gray-700">
                             {reply.content}
                           </p>
+
+                          {/* Ảnh trong reply */}
+                          {reply.image_urls?.length > 0 && (
+                            <img
+                              src={reply.image_urls[0]}
+                              alt="reply media"
+                              className="mt-1 rounded-md max-h-32 border"
+                            />
+                          )}
+
+                          {/* Like button */}
+                          <div className="flex items-center gap-2 mt-1">
+                            <button
+                              onClick={() => handleLike(reply._id)}
+                              className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-500 transition"
+                            >
+                              <Heart
+                                size={14}
+                                fill={isLikedBy(reply) ? "red" : "none"}
+                                className={
+                                  isLikedBy(reply) ? "text-red-500" : ""
+                                }
+                              />
+                              <span>{reply.likes_count?.length || 0}</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -343,8 +441,8 @@ const CommentModal = ({ post, onClose }) => {
                 alt="preview"
                 className="w-10 h-10 object-cover rounded-md border cursor-pointer"
                 onClick={(e) => {
-                  e.preventDefault();// ngăn label trigger lại input
-                  setImages([]);// click ảnh sẽ xoá ảnh đã chọn
+                  e.preventDefault(); // ngăn label trigger lại input
+                  setImages([]); // click ảnh sẽ xoá ảnh đã chọn
                 }}
               />
             ) : (
