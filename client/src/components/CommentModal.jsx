@@ -6,7 +6,7 @@ import api from "../api/axios";
 import toast from "react-hot-toast";
 import { formatPostTime } from "../app/formatDate";
 
-const CommentModal = ({ post, onClose, onCommentAdded }) => {
+const CommentModal = ({ post, onClose }) => {
   const currentUser = useSelector((state) => state.user.value);
   const { getToken } = useAuth();
 
@@ -14,6 +14,14 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
   const [content, setContent] = useState("");
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState({ type: "", message: "" });
+  
+    const violationMessages = {
+      khieu_dam_doi_truy: "Bài viết chứa nội dung khiêu dâm / đồi trụy!",
+      ngon_tu_thu_ghet: "Bài viết chứa ngôn từ thù ghét / kích động!",
+      nhay_cam_chinh_tri: "Bài viết chứa nội dung nhạy cảm chính trị!",
+      bao_luc: "Bài viết chứa nội dung bạo lực / tàn ác!",
+    };
 
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState("");
@@ -47,6 +55,9 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
       return toast.error("Hãy thêm nội dung hoặc hình ảnh để đăng.");
     }
 
+    setLoading(true);
+    setStatus({ type: "checking", message: "Đang kiểm duyệt nội dung..." });
+
     const postType =
       images.length && content.trim()
         ? "text_with_image"
@@ -54,7 +65,6 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
         ? "image"
         : "text";
 
-    setLoading(true);
     try {
       const fd = new FormData();
       fd.append("postId", post._id);
@@ -68,18 +78,29 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
       });
 
       if (data.success) {
-        // ensure replies field exists for top-level
         const newComment = { ...data.comment, replies: [] };
         setComments((prev) => [newComment, ...prev]);
         setContent("");
         setImages([]);
-        onCommentAdded && onCommentAdded();// <-- thông báo parent tăng 1
+        setStatus({ type: "success", message: "Đăng bài thành công!" });
         toast.success("Bình luận thành công!");
       } else {
         toast.error(data.message);
       }
     } catch (error) {
-      toast.error(error.message);
+      // toast.error(error.message);
+      console.error("❌ Lỗi khi đăng:", error);
+      if (error.response?.status === 400) {
+        const ai = error.response.data.aiResult;
+        let label = ai?.text_result?.[0]?.label || ai?.image_result?.[0]?.label || "unknown";
+        const message =
+          violationMessages[label] || "Bài viết chứa nội dung vi phạm!";
+        toast.error(message);
+        setStatus({ type: "violated", message });
+      } else {
+        toast.error("⚠️ Lỗi khi đăng bài.");
+        setStatus({ type: "error", message: "Lỗi khi đăng bài." });
+      }
     } finally {
       setLoading(false);
     }
@@ -101,7 +122,6 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
       });
 
       if (data.success) {
-        // cập nhật local state: thêm reply vào parent
         setComments((prev) =>
           prev.map((c) => {
             if (c._id === parentCommentId) {
@@ -117,7 +137,6 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
         );
         setReplyText("");
         setReplyingTo(null);
-        onCommentAdded && onCommentAdded(); // reply cũng tăng tổng comment của post
         toast.success("Trả lời thành công!");
       } else {
         toast.error(data.message);

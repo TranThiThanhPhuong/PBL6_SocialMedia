@@ -110,7 +110,8 @@ const PostCard = ({ post }) => {
           onClick={() => setShowCommentModal(true)}
         >
           <MessageCircle className="w-4 h-4" />
-          <span>{cmts}</span>
+          {/* <span>{12}</span> */}
+          <span>Bình luận</span>
         </div>
 
         <div
@@ -118,7 +119,7 @@ const PostCard = ({ post }) => {
           onClick={() => setShowShareModal(true)}
         >
           <Share2 className="w-4 h-4" />
-          <span>{7}</span>
+          <span>Chia sẻ</span>
         </div>
       </div>
 
@@ -127,8 +128,6 @@ const PostCard = ({ post }) => {
         <CommentModal
           post={post}
           onClose={() => setShowCommentModal(false)}
-          onCommentAdded={() => setCmts((prev) => prev + 1)}
-          // onCommentRemoved={(n = 1) => setCmts((prev) => Math.max(0, prev - n))}
         />
       )}
 

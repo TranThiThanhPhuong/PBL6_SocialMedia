@@ -1,5 +1,3 @@
-
-
 import React from "react";
 import { menuItemsData } from "../assets/assets";
 import { NavLink } from "react-router-dom";
@@ -15,10 +13,10 @@ const MenuItems = ({ setSidebarOpen }) => {
           end={to === "/"}
           onClick={() => setSidebarOpen(false)}
           className={({ isActive }) =>
-            `px-3.5 py-3.5 flex items-center gap-3 rounded-lg transition-all duration-200 ${
+            `px-3.5 py-3 flex items-center gap-3 rounded-xl transition-all duration-200 ${
               isActive
-                ? "bg-gray-200 text-gray-900 font-semibold"  // Màu nền xám nhạt và chữ đen cho mục đang active
-                : "hover:bg-gray-100"                      // Hiệu ứng hover nhẹ
+                ? "bg-indigo-50 text-indigo-700 font-semibold"
+                : "hover:bg-gray-50"
             }`
           }
         >

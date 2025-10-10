@@ -2,35 +2,62 @@ import fs from "fs";
 import Post from "../models/Post.js";
 import imagekit from "../configs/imageKit.js";
 import User from "../models/User.js";
+import { analyzeContent } from "../utils/analyzeContent.js";
 
 export const addPost = async (req, res) => {
   try {
     const { userId } = req.auth();
-    const { content, post_type } = req.body; // lay content va post_type tu body
-    const images = req.files; // lay mang cac file duoc upload
-    let image_urls = []; // mang chua url cua cac anh sau khi upload len imagekit
+    const { content, post_type } = req.body;
+    const images = req.files;
 
-    if (images.length) {
+    // 🧠 Gọi AI kiểm duyệt
+    const aiResult = await analyzeContent(content, images);
+    console.log("🔍 Kết quả AI:", JSON.stringify(aiResult, null, 2));
+
+    // ✅ Log label + confidence
+    if (aiResult.text_result) {
+      aiResult.text_result.forEach(r =>
+        console.log(`📝 Text: ${r.sentence} | Label: ${r.label} | Confidence: ${r.confidence}`)
+      );
+    }
+    if (aiResult.image_result) {
+      (Array.isArray(aiResult.image_result)
+        ? aiResult.image_result
+        : [aiResult.image_result]
+      ).forEach(r =>
+        console.log(`🖼️ Image Label: ${r.label} | Confidence: ${r.confidence}`)
+      );
+    }
+
+    // 🚫 Kiểm tra vi phạm
+    const hasViolation =
+      (aiResult.text_result?.some(r => r.label !== "an_toan" && r.confidence >= 0.65)) ||
+      (Array.isArray(aiResult.image_result)
+        ? aiResult.image_result.some(r => r.label !== "an_toan" && r.confidence >= 0.65)
+        : aiResult.image_result?.label !== "an_toan" && aiResult.image_result?.confidence >= 0.65);
+
+    if (hasViolation) {
+      images.forEach((img) => fs.unlinkSync(img.path));
+      return res.status(400).json({
+        success: false,
+        message: "Bài viết chứa nội dung vi phạm, không thể đăng.",
+        aiResult,
+      });
+    }
+
+    // ✅ Nếu an toàn → upload ảnh + lưu DB
+    let image_urls = [];
+    if (images?.length) {
       image_urls = await Promise.all(
         images.map(async (image) => {
           const fileBuffer = fs.readFileSync(image.path);
           const response = await imagekit.upload({
-            file: fileBuffer, // dung de upload file
-            fileName: image.originalname, // ten file
-            folder: "posts", // thu muc de luu file tren imagekit
-          }); // neu upload thanh cong se tra ve mot object chua thong tin ve file vua upload
-
-          const url = imagekit.url({
-            path: response.filePath,
-            transformation: [
-              {
-                quality: "auto",
-                format: "webp",
-                width: "1280",
-              },
-            ],
-          }); // tao url voi kich thuoc va dinh dang mong muon
-          return url; // tra ve url cua anh vua upload
+            file: fileBuffer,
+            fileName: image.originalname,
+            folder: "posts",
+          });
+          fs.unlinkSync(image.path);
+          return response.url;
         })
       );
     }
@@ -41,10 +68,11 @@ export const addPost = async (req, res) => {
       image_urls,
       post_type,
     });
-    res.json({ success: true, message: "Tạo bài viết thành công" });
+
+    res.json({ success: true, message: "Tạo bài viết thành công", aiResult });
   } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+    console.error(error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ: " + error.message });
   }
 };
 
