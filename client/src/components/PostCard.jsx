@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { BadgeCheck, Heart, MessageCircle, Share2 } from "lucide-react";
+import { BadgeCheck, Heart, MessageCircle, Share2Icon, Share2 } from "lucide-react";
 import { formatPostTime } from "../app/formatDate";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -93,33 +93,51 @@ const PostCard = ({ post }) => {
         ))}
       </div>
 
+      {/* Stats Section (New) */}
+      <div className="flex justify-between items-center text-gray-600 text-sm mb-2">
+      <div className="flex items-center gap-1">
+        {/* Nút thích đã được thay thế bằng biểu tượng trái tim */}
+        <span className="font-semibold">{post.likes_count?.length || 0} lượt thích</span>
+      </div>
+      <div className="flex gap-4">
+        <span>{post.comments_count || 0} bình luận</span>
+        <span>{post.shares_count || 0} lượt chia sẻ</span>
+      </div>
+    </div>
+
+    <hr className="border-t border-gray-200" />
+
       {/* Actions */}
-      <div className="flex items-center gap-4 text-gray-600 text-sm pt-2 border-t border-gray-300">
-        <div className="flex items-center gap-1">
+      <div className="flex justify-around items-center pt-3 text-gray-600 font-medium">
+        <button
+          onClick={handleLike}
+          className={`flex items-center justify-center gap-2 w-1/3 py-2 rounded-lg hover:bg-gray-100 transition ${
+            likes.includes(currentUser._id) ? "text-black-500" : ""
+          }`}
+        >
           <Heart
-            className={`w-4 h-4 cursor-pointer ${
-              likes.includes(currentUser._id) && "text-red-500 fill-red-500"
-            }`}
-            onClick={handleLike}
+            className="w-5 h-5"
+            fill={likes.includes(currentUser._id) ? "#f63b3bff" : "none"}
+            stroke={likes.includes(currentUser._id) ? "#f63b3bff" : "currentColor"}
           />
-          <span>{likes.length}</span>
-        </div>
+          <span>Thích</span>
+        </button>
 
-        <div
-          className="flex items-center gap-1 cursor-pointer"
+        <button
           onClick={() => setShowCommentModal(true)}
+          className="flex items-center justify-center gap-2 w-1/3 py-2 rounded-lg hover:bg-gray-100 transition"
         >
-          <MessageCircle className="w-4 h-4" />
-          <span>{cmts}</span>
-        </div>
+          <MessageCircle className="w-5 h-5" />
+          <span>Bình luận</span>
+        </button>
 
-        <div
-          className="flex items-center gap-1 cursor-pointer"
+        <button
           onClick={() => setShowShareModal(true)}
+          className="flex items-center justify-center gap-2 w-1/3 py-2 rounded-lg hover:bg-gray-100 transition"
         >
-          <Share2 className="w-4 h-4" />
-          <span>{7}</span>
-        </div>
+          <Share2 className="w-5 h-5" />
+          <span>Chia sẻ</span>
+        </button>
       </div>
 
       {/* Comment Modal */}
@@ -128,16 +146,15 @@ const PostCard = ({ post }) => {
           post={post}
           onClose={() => setShowCommentModal(false)}
           onCommentAdded={() => setCmts((prev) => prev + 1)}
-          // onCommentRemoved={(n = 1) => setCmts((prev) => Math.max(0, prev - n))}
         />
       )}
 
       {/* Share Modal */}
       {showShareModal && (
-          <SharePostModal
-            post={post}
-            onClose={() => setShowShareModal(false)}
-          />
+        <SharePostModal
+          post={post}
+          onClose={() => setShowShareModal(false)}
+        />
       )}
     </div>
   );
