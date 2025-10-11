@@ -97,7 +97,7 @@ const PostCard = ({ post }) => {
       <div className="flex justify-between items-center text-gray-600 text-sm mb-2">
       <div className="flex items-center gap-1">
         {/* Nút thích đã được thay thế bằng biểu tượng trái tim */}
-        <span className="font-semibold">{post.likes_count?.length || 0} lượt thích</span>
+        <span className="font-semibold">{likes.length || 0} lượt thích</span>
       </div>
       <div className="flex gap-4">
         <span>{post.comments_count || 0} bình luận</span>
