@@ -90,6 +90,7 @@ const ChatBox = () => {
         </div>
 
         <div className="p-5 md:px-18 h-full overflow-y-scroll">
+            {/* KHU VỰC HIỂN THỊ TIN NHẮN */}
           <div className="space-y-4 max-w-4xl mx-auto">
             {messages
               .toSorted((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
@@ -166,3 +167,4 @@ const ChatBox = () => {
   );
 };
 export default ChatBox;
+
