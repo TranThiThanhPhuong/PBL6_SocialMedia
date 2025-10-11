@@ -71,27 +71,32 @@ const CreatePost = () => {
         const imageViolations = ai?.detail?.imageViolations || [];
 
         let detailMsg = "";
-
-        if (imageViolations && textViolations.length > 0) {
-          detailMsg += "📝 <b>Văn bản:</b><br/>";
-          textViolations.forEach((v) => {
-            detailMsg += `• "${v.sentence}" → ${
-              violationMessages[v.label] || v.label
-            }<br/>`;
-          });
-        } else {
-          detailMsg += "🖼️ <b>Văn bản:</b> An toàn ✅<br/>";
+        // 📝 Nếu có text input thì mới hiển thị phần kiểm duyệt text
+        if (content.trim() !== "") {
+          if (textViolations.length > 0) {
+            detailMsg += "📝 <b>Văn bản:</b><br/>";
+            textViolations.forEach((v) => {
+              detailMsg += `• "${v.sentence}" → ${
+                violationMessages[v.label] || v.label
+              }<br/>`;
+            });
+          } else {
+            detailMsg += "📝 <b>Văn bản:</b> An toàn ✅<br/>";
+          }
         }
 
-        if (imageViolations && imageViolations.length > 0) {
-          detailMsg += "🖼️ <b>Ảnh:</b><br/>";
-          imageViolations.forEach((v) => {
-            detailMsg += `• ${v.image_name ? v.image_name : "Ảnh"}: ${
-              violationMessages[v.label] || v.label
-            }<br/>`;
-          });
-        } else {
-          detailMsg += "🖼️ <b>Ảnh:</b> An toàn ✅<br/>";
+        // 🖼️ Nếu có ảnh upload thì mới hiển thị phần kiểm duyệt ảnh
+        if (images.length > 0) {
+          if (imageViolations.length > 0) {
+            detailMsg += "🖼️ <b>Ảnh:</b><br/>";
+            imageViolations.forEach((v) => {
+              detailMsg += `• ${v.image_name ? v.image_name : "Ảnh"}: ${
+                violationMessages[v.label] || v.label
+              }<br/>`;
+            });
+          } else {
+            detailMsg += "🖼️ <b>Ảnh:</b> An toàn ✅<br/>";
+          }
         }
 
         toast.error("Bài viết chứa nội dung vi phạm.");

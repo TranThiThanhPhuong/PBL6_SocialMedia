@@ -97,7 +97,6 @@ const CommentModal = ({ post, onClose }) => {
         toast.error(data.message);
       }
     } catch (error) {
-      // toast.error(error.message);
       console.error("❌ Lỗi khi đăng:", error);
       if (error.response?.status === 400) {
         const { labels, message } = error.response.data;
@@ -136,7 +135,7 @@ const CommentModal = ({ post, onClose }) => {
       const fd = new FormData();
       fd.append("postId", post._id);
       fd.append("content", replyText);
-      fd.append("post_type", "text");
+      fd.append("post_type", postType);
       fd.append("parentComment", parentCommentId);
       replyImages.forEach((img) => fd.append("images", img));
 
@@ -168,7 +167,6 @@ const CommentModal = ({ post, onClose }) => {
         toast.error(data.message);
       }
     } catch (error) {
-      // toast.error(error.message);
       console.error("❌ Lỗi khi đăng:", error);
       if (error.response?.status === 400) {
         const { labels, message } = error.response.data;
@@ -197,7 +195,7 @@ const CommentModal = ({ post, onClose }) => {
       );
 
       if (data.success) {
-        const updated = data.comment; // populated comment object
+        const updated = data.comment;
         setComments((prev) =>
           prev.map((c) => {
             if (c._id === updated._id) {
