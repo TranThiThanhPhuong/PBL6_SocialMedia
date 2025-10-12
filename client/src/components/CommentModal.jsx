@@ -6,7 +6,7 @@ import api from "../api/axios";
 import toast from "react-hot-toast";
 import { formatPostTime } from "../app/formatDate";
 
-const CommentModal = ({ post, onClose }) => {
+const CommentModal = ({ post, onClose, onCommentAdded }) => {
   const currentUser = useSelector((state) => state.user.value);
   const { getToken } = useAuth();
 
@@ -47,9 +47,6 @@ const CommentModal = ({ post, onClose }) => {
   useEffect(() => {
     fetchComments();
   }, []);
-
-  // const isLikedBy = (c) =>
-  //   !!c.likes_count?.some((id) => id.toString() === currentUser._id);
 
   const isLikedBy = (commentOrReply) => {
     return Array.isArray(commentOrReply.likes_count)
@@ -93,6 +90,11 @@ const CommentModal = ({ post, onClose }) => {
         setImages([]);
         setStatus({ type: "success", message: "Trả lời thành công!" });
         toast.success("Bình luận thành công!");
+
+        // ✅ Gọi callback cập nhật tổng số comment ở PostCard
+        if (typeof onCommentAdded === "function") {
+          onCommentAdded();
+        }
       } else {
         toast.error(data.message);
       }
@@ -100,15 +102,25 @@ const CommentModal = ({ post, onClose }) => {
       console.error("❌ Lỗi khi đăng:", error);
       if (error.response?.status === 400) {
         const { labels, message } = error.response.data;
-        if (labels?.length > 1) {
-          toast.error(`${message}`);
-        } else if (labels?.length === 1) {
-          const label = labels[0];
-          toast.error(violationMessages[label] || `Nội dung vi phạm: ${label}`);
-        } else {
-          toast.error(message || "Bình luận chứa nội dung vi phạm!");
+        let errorMsg = "Phản hồi chứa nội dung vi phạm!";
+
+        if (labels?.length > 0) {
+          const mapped = labels
+            .map((l) => violationMessages[l] || `Nội dung vi phạm: ${l}`)
+            .join("<br/>");
+          errorMsg = mapped;
+        } else if (message) {
+          errorMsg = message;
         }
-        setStatus({ type: "violated", message });
+
+        // toast.error("🚫 " + errorMsg.replace(/<br\/>/g, " "));
+        setStatus({ type: "violated", message: errorMsg });
+        toast.custom((t) => (
+          <div
+            className="bg-red-50 border border-red-300 text-red-700 rounded-md px-4 py-3 text-lag"
+            dangerouslySetInnerHTML={{ __html: errorMsg }}
+          ></div>
+        ));
       }
     } finally {
       setLoading(false);
@@ -163,6 +175,11 @@ const CommentModal = ({ post, onClose }) => {
         setReplyingTo(null);
         setStatus({ type: "success", message: "Trả lời thành công!" });
         toast.success("Trả lời thành công!");
+
+        // ✅ Gọi callback cập nhật tổng số comment ở PostCard
+        if (typeof onCommentAdded === "function") {
+          onCommentAdded();
+        }
       } else {
         toast.error(data.message);
       }
@@ -170,15 +187,19 @@ const CommentModal = ({ post, onClose }) => {
       console.error("❌ Lỗi khi đăng:", error);
       if (error.response?.status === 400) {
         const { labels, message } = error.response.data;
-        if (labels?.length > 1) {
-          toast.error(`🚫 ${message}`);
-        } else if (labels?.length === 1) {
-          const label = labels[0];
-          toast.error(violationMessages[label] || `Nội dung vi phạm: ${label}`);
-        } else {
-          toast.error(message || "Bình luận chứa nội dung vi phạm!");
+        let errorMsg = "Phản hồi chứa nội dung vi phạm!";
+
+        if (labels?.length > 0) {
+          const mapped = labels
+            .map((l) => violationMessages[l] || `Nội dung vi phạm: ${l}`)
+            .join("<br/>");
+          errorMsg = mapped;
+        } else if (message) {
+          errorMsg = message;
         }
-        setStatus({ type: "violated", message });
+
+        toast.error("🚫 " + errorMsg.replace(/<br\/>/g, " "));
+        setStatus({ type: "violated", message: errorMsg });
       }
     } finally {
       setReplyLoading(false);

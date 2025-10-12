@@ -13,7 +13,6 @@ import Notifications from "./pages/Notifications";
 import { fetchUser } from "./features/user/userSlice";
 import { fetchConnections } from "./features/connections/connectionsSlice";
 import { addMessage } from "./features/messages/messagesSlice";
-import Notificaiton from "./components/Notification.jsx";
 import { useUser, useAuth } from "@clerk/clerk-react";
 import toast, { Toaster } from "react-hot-toast";
 import { useEffect } from "react";
@@ -54,7 +53,7 @@ const App = () => {
         } 
         else {
           toast.custom((t)=>(
-            <Notificaiton t={t} message={message}/>
+            <Notifications t={t} message={message}/>
           ), {position: "bottom-right"});
         // Nếu bạn đang ở chỗ khác → thì show thông báo (toast). 
         }

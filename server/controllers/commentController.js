@@ -2,6 +2,8 @@ import fs from "fs";
 import imagekit from "../configs/imageKit.js";
 import Comment from "../models/Comment.js";
 import Post from "../models/Post.js";
+import User from "../models/User.js";
+import Notification from "../models/Notification.js";
 import { analyzeContent } from "../utils/analyzeContent.js";
 
 export const addComment = async (req, res) => {
@@ -43,46 +45,47 @@ export const addComment = async (req, res) => {
           aiResult.image_result?.confidence >= 0.65);
 
     if (hasViolation) {
-  // 🔍 Lấy tất cả nhãn vi phạm (text + image)
-  const textLabels =
-    aiResult.text_result
-      ?.filter((r) => r.label !== "an_toan" && r.confidence >= 0.65)
-      .map((r) => r.label) || [];
+      // 🔍 Lấy tất cả nhãn vi phạm (text + image)
+      const textLabels =
+        aiResult.text_result
+          ?.filter((r) => r.label !== "an_toan" && r.confidence >= 0.65)
+          .map((r) => r.label) || [];
 
-  const imageLabels = Array.isArray(aiResult.image_result)
-    ? aiResult.image_result
-        .filter((r) => r.label !== "an_toan" && r.confidence >= 0.65)
-        .map((r) => r.label)
-    : aiResult.image_result?.label !== "an_toan" &&
-      aiResult.image_result?.confidence >= 0.65
-    ? [aiResult.image_result.label]
-    : [];
+      const imageLabels = Array.isArray(aiResult.image_result)
+        ? aiResult.image_result
+            .filter((r) => r.label !== "an_toan" && r.confidence >= 0.65)
+            .map((r) => r.label)
+        : aiResult.image_result?.label !== "an_toan" &&
+          aiResult.image_result?.confidence >= 0.65
+        ? [aiResult.image_result.label]
+        : [];
 
-  const allLabels = [...textLabels, ...imageLabels];
+      const allLabels = [...textLabels, ...imageLabels];
 
-  // 🔁 Loại bỏ trùng lặp
-  const uniqueLabels = [...new Set(allLabels)];
+      // 🔁 Loại bỏ trùng lặp
+      const uniqueLabels = [...new Set(allLabels)];
 
-  // 🧾 Tạo message theo số lượng nhãn
-  let message = "";
-  if (uniqueLabels.length === 1) {
-    message = `Phát hiện nội dung vi phạm: ${uniqueLabels[0]}`;
-  } else {
-    message = `Phát hiện ${uniqueLabels.length} loại vi phạm: ${uniqueLabels.join(", ")}`;
-  }
+      // 🧾 Tạo message theo số lượng nhãn
+      let message = "";
+      if (uniqueLabels.length === 1) {
+        message = `Phát hiện nội dung vi phạm: ${uniqueLabels[0]}`;
+      } else {
+        message = `Phát hiện ${
+          uniqueLabels.length
+        } loại vi phạm: ${uniqueLabels.join(", ")}`;
+      }
 
-  // 🔥 Xóa ảnh tạm
-  images.forEach((img) => fs.unlinkSync(img.path));
+      // 🔥 Xóa ảnh tạm
+      images.forEach((img) => fs.unlinkSync(img.path));
 
-  // 🔁 Gửi về FE
-  return res.status(400).json({
-    success: false,
-    message,
-    labels: uniqueLabels,
-    aiResult,
-  });
-}
-
+      // 🔁 Gửi về FE
+      return res.status(400).json({
+        success: false,
+        message,
+        labels: uniqueLabels,
+        aiResult,
+      });
+    }
 
     // ✅ Nếu an toàn → upload ảnh + lưu DB
     let image_urls = [];
@@ -116,11 +119,43 @@ export const addComment = async (req, res) => {
       parentComment: parentComment || null,
     });
 
+    // 🔔 Thông báo cho chủ bài viết khi có người bình luận
+    const post = await Post.findById(postId).populate("user", "full_name");
+
+    if (!parentComment && post.user._id.toString() !== userId) {
+      const sender = await User.findById(userId);
+
+      await Notification.create({
+        receiver: post.user._id,
+        sender: userId,
+        type: "comment",
+        post: postId,
+        content: `${sender.full_name} đã bình luận bài viết của bạn.`,
+      });
+    }
+
     // tăng tổng số comment của bài (bao gồm reply)
     await Post.findByIdAndUpdate(postId, { $inc: { comments_count: 1 } });
 
     // nếu là reply thì tăng reply_count của parent
     if (parentComment) {
+      const parent = await Comment.findById(parentComment).populate(
+        "user",
+        "full_name"
+      );
+
+      if (parent.user._id.toString() !== userId) {
+        const sender = await User.findById(userId);
+
+        await Notification.create({
+          receiver: parent.user._id,
+          sender: userId,
+          type: "reply",
+          post: postId,
+          comment: parentComment,
+          content: `${sender.full_name} đã trả lời bình luận của bạn.`,
+        });
+      }
       await Comment.findByIdAndUpdate(parentComment, {
         $inc: { reply_count: 1 },
       });

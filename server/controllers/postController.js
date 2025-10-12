@@ -2,6 +2,7 @@ import fs from "fs";
 import Post from "../models/Post.js";
 import imagekit from "../configs/imageKit.js";
 import User from "../models/User.js";
+import Notification from "../models/Notification.js";
 import { analyzeContent } from "../utils/analyzeContent.js";
 
 export const addPost = async (req, res) => {
@@ -123,6 +124,20 @@ export const likePosts = async (req, res) => {
       // neu chua like thi like
       post.likes_count.push(userId); // them userId vao mang likes_count
       await post.save(); // luu lai thay doi
+
+      // ✅ Gửi thông báo nếu không phải chính chủ bài viết
+      if (post.user.toString() !== userId) {
+        const sender = await User.findById(userId);
+
+        await Notification.create({
+          receiver: post.user,
+          sender: userId,
+          type: "like",
+          post: postId,
+          content: `${sender.full_name} đã thích bài viết của bạn.`,
+        });
+      }
+
       res.json({ success: true, message: "Đã thích bài viết" });
     }
   } catch (error) {

@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { BadgeCheck, Heart, MessageCircle, Share2Icon, Share2 } from "lucide-react";
+import {
+  BadgeCheck,
+  Heart,
+  MessageCircle,
+  Share2Icon,
+  Share2,
+} from "lucide-react";
 import { formatPostTime } from "../app/formatDate";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -19,6 +25,7 @@ const PostCard = ({ post }) => {
   );
   const [likes, setLikes] = useState(post.likes_count);
   const [cmts, setCmts] = useState(post.comments_count || 0);
+  const [shares, setShares] = useState(post.shares_count || 0);
 
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -95,17 +102,16 @@ const PostCard = ({ post }) => {
 
       {/* Stats Section (New) */}
       <div className="flex justify-between items-center text-gray-600 text-sm mb-2">
-      <div className="flex items-center gap-1">
-        {/* Nút thích đã được thay thế bằng biểu tượng trái tim */}
-        <span className="font-semibold">{likes.length || 0} lượt thích</span>
+        <div className="flex items-center gap-1">
+          <span className="font-semibold">{likes.length || 0} lượt thích</span>
+        </div>
+        <div className="flex gap-4">
+          <span>{cmts || 0 } bình luận</span>
+          <span>{shares || 0 } lượt chia sẻ</span>
+        </div>
       </div>
-      <div className="flex gap-4">
-        <span>{post.comments_count || 0} bình luận</span>
-        <span>{post.shares_count || 0} lượt chia sẻ</span>
-      </div>
-    </div>
 
-    <hr className="border-t border-gray-200" />
+      <hr className="border-t border-gray-200" />
 
       {/* Actions */}
       <div className="flex justify-around items-center pt-3 text-gray-600 font-medium">
@@ -118,7 +124,9 @@ const PostCard = ({ post }) => {
           <Heart
             className="w-5 h-5"
             fill={likes.includes(currentUser._id) ? "#f63b3bff" : "none"}
-            stroke={likes.includes(currentUser._id) ? "#f63b3bff" : "currentColor"}
+            stroke={
+              likes.includes(currentUser._id) ? "#f63b3bff" : "currentColor"
+            }
           />
           <span>Thích</span>
         </button>
@@ -151,10 +159,7 @@ const PostCard = ({ post }) => {
 
       {/* Share Modal */}
       {showShareModal && (
-        <SharePostModal
-          post={post}
-          onClose={() => setShowShareModal(false)}
-        />
+        <SharePostModal post={post} onClose={() => setShowShareModal(false)} />
       )}
     </div>
   );

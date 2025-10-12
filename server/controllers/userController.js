@@ -4,6 +4,7 @@ import Connection from "../models/Connection.js";
 import fs from "fs";
 import imagekit from "../configs/imageKit.js";
 import { inngest } from "../inngest/index.js";
+import Notification from "../models/Notification.js";
 
 // Lấy dữ liệu người dùng dựa trên userId từ token xác thực
 export const getUserData = async (req, res) => {
@@ -158,6 +159,15 @@ export const followUser = async (req, res) => {
     toUser.followers.push(userId);
     await toUser.save();
 
+    // ✅ Tạo thông báo follow
+    await Notification.create({
+      receiver: id,
+      sender: userId,
+      type: "follow",
+      content: `${user.full_name} đã theo dõi bạn.`,
+    });
+
+
     res.json({ success: true, message: "Theo dõi người dùng thành công" });
   } catch (error) {
     console.log(error);
@@ -217,6 +227,16 @@ export const sendConnectionRequest = async (req, res) => {
         from_user_id: userId,
         to_user_id: id,
       }); // tao moi yeu cau ket ban
+
+      const sender = await User.findById(userId);
+
+      // ✅ Thêm thông báo friend_request
+      await Notification.create({
+        receiver: id,
+        sender: userId,
+        type: "friend_request",
+        content: `${sender.full_name} đã gửi cho bạn lời mời kết bạn.`,
+      });
 
       await inngest.send({
         name: "app/connection-request",
@@ -300,6 +320,14 @@ export const acceptConnectionRequest = async (req, res) => {
 
     connection.status = "accepted"; // cap nhat trang thai yeu cau ket noi thanh da chap nhan
     await connection.save(); // luu thay doi
+
+    // ✅ Gửi thông báo cho người gửi
+    await Notification.create({
+      receiver: id,
+      sender: userId,
+      type: "friend_request",
+      content: `${user.full_name} đã chấp nhận lời mời kết bạn của bạn.`,
+    });
 
     res.json({ success: true, message: "Chấp nhận kết nối thành công" });
   } catch (error) {
