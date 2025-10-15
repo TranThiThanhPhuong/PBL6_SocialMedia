@@ -218,6 +218,19 @@ export const likeComment = async (req, res) => {
         { $pull: { likes_count: userId } },
         { new: true }
       ).populate("user", "full_name profile_picture");
+
+// 🔔 Thông báo cho chủ comment
+  if (comment.user.toString() !== userId.toString()) {
+    const sender = await User.findById(userId);
+    await Notification.create({
+      receiver: comment.user,
+      sender: userId,
+      type: "like_comment",
+      comment: commentId,
+      content: `${sender.full_name} đã thích bình luận của bạn.`,
+    });
+  }
+
       return res.json({
         success: true,
         message: "Đã bỏ thích bình luận",

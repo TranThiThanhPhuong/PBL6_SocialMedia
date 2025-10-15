@@ -34,7 +34,7 @@ export const updateUserData = async (req, res) => {
     !username && (username = tempUser.username);
 
     if (tempUser.username !== username) {
-      const user = await User.findOne(username );
+      const user = await User.findOne(username);
       if (user) {
         username = tempUser.username;
       }
@@ -164,9 +164,8 @@ export const followUser = async (req, res) => {
       receiver: id,
       sender: userId,
       type: "follow",
-      content: `${user.full_name} đã theo dõi bạn.`,
+      content: `${user.full_name} đã bắt đầu theo dõi bạn.`,
     });
-
 
     res.json({ success: true, message: "Theo dõi người dùng thành công" });
   } catch (error) {
@@ -255,11 +254,56 @@ export const sendConnectionRequest = async (req, res) => {
       });
     } // neu da ket ban roi thi khong cho gui yeu cau nua
 
-    return res.json({ success: false, message: "Bạn đã gửi lời mời kết nối trước đó" });
+    return res.json({
+      success: false,
+      message: "Bạn đã gửi lời mời kết nối trước đó",
+    });
     // neu da gui yeu cau ket ban roi thi thong bao da gui yeu cau roi
   } catch (error) {
     console.log(error);
     res.json({ success: false, message: error.message });
+  }
+};
+
+export const rejectConnectionRequest = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    const { id } = req.body;
+
+    if (!id) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Thiếu ID người dùng." });
+    }
+
+    // ✅ Dùng đúng field đã tạo (from_user_id, to_user_id)
+    const connection = await Connection.findOne({
+      $or: [
+        { from_user_id: userId, to_user_id: id, status: "accepted" },
+        { from_user_id: id, to_user_id: userId, status: "accepted" },
+      ],
+    });
+
+    if (!connection) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy kết nối để hủy.",
+      });
+    }
+
+    // ✅ Xóa bản ghi kết nối
+    await Connection.findByIdAndDelete(connection._id);
+
+    // ✅ Xóa bạn trong danh sách connections của cả hai người
+    await User.findByIdAndUpdate(userId, { $pull: { connections: id } });
+    await User.findByIdAndUpdate(id, { $pull: { connections: userId } });
+
+    res.status(200).json({
+      success: true,
+      message: "Đã hủy kết bạn thành công.",
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -323,9 +367,9 @@ export const acceptConnectionRequest = async (req, res) => {
 
     // ✅ Gửi thông báo cho người gửi
     await Notification.create({
-      receiver: id,
+      receiver: connection.from_user_id,
       sender: userId,
-      type: "friend_request",
+      type: "friend_accept",
       content: `${user.full_name} đã chấp nhận lời mời kết bạn của bạn.`,
     });
 

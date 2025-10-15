@@ -5,6 +5,8 @@ import {
   UserCheck,
   UserRoundPen,
   MessageSquare,
+  UserX,
+  BadgeCheck,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
@@ -42,7 +44,7 @@ const Connections = () => {
       );
       if (data.success) {
         toast.success(data.message);
-        dispatch(fetchUser(await getToken()))
+        dispatch(fetchUser(await getToken()));
       } else {
         toast(data.message);
       }
@@ -85,6 +87,26 @@ const Connections = () => {
         dispatch(fetchConnections(await getToken()));
       } else {
         toast(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleRemoveConnection = async (userId) => {
+    try {
+      const { data } = await api.post(
+        "/api/user/reject",
+        { id: userId },
+        {
+          headers: { Authorization: `Bearer ${await getToken()}` },
+        }
+      );
+      if (data.success) {
+        toast.success(data.message);
+        dispatch(fetchConnections(await getToken())); // Cập nhật lại danh sách
+      } else {
+        toast.error(data.message);
       }
     } catch (error) {
       toast.error(error.message);
@@ -151,38 +173,40 @@ const Connections = () => {
                 key={user._id}
                 className="w-full max-w-88 flex gap-5 p-6 bg-white shadow rounded-md"
               >
-                <img
-                  src={user.profile_picture}
-                  alt=""
-                  className="rounded-full w-12 h-12 shadow-md mx-auto"
-                />
+                <div
+                  onClick={() => navigate(`/profile/${user._id}`)}
+                  className="cursor-pointer flex items-center gap-3"
+                >
+                  <img
+                    src={user.profile_picture}
+                    alt=""
+                    className="rounded-full w-12 h-12 shadow-md hover:scale-105 transition-transform"
+                  />
+                  <div>
+                    <div className="flex items-center space-x-1">
+                      <span>{user.full_name}</span>
+                      <BadgeCheck className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <div className="text-gray-500 text-sm">
+                      @{user.username}
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex-1">
-                  <p className="font-medium text-slate-700">{user.full_name}</p>
-                  <p className="text-slate-500">@{user.username}</p>
-                  <p className="text-sm text-gray-600">
-                    {user.bio.slice(0, 30)}...
-                  </p>
                   <div className="flex max-sm:flex-col gap-2 mt-4">
-                    {
-                      <button
-                        onClick={() => navigate(`/profile/${user._id}`)}
-                        className="w-full p-2 text-sm rounded bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 transition text-white cursor-pointer"
-                      >
-                        Xem trang cá nhân
-                      </button>
-                    }
                     {currentTab === "Người theo dõi" && (
                       <button
                         onClick={() => handleFollow(user._id)}
                         disabled={currentUser?.following?.includes(user._id)}
                         className="w-full p-2 text-sm rounded bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 transition text-white cursor-pointer"
                       >
-                        {/* <UserPlus className="w-4 h-4" />{" "} */}
                         {currentUser?.following.includes(user._id)
                           ? "Đang theo dõi"
                           : "Theo dõi lại"}
                       </button>
                     )}
+
                     {currentTab === "Đang theo dõi" && (
                       <button
                         onClick={() => handleUnfollow(user._id)}
@@ -191,6 +215,7 @@ const Connections = () => {
                         Bỏ theo dõi
                       </button>
                     )}
+
                     {currentTab === "Chờ phản hồi" && (
                       <button
                         onClick={() => acceptConnection(user._id)}
@@ -199,14 +224,26 @@ const Connections = () => {
                         Chấp nhận
                       </button>
                     )}
+
                     {currentTab === "Bạn bè" && (
-                      <button
-                        onClick={() => navigate(`/messages/${user._id}`)}
-                        className="w-full p-2 text-sm rounded bg-slate-100 hover:bg-slate-200 text-slate-800 active:scale-95 transition cursor-pointer flex items-center justify-center gap-1"
-                      >
-                        <MessageSquare className="w-4 h-4" />
-                        Nhắn tin
-                      </button>
+                      <>
+                        <button
+                          onClick={() => navigate(`/messages/${user._id}`)}
+                          className="w-full p-2 text-sm rounded bg-slate-100 hover:bg-slate-200 text-slate-800 active:scale-95 transition cursor-pointer flex items-center justify-center gap-1"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          Nhắn tin
+                        </button>
+
+                        {/* Nút hủy kết bạn */}
+                        <button
+                          onClick={() => handleRemoveConnection(user._id)}
+                          className="w-full p-2 text-sm rounded bg-red-100 hover:bg-red-200 text-red-600 active:scale-95 transition cursor-pointer flex items-center justify-center gap-1"
+                        >
+                          <UserX className="w-4 h-4" />
+                          Hủy kết bạn
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>

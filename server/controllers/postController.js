@@ -145,3 +145,79 @@ export const likePosts = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
+
+export const sharePost = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    const { postId } = req.body;
+
+    const post = await Post.findById(postId).populate("user", "full_name");
+    if (!post) return res.status(404).json({ success: false, message: "Không tìm thấy bài viết" });
+
+    const sender = await User.findById(userId);
+
+    // 🔔 Gửi thông báo cho chủ bài viết
+    if (post.user._id.toString() !== userId) {
+      await Notification.create({
+        receiver: post.user._id,
+        sender: userId,
+        type: "share",
+        post: postId,
+        content: `${sender.full_name} đã chia sẻ bài viết của bạn.`,
+      });
+    }
+
+    res.json({ success: true, message: "Đã chia sẻ bài viết" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const reportPost = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    const { postId, reason } = req.body;
+
+    const post = await Post.findById(postId).populate("user", "full_name");
+    const sender = await User.findById(userId);
+
+    // 🔔 Thông báo cho người bị báo cáo
+    if (post.user._id.toString() !== userId) {
+      await Notification.create({
+        receiver: post.user._id,
+        sender: userId,
+        type: "report_post",
+        post: postId,
+        content: `${sender.full_name} đã báo cáo bài viết của bạn.`,
+      });
+    }
+
+    res.json({ success: true, message: "Đã gửi báo cáo bài viết" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const adminDeletePost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+
+    const post = await Post.findById(postId).populate("user", "full_name");
+    if (!post) return res.status(404).json({ success: false, message: "Không tìm thấy bài viết" });
+
+    await Post.findByIdAndDelete(postId);
+
+    // 🔔 Gửi thông báo cho chủ bài viết
+    await Notification.create({
+      receiver: post.user._id,
+      sender: null, // Admin hệ thống
+      type: "admin_delete_post",
+      post: postId,
+      content: `Bài viết của bạn đã bị quản trị viên xóa do vi phạm tiêu chuẩn cộng đồng.`,
+    });
+
+    res.json({ success: true, message: "Đã xóa bài viết và gửi thông báo" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
