@@ -110,6 +110,22 @@ export const updateUserData = async (req, res) => {
   }
 };
 
+export const getUserProfiles = async (req, res) => {
+  try {
+    const { profileId } = req.body; // id nguoi dung can lay thong tin
+    const profile = await User.findById(profileId); // tim nguoi dung theo id
+    if (!profile) {
+      return res.json({ success: false, message: "Không tìm thấy hồ sơ" });
+    }
+    const posts = await Post.find({ user: profileId }).populate("user"); // populate de lay thong tin nguoi dung cho moi bai viet
+
+    res.json({ success: true, profile, posts });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
 // Tìm kiếm người dùng dựa trên input (username, email, full_name, location)
 export const discoverUser = async (req, res) => {
   try {
@@ -130,6 +146,36 @@ export const discoverUser = async (req, res) => {
 
     // Trả về kết quả tìm kiếm
     res.json({ success: true, users: filteredUsers });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+export const getUserConnections = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    const user = await User.findById(userId).populate(
+      "connections followers following"
+    ); // lay thong tin nguoi dung hien tai
+
+    const connections = user.connections; // lay danh sach ket noi
+    const followers = user.followers; // lay danh sach nguoi theo doi
+    const following = user.following; // lay danh sach nguoi dang theo doi
+
+    const pendingConnections = (
+      await Connection.find({ to_user_id: userId, status: "pending" }).populate(
+        "from_user_id"
+      )
+    ).map((connection) => connection.from_user_id); // lay danh sach ket noi dang cho duyet
+
+    res.json({
+      success: true,
+      connections,
+      followers,
+      following,
+      pendingConnections,
+    });
   } catch (error) {
     console.log(error);
     res.json({ success: false, message: error.message });
@@ -307,36 +353,6 @@ export const rejectConnectionRequest = async (req, res) => {
   }
 };
 
-export const getUserConnections = async (req, res) => {
-  try {
-    const { userId } = req.auth();
-    const user = await User.findById(userId).populate(
-      "connections followers following"
-    ); // lay thong tin nguoi dung hien tai
-
-    const connections = user.connections; // lay danh sach ket noi
-    const followers = user.followers; // lay danh sach nguoi theo doi
-    const following = user.following; // lay danh sach nguoi dang theo doi
-
-    const pendingConnections = (
-      await Connection.find({ to_user_id: userId, status: "pending" }).populate(
-        "from_user_id"
-      )
-    ).map((connection) => connection.from_user_id); // lay danh sach ket noi dang cho duyet
-
-    res.json({
-      success: true,
-      connections,
-      followers,
-      following,
-      pendingConnections,
-    });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
-  }
-};
-
 export const acceptConnectionRequest = async (req, res) => {
   try {
     const { userId } = req.auth();
@@ -374,22 +390,6 @@ export const acceptConnectionRequest = async (req, res) => {
     });
 
     res.json({ success: true, message: "Chấp nhận kết nối thành công" });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
-  }
-};
-
-export const getUserProfiles = async (req, res) => {
-  try {
-    const { profileId } = req.body; // id nguoi dung can lay thong tin
-    const profile = await User.findById(profileId); // tim nguoi dung theo id
-    if (!profile) {
-      return res.json({ success: false, message: "Không tìm thấy hồ sơ" });
-    }
-    const posts = await Post.find({ user: profileId }).populate("user"); // populate de lay thong tin nguoi dung cho moi bai viet
-
-    res.json({ success: true, profile, posts });
   } catch (error) {
     console.log(error);
     res.json({ success: false, message: error.message });

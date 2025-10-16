@@ -1,4 +1,24 @@
 import Notification from "../models/Notification.js";
+import { io, onlineUsers } from "../server.js";
+
+export const createNotification = async (req, res) => {
+  try {
+    const { receiver, sender, type, content } = req.body;
+
+    const noti = await Notification.create({ receiver, sender, type, content });
+
+    const receiverSocket = onlineUsers.get(receiver);
+    if (receiverSocket) {
+      io.to(receiverSocket).emit("new_notification", { receiver, type, content });
+      console.log("📨 Sent real-time notification:", receiver);
+    }
+
+    res.json({ success: true, noti });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 // 📨 Lấy tất cả thông báo của người dùng hiện tại
 export const getNotifications = async (req, res) => {
@@ -9,39 +29,12 @@ export const getNotifications = async (req, res) => {
       .populate("sender", "full_name profile_picture")
       .sort({ createdAt: -1 });
 
-    if (!notifications.length) {
-      return res.json({ success: true, notifications: [] });
-    }
-
     res.json({
       success: true,
       notifications,
     });
   } catch (error) {
     console.log(error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// ✅ Đánh dấu đã đọc
-export const markAsRead = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const notification = await Notification.findByIdAndUpdate(
-      id,
-      { isRead: true },
-      { new: true }
-    );
-
-    if (!notification) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Không tìm thấy thông báo." });
-    }
-
-    res.json({ success: true, notification });
-  } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };

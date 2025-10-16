@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import api from "../api/axios";
 import { useAuth } from "@clerk/clerk-react";
+import { useNavigate } from "react-router-dom";
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
@@ -32,32 +33,9 @@ const Notifications = () => {
         console.error(error);
       }
     };
-    
-    const unreadCount = notifications.filter((n) => !n.isRead).length;
 
     fetchNotifications();
   }, []);
-
-  const handleMarkAsRead = async (id) => {
-    try {
-      const token = await getToken();
-      const { data } = await api.patch(
-        `/api/notifications/${id}/read`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (data.success) {
-        setNotifications((prev) =>
-          prev.map((n) => (n._id === id ? { ...n, isRead: true } : n))
-        );
-      }
-    } catch (error) {
-      console.error("Lỗi khi đánh dấu đã đọc:", error);
-    }
-  };
 
   const handleDeleteNotification = async (id) => {
     try {
@@ -101,6 +79,8 @@ const Notifications = () => {
     }
   };
 
+  const navigate = useNavigate();
+
   return (
     <div className="flex-1 p-6">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Thông báo</h1>
@@ -114,24 +94,24 @@ const Notifications = () => {
         {notifications.map((noti) => (
           <div
             key={noti._id}
-            onClick={() => handleMarkAsRead(noti._id)}
             className={`flex items-start justify-between gap-4 p-3 rounded-lg cursor-pointer transition-colors ${
               !noti.isRead ? "bg-blue-50" : "hover:bg-gray-50"
             }`}
           >
             <div className="flex items-start gap-4">
               <img
+                onClick={() => navigate("/profile/" + noti.sender?._id)}
                 src={noti.sender?.profile_picture || "/default-avatar.png"}
                 alt="avatar"
                 className="w-10 h-10 rounded-full"
               />
               <div>
                 <p className="text-sm font-medium">
-                  <span className="font-bold">{noti.sender?.full_name}</span>{" "}
+                  <span className="font-bold"></span>{" "}
                   {noti.content}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {formatPostTime(noti.createdAt)}
+                  {formatPostTime(noti.createdAt)} trước
                 </p>
               </div>
             </div>

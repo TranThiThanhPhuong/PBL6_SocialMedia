@@ -1,33 +1,63 @@
-import express from 'express'
-import cors from 'cors' // 
-import 'dotenv/config' ;  
-import connectDB from './configs/db.js'
-import { inngest, functions} from './inngest/index.js'
-import { serve } from 'inngest/express'
-import { clerkMiddleware } from '@clerk/express'
-import userRouter from './routes/userRoutes.js';
-import postRouter from './routes/postRoutes.js';
-import storyRouter from './routes/storyRoutes.js';
-import messageRouter from './routes/messageRoutes.js';
-import commentRouter from './routes/commentRoutes.js';
+import express from "express";
+import cors from "cors";
+import "dotenv/config";
+import { Server } from "socket.io";
+import connectDB from "./configs/db.js";
+import { clerkMiddleware } from "@clerk/express";
+import userRouter from "./routes/userRoutes.js";
+import postRouter from "./routes/postRoutes.js";
+import storyRouter from "./routes/storyRoutes.js";
+import messageRouter from "./routes/messageRoutes.js";
+import commentRouter from "./routes/commentRoutes.js";
 import notificationRouter from "./routes/notificationRouter.js";
+import http from "http";
+import socketConnection from "./utils/socket.js";
 
-const app = express() // tạo một ứng dụng server Express, 
+const app = express();
+const server = http.createServer(app);
+socketConnection(server);
 
-await connectDB() // gọi hàm connectDB để kết nối đến MongoDB
+// 🔌 Socket.IO setup
+const io = new Server(server, {
+  cors: { origin: "*", methods: ["GET", "POST"] },
+});
+const onlineUsers = new Map();
 
-app.use(cors()) // sử dụng middleware CORS để cho phép các yêu cầu từ các nguồn khác nhau
-app.use(clerkMiddleware()) // sử dụng middleware của Clerk để xác thực người dùng
-app.use(express.json()) // middleware để phân tích cú pháp JSON trong các yêu cầu đến
+// Lắng nghe sự kiện kết nối socket
+io.on("connection", (socket) => {
+  console.log("✅ Socket connected:", socket.id);
 
-app.get('/', (req, res) => res.send('Hello World!'))
-app.use("/api/inngest", serve({client: inngest, functions})); // sử dụng hàm serve để xử lý các yêu cầu đến đường dẫn /api/inngest liên quan đến Inngest
-app.use('/api/user', userRouter) 
-app.use('/api/post', postRouter)
-app.use('/api/story', storyRouter) 
-app.use('/api/message', messageRouter) 
-app.use('/api/comment', commentRouter) 
-app.use('/api/notifications', notificationRouter);
+  socket.on("register_user", (userId) => {
+    onlineUsers.set(userId, socket.id);
+    console.log(`🟢 ${userId} online`);
+  });
+
+  socket.on("disconnect", () => {
+    for (const [uid, sid] of onlineUsers.entries()) {
+      if (sid === socket.id) {
+        onlineUsers.delete(uid);
+        console.log(`🔴 ${uid} offline`);
+        break;
+      }
+    }
+  });
+});
+
+export { io, onlineUsers };
+
+await connectDB();
+
+app.use(cors());
+app.use(express.json());
+app.use(clerkMiddleware());
+
+app.get("/", (_, res) => res.send("Server OK ✅"));
+app.use("/api/user", userRouter);
+app.use("/api/post", postRouter);
+app.use("/api/story", storyRouter);
+app.use("/api/message", messageRouter);
+app.use("/api/comment", commentRouter);
+app.use("/api/notifications", notificationRouter);
 
 const PORT = process.env.PORT || 5000
 
