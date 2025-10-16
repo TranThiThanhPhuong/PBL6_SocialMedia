@@ -1,22 +1,23 @@
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
+import { useUser, useAuth } from "@clerk/clerk-react";
+import { useDispatch } from "react-redux";
+import toast, { Toaster } from "react-hot-toast";
+
 import Login from "./pages/Login";
 import Feed from "./pages/Feed";
 import Messages from "./pages/Messages";
-import ChatBox from "./pages/ChatBox";
 import Connections from "./pages/Connections";
 import Discover from "./pages/Discover";
 import CreatePost from "./pages/CreatePost";
 import Profile from "./pages/Profile";
 import Layout from "./pages/Layout";
 import Notifications from "./pages/Notifications";
+
 import { fetchUser } from "./features/user/userSlice";
 import { fetchConnections } from "./features/connections/connectionsSlice";
 import { addMessage } from "./features/messages/messagesSlice";
-import { useUser, useAuth } from "@clerk/clerk-react";
-import toast, { Toaster } from "react-hot-toast";
-import { useEffect } from "react";
-import { useDispatch } from "react-redux";
+import socket from "./app/socket";
 
 const App = () => {
   const { user } = useUser(); // Sử dụng useUser để lấy thông tin người dùng hiện tại
@@ -25,44 +26,84 @@ const App = () => {
   const pathnameRef = useRef(pathname); // useRef tạo ra một “hộp” lưu giá trị mà không làm component re-render khi thay đổi.
   const dispatch = useDispatch(); // Sử dụng useDispatch để lấy hàm dispatch từ Redux store
 
-  useEffect(() => { // Hàm để thiết lập token vào header của tất cả các yêu cầu fetch
+  useEffect(() => {
+    // Hàm để thiết lập token vào header của tất cả các yêu cầu fetch
     const fetchData = async () => {
       if (user) {
-        const token = await getToken();  // Lấy token JWT của người dùng hiện tại
+        const token = await getToken(); // Lấy token JWT của người dùng hiện tại
         dispatch(fetchUser(token)); // Gọi action fetchUser với token để lấy dữ liệu người dùng từ server
-        dispatch(fetchConnections(token)); // 
+        dispatch(fetchConnections(token)); //
       }
     };
     fetchData(); // Gọi hàm fetchData để thực hiện việc lấy dữ liệu người dùng khi component được render hoặc khi user thay đổi
   }, [user, getToken, dispatch]); // Chạy useEffect mỗi khi user hoặc getToken thay đổi
 
-  useEffect(()=>{
+  useEffect(() => {
     pathnameRef.current = pathname; // Mỗi lần URL đổi (/messages, /profile, /discover...), thì pathnameRef.current được cập nhật theo.
   }, [pathname]);
 
-  useEffect(()=>{
-    if(user){
-      const eventSource = new EventSource(import.meta.env.VITE_BASEURL + '/api/message/' + user.id);
+  // useEffect(()=>{
+  //   if(user){
+  //     const eventSource = new EventSource(import.meta.env.VITE_BASEURL + '/api/message/' + user.id);
 
-      eventSource.onmessage = (event)=> {
-        const message = JSON.parse(event.data);
+  //     eventSource.onmessage = (event)=> {
+  //       const message = JSON.parse(event.data);
 
-        if(pathnameRef.current === ('/message/' + message.from_user_id._id)){
+  //       if(pathnameRef.current === ('/message/' + message.from_user_id._id)){
+  //         dispatch(addMessage(message));
+  //       // Nếu bạn đang ở đúng chat box của người gửi tin nhắn (/message/:id) → thì thêm tin nhắn vào Redux (hiện ngay trong UI).
+  //       }
+  //       else {
+  //         toast.custom((t)=>(
+  //           <Notifications t={t} message={message}/>
+  //         ), {position: "bottom-right"});
+  //       // Nếu bạn đang ở chỗ khác → thì show thông báo (toast).
+  //       }
+  //     }
+  //     return ()=> {
+  //       eventSource.close();
+  //     }
+  //   }
+  // }, [user, dispatch]);
+
+   // Kết nối socket.io
+  useEffect(() => {
+    if (user) {
+      socket.connect();
+      socket.emit("register_user", user.id);
+
+      socket.on("receive_message", (message) => {
+        const currentPath = pathnameRef.current;
+        if (currentPath === `/messages/${message.from_user_id}`) {
           dispatch(addMessage(message));
-        // Nếu bạn đang ở đúng chat box của người gửi tin nhắn (/message/:id) → thì thêm tin nhắn vào Redux (hiện ngay trong UI).
-        } 
-        else {
-          toast.custom((t)=>(
-            <Notifications t={t} message={message}/>
-          ), {position: "bottom-right"});
-        // Nếu bạn đang ở chỗ khác → thì show thông báo (toast). 
+        } else {
+          toast.custom(
+            (t) => (
+              <div className="bg-white shadow-md rounded-lg p-3 flex gap-3 items-center">
+                <img
+                  src={message.from_user_id?.profile_picture}
+                  alt=""
+                  className="w-10 h-10 rounded-full"
+                />
+                <div>
+                  <p className="font-semibold text-gray-800">
+                    {message.from_user_id?.full_name}
+                  </p>
+                  <p className="text-gray-600 text-sm">vừa nhắn tin cho bạn 💬</p>
+                </div>
+              </div>
+            ),
+            { position: "bottom-right" }
+          );
         }
-      }
-      return ()=> {
-        eventSource.close();
-      }
+      });
+
+      return () => {
+        socket.off("receive_message");
+        socket.disconnect();
+      };
     }
-  }, [user, dispatch]);
+  }, [user]);
 
   return (
     <>
@@ -72,8 +113,9 @@ const App = () => {
       <Routes>
         <Route path="/" element={!user ? <Login /> : <Layout />}>
           <Route index element={<Feed />} />
-          <Route path="messages" element={<Messages />} />
-          <Route path="messages/:userId" element={<ChatBox />} />
+          <Route path="messages/*" element={<Messages />} />
+          {/* <Route path="messages" element={<Messages />} /> */}
+          {/* <Route path="messages/:userId" element={<ChatBox />} /> */}
           <Route path="connections" element={<Connections />} />
           <Route path="discover" element={<Discover />} />
           <Route path="profile" element={<Profile />} />
@@ -83,7 +125,7 @@ const App = () => {
         </Route>
       </Routes>
     </>
-  )
+  );
 };
 
 export default App;
