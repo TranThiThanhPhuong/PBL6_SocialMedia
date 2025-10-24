@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ImageIcon, SendHorizontal } from "lucide-react";
+import { ImageIcon, SendHorizontal, X, Phone, Video, MoreVertical } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { useAuth } from "@clerk/clerk-react";
@@ -81,75 +81,160 @@ const ChatBox = () => {
     );
 
   return (
-    <div className="flex flex-col h-screen">
-      {/* Header */}
-      <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-gray-200">
-        <img src={user.profile_picture} alt="" className="w-8 h-8 rounded-full" />
-        <div>
-          <p className="font-medium">{user.full_name}</p>
-          <p className="text-sm text-gray-500">@{user.username}</p>
+    <div className="flex flex-col h-full w-full bg-gradient-to-b from-gray-50 to-white">
+      {/* Header - Improved */}
+      <div className="flex items-center justify-between gap-3 p-4 bg-white border-b border-gray-200 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <img
+              src={user.profile_picture}
+              alt=""
+              className="w-11 h-11 rounded-full ring-2 ring-indigo-100"
+            />
+            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+          </div>
+          <div>
+            <p className="font-semibold text-gray-900">{user.full_name}</p>
+            <p className="text-xs text-gray-500">@{user.username}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => toast.success('Tính năng gọi thoại đang phát triển')}
+            className="p-2.5 rounded-full hover:bg-indigo-50 text-indigo-600 transition-colors"
+            title="Gọi thoại"
+          >
+            <Phone size={20} />
+          </button>
+          <button
+            onClick={() => toast.success('Tính năng gọi video đang phát triển')}
+            className="p-2.5 rounded-full hover:bg-indigo-50 text-indigo-600 transition-colors"
+            title="Gọi video"
+          >
+            <Video size={20} />
+          </button>
+          <button
+            className="p-2.5 rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
+            title="Tùy chọn"
+          >
+            <MoreVertical size={20} />
+          </button>
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-5">
-        <div className="space-y-4 max-w-3xl mx-auto">
+      {/* Messages - Improved */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="space-y-3 max-w-4xl mx-auto">
           {messages
             .toSorted((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-            .map((msg, i) => (
-              <div
-                key={i}
-                className={`flex ${msg.to_user_id !== user._id ? "justify-start" : "justify-end"}`}
-              >
+            .map((msg, i) => {
+              const isReceived = msg.to_user_id !== user._id;
+              const showAvatar = i === 0 || messages[i - 1]?.to_user_id !== msg.to_user_id;
+
+              return (
                 <div
-                  className={`p-2 rounded-lg max-w-xs shadow ${
-                    msg.to_user_id !== user._id
-                      ? "bg-white text-gray-800 rounded-bl-none"
-                      : "bg-indigo-500 text-white rounded-br-none"
-                  }`}
+                  key={i}
+                  className={`flex gap-2 ${isReceived ? "justify-start" : "justify-end"}`}
                 >
-                  {msg.message_type === "image" && (
-                    <img src={msg.media_url} className="w-52 rounded mb-1" />
+                  {isReceived && (
+                    <div className="flex-shrink-0">
+                      {showAvatar ? (
+                        <img
+                          src={user.profile_picture}
+                          alt=""
+                          className="w-8 h-8 rounded-full"
+                        />
+                      ) : (
+                        <div className="w-8"></div>
+                      )}
+                    </div>
                   )}
-                  {msg.text && <p>{msg.text}</p>}
+
+                  <div className={`flex flex-col ${isReceived ? "items-start" : "items-end"}`}>
+                    <div
+                      className={`px-4 py-2.5 rounded-2xl max-w-md transition-all hover:shadow-md ${isReceived
+                          ? "bg-white text-gray-800 shadow-sm border border-gray-200"
+                          : "bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md"
+                        }`}
+                    >
+                      {msg.message_type === "image" && (
+                        <img
+                          src={msg.media_url}
+                          className="max-w-xs rounded-lg mb-1 cursor-pointer hover:opacity-90 transition-opacity"
+                          alt="Shared image"
+                        />
+                      )}
+                      {msg.text && <p className="text-sm leading-relaxed break-words">{msg.text}</p>}
+                    </div>
+                    <span className="text-xs text-gray-400 mt-1 px-1">
+                      {new Date(msg.createdAt).toLocaleTimeString('vi-VN', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           <div ref={messagesEndRef}></div>
         </div>
       </div>
 
-      {/* Input */}
-      <div className="p-4">
-        <div className="flex items-center gap-3 bg-white border rounded-full shadow px-4 py-2">
-          <input
-            type="text"
-            placeholder="Nhập tin nhắn..."
-            className="flex-1 outline-none"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          />
-          <label htmlFor="image">
-            {image ? (
-              <img src={URL.createObjectURL(image)} alt="" className="h-8 rounded" />
-            ) : (
-              <ImageIcon className="text-gray-400 cursor-pointer" />
-            )}
-            <input
-              type="file"
-              id="image"
-              hidden
-              accept="image/*"
-              onChange={(e) => setImage(e.target.files[0])}
+      {/* Image Preview */}
+      {image && (
+        <div className="px-6 pb-2">
+          <div className="relative inline-block">
+            <img
+              src={URL.createObjectURL(image)}
+              alt="Preview"
+              className="h-20 rounded-lg border-2 border-indigo-200"
             />
-          </label>
-          <button
-            onClick={sendMessage}
-            className="bg-indigo-500 hover:bg-indigo-600 text-white p-2 rounded-full"
-          >
-            <SendHorizontal size={18} />
-          </button>
+            <button
+              onClick={() => setImage(null)}
+              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Input - Improved */}
+      <div className="p-4 bg-white border-t border-gray-200">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-end gap-2 bg-gray-50 border border-gray-300 rounded-3xl px-4 py-2.5 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent transition-all">
+            <label htmlFor="image" className="flex-shrink-0 cursor-pointer">
+              <ImageIcon className="text-gray-500 hover:text-indigo-600 transition-colors" size={22} />
+              <input
+                type="file"
+                id="image"
+                hidden
+                accept="image/*"
+                onChange={(e) => setImage(e.target.files[0])}
+              />
+            </label>
+
+            <input
+              type="text"
+              placeholder="Nhập tin nhắn..."
+              className="flex-1 bg-transparent outline-none text-gray-800 placeholder-gray-400"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
+            />
+
+            <button
+              onClick={sendMessage}
+              disabled={!text && !image}
+              className="bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white p-2.5 rounded-full transition-all transform hover:scale-105 active:scale-95"
+            >
+              <SendHorizontal size={18} />
+            </button>
+          </div>
+          <p className="text-xs text-gray-400 mt-2 text-center">
+            Nhấn Enter để gửi
+          </p>
         </div>
       </div>
     </div>
