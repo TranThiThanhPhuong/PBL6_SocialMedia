@@ -112,8 +112,6 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
         } else if (message) {
           errorMsg = message;
         }
-
-        // toast.error("🚫 " + errorMsg.replace(/<br\/>/g, " "));
         setStatus({ type: "violated", message: errorMsg });
         toast.custom((t) => (
           <div

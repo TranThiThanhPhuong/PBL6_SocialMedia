@@ -56,7 +56,7 @@ const CreatePost = () => {
       });
 
       if (data.success) {
-        toast.success("✅ Đăng bài thành công!");
+        toast.success("Đăng bài thành công!");
         setStatus({ type: "success", message: "Đăng bài thành công!" });
         navigate("/");
       } else {

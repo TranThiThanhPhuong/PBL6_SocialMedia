@@ -1,6 +1,6 @@
 import { io } from "socket.io-client";
 
-const SOCKET_URL = import.meta.env.VITE_BASEURL_DEPLOY; // hoặc URL server thật
+const SOCKET_URL = "http://localhost:5000"; // hoặc URL server thật
 
 // Khởi tạo một kết nối duy nhất
 const socket = io(SOCKET_URL, {
