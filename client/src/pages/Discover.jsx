@@ -30,12 +30,6 @@ const Discover = () => {
         toast.error(error.message);
       }
       setLoading(false);
-      // setUsers([]);
-      // setLoading(true);
-      // setTimeout(() => {
-      //   setUsers(dummyConnectionsData);
-      //   setLoading(false);
-      // }, 1000);
     }
   };
 

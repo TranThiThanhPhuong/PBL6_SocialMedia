@@ -57,6 +57,10 @@ const userSchema = new mongoose.Schema({
     enum: ['active', 'locked'],
     default: 'active'
   },
+    blockedUsers: [{ 
+        type: String, 
+        ref: "User" 
+    }],
 }, {timestamps: true, minimize: false});
 
 // Tạo model User

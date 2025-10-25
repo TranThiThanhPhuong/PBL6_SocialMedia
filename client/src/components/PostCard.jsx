@@ -60,20 +60,41 @@ const PostCard = ({ post }) => {
   return (
     <div className="bg-white rounded-xl shadow p-4 space-y-4 w-full max-w-2xl">
       {/* User Info */}
-      <div className="inline-flex items-center gap-3 cursor-pointer">
+      <div className="inline-flex items-center gap-3">
         <img
           src={post.user.profile_picture}
-          onClick={() => navigate("/profile/" + post.user._id)}
-          className="w-10 h-10 rounded-full shadow"
+          onClick={() => {
+            if (post.user._id === currentUser._id) {
+              navigate("/profile");
+            } else {
+              const slug = post.user.username
+                ? post.user.username
+                : post.user.full_name.toLowerCase().replace(/\s+/g, "-");
+              navigate(`/profile-user/${slug}`);
+            }
+          }}
+          className="w-10 h-10 rounded-full shadow cursor-pointer"
         />
         <div>
           <div className="flex items-center space-x-1">
-            <span onClick={() => navigate("/profile/" + post.user._id)}>
+            <span
+              className="cursor-pointer"
+              onClick={() => {
+                if (post.user._id === currentUser._id) {
+                  navigate("/profile");
+                } else {
+                  const slug = post.user.username
+                    ? post.user.username
+                    : post.user.full_name.toLowerCase().replace(/\s+/g, "-");
+                  navigate(`/profile-user/${slug}`);
+                }
+              }}
+            >
               {post.user.full_name}
-              </span>
+            </span>
             <BadgeCheck className="w-4 h-4 text-blue-500" />
           </div>
-          <div className="text-gray-500 text-sm">
+          <div className="text-gray-500 text-sm cursor-pointer">
             @{post.user.username} • {formatPostTime(post.createdAt)}
           </div>
         </div>
@@ -106,8 +127,8 @@ const PostCard = ({ post }) => {
           <span className="font-semibold">{likes.length || 0} lượt thích</span>
         </div>
         <div className="flex gap-4">
-          <span>{cmts || 0 } bình luận</span>
-          <span>{shares || 0 } lượt chia sẻ</span>
+          <span>{cmts || 0} bình luận</span>
+          <span>{shares || 0} lượt chia sẻ</span>
         </div>
       </div>
 

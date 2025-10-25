@@ -8,183 +8,250 @@ import {
   UserX,
   BadgeCheck,
 } from "lucide-react";
+import {
+  handleAcceptConnection,
+  handleRejectConnection,
+  handleRemoveConnection,
+  handleFollow,
+  handleUnfollow,
+  handleBlock,
+  handleUnblock,
+} from "../service/connectionService";
 import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { useAuth } from "@clerk/clerk-react";
 import { fetchConnections } from "../features/connections/connectionsSlice";
-import { fetchUser } from "../features/user/userSlice";
-import api from "../api/axios";
-import toast from "react-hot-toast";
 
 const Connections = () => {
   const [currentTab, setCurrentTab] = useState("Người theo dõi");
-  const currentUser = useSelector((state) => state.user.value); // Lấy thông tin người dùng hiện tại từ Redux store
+  const currentUser = useSelector((state) => state.user.value);
 
   const navigate = useNavigate();
   const { getToken } = useAuth();
   const dispatch = useDispatch();
 
-  const { connections, pendingConnections, followers, following } = useSelector(
-    (state) => state.connections
-  );
+  const {
+    connections,
+    pendingConnections,
+    followers,
+    following,
+    blockedUsers,
+  } = useSelector((state) => state.connections);
 
   const dataArray = [
     { label: "Người theo dõi", value: followers, icon: User },
     { label: "Đang theo dõi", value: following, icon: UserCheck },
     { label: "Chờ phản hồi", value: pendingConnections, icon: UserRoundPen },
     { label: "Bạn bè", value: connections, icon: UserPlus },
+    { label: "Đã chặn", value: blockedUsers, icon: UserX },
   ];
+  const renderActions = (tab, user) => {
+    // trạng thái quan hệ hiện tại (lấy từ currentUser trong closure)
+    const isFollowing = currentUser?.following?.includes(user._id);
+    const isFollower = currentUser?.followers?.includes(user._id);
+    const isFriend = currentUser?.connections?.includes(user._id);
+    const isPending = currentUser?.pendingConnections?.includes(user._id);
+    const hasRequested = user?.pendingConnections?.includes(currentUser._id);
 
-  const handleFollow = async (userId) => {
-    try {
-      const { data } = await api.post(
-        "/api/user/follow",
-        { id: userId },
-        { headers: { Authorization: `Bearer ${await getToken()}` } }
-      );
-      if (data.success) {
-        toast.success(data.message);
-        dispatch(fetchUser(await getToken()));
-      } else {
-        toast(data.message);
-      }
-    } catch (error) {
-      toast.error(error.message);
-    }
-  };
+    switch (tab) {
+      case "Người theo dõi":
+        return (
+          <>
+            {/* Nếu đang follow -> Bỏ theo dõi. Nếu không đang follow -> Theo dõi lại */}
+            {isFollowing ? (
+              <button
+                onClick={() => handleUnfollow(user._id, getToken, dispatch)}
+                className="w-full py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm font-medium transition"
+              >
+                Bỏ theo dõi
+              </button>
+            ) : (
+              <button
+                onClick={() => handleFollow(user._id, getToken, dispatch)}
+                className="w-full py-2 rounded-lg bg-indigo-500 text-white hover:opacity-90 text-sm font-medium transition"
+              >
+                {isFollower ? "Theo dõi lại" : "Theo dõi lại"}
+              </button>
+            )}
 
-  const handleUnfollow = async (userId) => {
-    try {
-      const { data } = await api.post(
-        "/api/user/unfollow",
-        { id: userId },
-        {
-          headers: { Authorization: `Bearer ${await getToken()}` },
-        }
-      );
-      if (data.success) {
-        toast.success(data.message);
-        dispatch(fetchConnections(await getToken()));
-      } else {
-        toast(data.message);
-      }
-    } catch (error) {
-      toast.error(error.message);
-    }
-  };
+            <button
+              onClick={() => handleBlock(user._id, getToken, dispatch)}
+              className="w-full py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 text-sm font-medium transition"
+            >
+              Chặn
+            </button>
+          </>
+        );
 
-  const acceptConnection = async (userId) => {
-    try {
-      const { data } = await api.post(
-        "/api/user/accept",
-        { id: userId },
-        {
-          headers: { Authorization: `Bearer ${await getToken()}` },
-        }
-      );
-      if (data.success) {
-        toast.success(data.message);
-        dispatch(fetchConnections(await getToken()));
-      } else {
-        toast(data.message);
-      }
-    } catch (error) {
-      toast.error(error.message);
-    }
-  };
+      case "Đang theo dõi":
+        return (
+          <>
+            <button
+              onClick={() => handleUnfollow(user._id, getToken, dispatch)}
+              className="w-full py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm font-medium"
+            >
+              Bỏ theo dõi
+            </button>
 
-  const handleRemoveConnection = async (userId) => {
-    try {
-      const { data } = await api.post(
-        "/api/user/reject",
-        { id: userId },
-        {
-          headers: { Authorization: `Bearer ${await getToken()}` },
-        }
-      );
-      if (data.success) {
-        toast.success(data.message);
-        dispatch(fetchConnections(await getToken())); // Cập nhật lại danh sách
-      } else {
-        toast.error(data.message);
-      }
-    } catch (error) {
-      toast.error(error.message);
+            <button
+              onClick={() => navigate(`/messages/${user._id}`)}
+              className="w-full py-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-sm font-medium flex items-center justify-center gap-2"
+            >
+              <MessageSquare className="w-4 h-4" /> Nhắn tin
+            </button>
+          </>
+        );
+
+      case "Chờ phản hồi":
+        return (
+          <>
+            <button
+              onClick={() =>
+                handleAcceptConnection(user._id, getToken, dispatch)
+              }
+              className="w-full py-2 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 text-sm font-medium"
+            >
+              Chấp nhận
+            </button>
+
+            <button
+              onClick={() =>
+                handleRejectConnection(user._id, getToken, dispatch)
+              }
+              className="w-full py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm font-medium"
+            >
+              Từ chối
+            </button>
+
+            <button
+              onClick={() => handleBlock(user._id, getToken, dispatch)}
+              className="w-full py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 text-sm font-medium transition"
+            >
+              Chặn
+            </button>
+          </>
+        );
+
+      case "Bạn bè":
+        return (
+          <>
+            <button
+              onClick={() => navigate(`/messages/${user._id}`)}
+              className="w-full py-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-sm font-medium flex items-center justify-center gap-2"
+            >
+              <MessageSquare className="w-4 h-4" /> Nhắn tin
+            </button>
+
+            <button
+              onClick={() =>
+                handleRemoveConnection(user._id, getToken, dispatch)
+              }
+              className="w-full py-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 text-sm font-medium flex items-center justify-center gap-2"
+            >
+              <UserX className="w-4 h-4" /> Hủy kết bạn
+            </button>
+          </>
+        );
+
+      case "Đã chặn":
+        return (
+          <>
+            <button
+              onClick={() => handleUnblock(user._id, getToken, dispatch)}
+              className="w-full py-2 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 text-sm font-medium transition"
+            >
+              Bỏ chặn
+            </button>
+          </>
+        );
+
+      default:
+        return null;
     }
   };
 
   useEffect(() => {
-    getToken().then((token) => {
-      dispatch(fetchConnections(token));
-    });
+    getToken().then((token) => dispatch(fetchConnections(token)));
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="max-w-6xl mx-auto p-6">
         {/* Title */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Kết nối</h1>
-          <p className="text-gray-600">Kết nối với mọi người trên thế giới.</p>
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-bold text-slate-900 mb-2 tracking-tight">
+            Kết nối
+          </h1>
+          <p className="text-gray-600">
+            Khám phá, trò chuyện và mở rộng mạng lưới bạn bè.
+          </p>
         </div>
 
         {/* Counts */}
-        <div className="mb-8 flex flex-wrap gap-6">
-          {dataArray.map((item, index) => (
+        <div className="mb-10 grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {dataArray.map((item, i) => (
             <div
-              key={index}
-              className="flex flex-col items-center justify-center gap-1 border h-20 w-40 border-gray-200 bg-white shadow rounded-md"
+              key={i}
+              className="flex flex-col items-center justify-center gap-2 border border-gray-200 bg-white hover:shadow-lg transition-shadow rounded-xl py-4"
             >
-              <b>{item.value.length}</b>
-              <p className="text-slate-600">{item.label}</p>
+              <item.icon className="w-6 h-6 text-indigo-600" />
+              <b className="text-lg">{item.value.length}</b>
+              <p className="text-sm text-gray-600">{item.label}</p>
             </div>
           ))}
         </div>
 
         {/* Tabs */}
-        <div className="inline-flex flex-wrap items-center border border-gray-200 rounded-md p-1 bg-white shadow-sm">
+        <div className="flex flex-wrap justify-center gap-2 bg-white rounded-xl border border-gray-200 p-2 shadow-sm">
           {dataArray.map((tab) => (
             <button
-              onClick={() => setCurrentTab(tab.label)}
               key={tab.label}
-              className={`cursor-pointer flex items-center px-3 py-1 text-sm rounded-md transition-colors ${
+              onClick={() => setCurrentTab(tab.label)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
                 currentTab === tab.label
-                  ? "bg-white font-medium text-black"
-                  : "text-gray-500 hover:text-black"
+                  ? "bg-indigo-600 text-white shadow"
+                  : "text-gray-600 hover:bg-gray-100"
               }`}
             >
               <tab.icon className="w-4 h-4" />
-              <span className="ml-1">{tab.label}</span>
-              {tab.count !== undefined && (
-                <span className="ml-1 text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">
-                  {tab.count}
-                </span>
-              )}
+              {tab.label}
             </button>
           ))}
         </div>
 
         {/* Connections */}
-        <div className="flex flex-wrap gap-6 mt-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
           {dataArray
             .find((item) => item.label === currentTab)
             .value.map((user) => (
               <div
                 key={user._id}
-                className="w-full max-w-88 flex gap-5 p-6 bg-white shadow rounded-md"
+                className="flex flex-col bg-white border border-gray-100 shadow-sm rounded-xl p-5 hover:shadow-md transition-all duration-200"
               >
+                {/* User Info */}
                 <div
-                  onClick={() => navigate(`/profile/${user._id}`)}
-                  className="cursor-pointer flex items-center gap-3"
+                  onClick={() => {
+                    if (user._id === currentUser._id) {
+                      navigate("/profile");
+                    } else {
+                      const slug = user.username
+                        ? user.username
+                        : user.full_name.toLowerCase().replace(/\s+/g, "-");
+                      navigate(`/profile-user/${slug}`);
+                    }
+                  }}
+                  className="flex items-center gap-3 cursor-pointer group"
                 >
                   <img
                     src={user.profile_picture}
                     alt=""
-                    className="rounded-full w-12 h-12 shadow-md hover:scale-105 transition-transform"
+                    className="rounded-full w-14 h-14 object-cover border-2 border-indigo-100 group-hover:scale-105 transition-transform"
                   />
                   <div>
                     <div className="flex items-center space-x-1">
-                      <span>{user.full_name}</span>
+                      <span className="font-semibold text-slate-900">
+                        {user.full_name}
+                      </span>
                       <BadgeCheck className="w-4 h-4 text-blue-500" />
                     </div>
                     <div className="text-gray-500 text-sm">
@@ -193,59 +260,9 @@ const Connections = () => {
                   </div>
                 </div>
 
-                <div className="flex-1">
-                  <div className="flex max-sm:flex-col gap-2 mt-4">
-                    {currentTab === "Người theo dõi" && (
-                      <button
-                        onClick={() => handleFollow(user._id)}
-                        disabled={currentUser?.following?.includes(user._id)}
-                        className="w-full p-2 text-sm rounded bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 transition text-white cursor-pointer"
-                      >
-                        {currentUser?.following.includes(user._id)
-                          ? "Đang theo dõi"
-                          : "Theo dõi lại"}
-                      </button>
-                    )}
-
-                    {currentTab === "Đang theo dõi" && (
-                      <button
-                        onClick={() => handleUnfollow(user._id)}
-                        className="w-full p-2 text-sm rounded bg-slate-100 hover:bg-slate-200 text-black active:scale-95 transition cursor-pointer"
-                      >
-                        Bỏ theo dõi
-                      </button>
-                    )}
-
-                    {currentTab === "Chờ phản hồi" && (
-                      <button
-                        onClick={() => acceptConnection(user._id)}
-                        className="w-full p-2 text-sm rounded bg-slate-100 hover:bg-slate-200 text-black active:scale-95 transition cursor-pointer"
-                      >
-                        Chấp nhận
-                      </button>
-                    )}
-
-                    {currentTab === "Bạn bè" && (
-                      <>
-                        <button
-                          onClick={() => navigate(`/messages/${user._id}`)}
-                          className="w-full p-2 text-sm rounded bg-slate-100 hover:bg-slate-200 text-slate-800 active:scale-95 transition cursor-pointer flex items-center justify-center gap-1"
-                        >
-                          <MessageSquare className="w-4 h-4" />
-                          Nhắn tin
-                        </button>
-
-                        {/* Nút hủy kết bạn */}
-                        <button
-                          onClick={() => handleRemoveConnection(user._id)}
-                          className="w-full p-2 text-sm rounded bg-red-100 hover:bg-red-200 text-red-600 active:scale-95 transition cursor-pointer flex items-center justify-center gap-1"
-                        >
-                          <UserX className="w-4 h-4" />
-                          Hủy kết bạn
-                        </button>
-                      </>
-                    )}
-                  </div>
+                {/* Action buttons */}
+                <div className="mt-4 flex flex-col gap-2">
+                  {renderActions(currentTab, user)}
                 </div>
               </div>
             ))}

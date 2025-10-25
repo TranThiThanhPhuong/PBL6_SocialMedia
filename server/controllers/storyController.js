@@ -83,12 +83,20 @@ export const addUserStory = async (req, res) => {
       background_color,
     });
 
-    await inngest.send({
+    // await inngest.send({
+    //   name: "app/story.delete",
+    //   data: { storyId: story._id },
+    // });
+
+    // res.json({ success: true });
+
+    // ✅ Gửi sự kiện xóa story sau 24h
+    const inngestResult = await inngest.send({
       name: "app/story.delete",
       data: { storyId: story._id },
     });
 
-    res.json({ success: true });
+    console.log("📨 Đã gửi event tới Inngest:", inngestResult);
   } catch (error) {
     console.log(error);
     res.json({ success: false, message: error.message });
