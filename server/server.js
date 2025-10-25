@@ -1,8 +1,9 @@
 import express from "express";
 import cors from "cors";
+import axios from "axios";
 import "dotenv/config";
-import { Server } from "socket.io";
 import connectDB from "./configs/db.js";
+import { Server } from "socket.io";
 import { clerkMiddleware } from "@clerk/express";
 import userRouter from "./routes/userRoutes.js";
 import postRouter from "./routes/postRoutes.js";
@@ -50,6 +51,15 @@ await connectDB();
 app.use(cors());
 app.use(express.json());
 app.use(clerkMiddleware());
+
+setInterval(async () => {
+  try {
+    await axios.get(`${process.env.API_HUGGING_FACE_SPACE}`);
+    console.log("🔄 Ping Hugging Face Space để giữ cho nó luôn hoạt động");
+  } catch (err) {
+    console.error("⚠️ Lỗi ping Space:", err.message);
+  }
+}, 1000 * 60 * 5); // 5 phút ping 1 lần
 
 app.get("/", (_, res) => res.send("Server OK ✅"));
 app.use("/api/user", userRouter);

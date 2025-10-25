@@ -145,6 +145,7 @@ const CreatePost = () => {
       });
 
       if (data.success) {
+        toast.success("Đăng bài thành công!");
         setStatus({ type: "success", message: "Đăng bài thành công!" });
         setShowSuccessModal(true);
         localStorage.removeItem('draft_post');

@@ -15,9 +15,9 @@ export const analyzeContent = async (content, images) => {
       });
     }
 
-    const response = await axios.post(`${process.env.API_HUGGING_FACE_SPACE}/analyze`, form, {
+    const response = await axios.post(`${process.env.API_LOCAL}/analyze`, form, {
       headers: form.getHeaders(),
-      timeout: 30000, // 30s phòng trường hợp AI xử lý chậm
+      timeout: 60000, // 60s phòng trường hợp AI xử lý chậm
     });
 
     return response.data; // JSON gồm text_result và image_result

@@ -61,7 +61,7 @@ const StoriesBar = () => {
               className={`relative rounded-xl shadow-lg hover:shadow-2xl min-w-30 max-w-30 max-h-40 cursor-pointer transform hover:scale-105 transition-all duration-300`}
               style={{
                 background:
-                  story.media_type === "text"
+                  story.post_type === "text"
                     ? `linear-gradient(135deg, ${story.background_color}, ${story.background_color}99)`
                     : "linear-gradient(to bottom, #6366f1, #9333ea)",
                 boxShadow: `0 0 15px ${story.background_color}66`,
@@ -78,16 +78,16 @@ const StoriesBar = () => {
                 {formatPostTime(story.createdAt)}
               </p>
 
-              {story.media_type !== "text" && (
+              {story.post_type !== "text" && (
                 <div className="absolute inset-0 z-1 rounded-lg bg-black overflow-hidden">
-                  {story.media_type === "image" ? (
+                  {story.post_type === "image" ? (
                     <img
-                      src={story.media_url}
+                      src={story.image_urls}
                       className="h-full w-full object-cover hover:scale-110 transition duration-500 opacity-70 hover:opacity-80"
                     />
                   ) : (
                     <video
-                      src={story.media_url}
+                      src={story.image_urls}
                       className="h-full w-full object-cover hover:scale-110 transition duration-500 opacity-70 hover:opacity-80"
                     />
                   )}

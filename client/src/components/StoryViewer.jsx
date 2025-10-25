@@ -8,7 +8,7 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
   useEffect(()=>{
     let timer, progressInterval;
 
-    if(viewStory && viewStory.media_type !== 'video') {
+    if(viewStory && viewStory.post_type !== 'video') {
       setProgress(0)
 
       const duration = 10000;
@@ -41,25 +41,13 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
 
   // Xem tin 
   const renderContent = () => {
-    switch (viewStory.media_type) {
+    switch (viewStory.post_type) {
       case 'image':
         return (
           <img
-            src={viewStory.media_url}
+            src={viewStory.image_urls}
             alt={viewStory.content || "story image"}
             className="max-w-full max-h-screen object-contain"
-          />
-        );
-
-      case 'video':
-        return (
-          <video
-            src={viewStory.media_url}
-            onEnded={() => setViewStory(null)}
-            className="max-h-screen"
-            aria-label="Story video"
-            autoPlay
-            controls
           />
         );
 
@@ -80,7 +68,7 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
       className="fixed inset-0 h-screen bg-black bg-opacity-90 z-110 flex items-center justify-center"
       style={{
         backgroundColor:
-          viewStory.media_type === 'text'
+          viewStory.post_type === 'text'
             ? viewStory.background_color
             : '#000000'
       }}
