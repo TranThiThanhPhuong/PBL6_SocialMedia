@@ -51,7 +51,11 @@ const userSchema = new mongoose.Schema({
     connections: [{
         type: String,
         ref: 'User',
-    }]
+    }],
+    blockedUsers: [{ 
+        type: String, 
+        ref: "User" 
+    }],
 }, {timestamps: true, minimize: false});
 
 // Tạo model User

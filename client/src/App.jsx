@@ -120,6 +120,7 @@ const App = () => {
           <Route path="discover" element={<Discover />} />
           <Route path="profile" element={<Profile />} />
           <Route path="profile/:profileId" element={<Profile />} />
+          <Route path="profile-user/:slug" element={<Profile />} /> {/* Hồ sơ người khác */}
           <Route path="notifications" element={<Notifications />} />
           <Route path="create-post" element={<CreatePost />} />
         </Route>

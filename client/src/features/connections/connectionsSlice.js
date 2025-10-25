@@ -6,6 +6,7 @@ const initialState = {
   pendingConnections: [],
   followers: [],
   following: [],
+  blockedUsers: [],
 };
 
 export const fetchConnections = createAsyncThunk(
@@ -29,6 +30,7 @@ const connectionsSlice = createSlice({
         state.pendingConnections = action.payload.pendingConnections;
         state.followers = action.payload.followers;
         state.following = action.payload.following;
+        state.blockedUsers = action.payload.blockedUsers;
       }
     });
   },

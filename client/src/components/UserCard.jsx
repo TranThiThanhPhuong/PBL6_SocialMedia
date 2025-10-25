@@ -1,56 +1,86 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { MessageCircle, MapPin, Plus, UserPlus } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { useAuth } from "@clerk/clerk-react";
-import { useNavigate } from 'react-router-dom';
-import api from "../api/axios";
-import { fetchUser } from "../features/user/userSlice";
-import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
+import {
+  handleConnectionRequest,
+  handleFollow,
+  handleUnfollow,
+  handleAcceptConnection,
+} from "../service/connectionService";
+import { fetchConnections } from "../features/connections/connectionsSlice";
 
 const UserCard = ({ user }) => {
-  const currentUser = useSelector((state) => state.user.value); // Lấy thông tin người dùng hiện tại từ Redux store
+  const currentUser = useSelector((state) => state.user.value);
+  const navigate = useNavigate();
   const { getToken } = useAuth();
   const dispatch = useDispatch();
-  const navigate = useNavigate();
 
-  const handleFollow = async () => {
-    try {
-      const { data } = await api.post('/api/user/follow', { id: user._id }, { headers: { Authorization: `Bearer ${await getToken()}` }}); 
-      if (data.success){
-        toast.success(data.message)
-        dispatch(fetchUser(await getToken()))
-      }
-      else {
-        toast(data.message)
-      }
-    } catch (error) {
-      toast.error(error.message)
+  useEffect(() => {
+    getToken().then((token) => dispatch(fetchConnections(token)));
+  }, [dispatch, getToken]);
+
+  const isFollowing = currentUser?.following?.includes(user._id);
+  const isFollower = currentUser?.followers?.includes(user._id);
+  const isFriend = currentUser?.connections?.includes(user._id);
+  const isPending = currentUser?.pendingConnections?.includes(user._id);
+  const hasRequested = user?.pendingConnections?.includes(currentUser._id);
+
+  const handleFollowAction = async () => {
+    if (isFollowing) {
+      await handleUnfollow(user._id, getToken, dispatch);
+    } else {
+      await handleFollow(user._id, getToken, dispatch);
     }
+    getToken().then((token) => dispatch(fetchConnections(token)));
   };
 
-  const handleConnectionRequest = async () => {
-    if(currentUser.connections.includes(user._id)){
-      return navigate('/messages/' + user._id)
+  const handleConnectionAction = async () => {
+    if (isFriend) {
+      navigate(`/messages/${user._id}`);
+    } else if (isPending) {
+      await handleAcceptConnection(user._id, getToken, dispatch);
+    } else if (!hasRequested) {
+      await handleConnectionRequest(
+        user._id,
+        getToken,
+        dispatch,
+        currentUser,
+        navigate
+      );
     }
-    try {
-      const { data } = await api.post('/api/user/connect', { id: user._id }, { headers: { Authorization: `Bearer ${await getToken()}` }}); 
-      if (data.success){
-        toast.success(data.message)
-      }
-      else {
-        toast(data.message)
-      }
-    } catch (error) {
-      toast.error(error.message)
-    }
+    getToken().then((token) => dispatch(fetchConnections(token)));
   };
+
+  const followButtonLabel = isFollowing
+    ? "Bỏ theo dõi"
+    : isFollower
+    ? "Theo dõi lại"
+    : "Theo dõi";
+
+  const followButtonClass = isFollowing
+    ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
+    : "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white";
 
   return (
     <div
       key={user._id}
       className="p-4 pt-6 flex flex-col justify-between w-72 shadow-md border border-gray-200 rounded-md"
     >
-      <div className="text-center">
+      <div
+        className="text-center cursor-pointer"
+        onClick={() => {
+          if (user._id === currentUser._id) {
+            navigate("/profile");
+          } else {
+            const slug = user.username
+              ? user.username
+              : user.full_name.toLowerCase().replace(/\s+/g, "-");
+            navigate(`/profile-user/${slug}`);
+          }
+        }}
+      >
         <img
           src={user.profile_picture || "/default-avatar.png"}
           alt={user.full_name}
@@ -69,31 +99,32 @@ const UserCard = ({ user }) => {
 
       <div className="flex items-center justify-center gap-2 mt-4 text-xs text-gray-600">
         <div className="flex items-center gap-1 border border-gray-300 rounded-full px-3 py-1">
-          <MapPin className="w-4 h-4" /> {user.location}
+          <MapPin className="w-4 h-4" /> {user.location || "Chưa có"}
         </div>
         <div className="flex items-center gap-1 border border-gray-300 rounded-full px-3 py-1">
-          <span>{user.followers.length}</span> Followers
+          <span>{user.followers?.length || 0}</span> Người theo dõi
         </div>
       </div>
 
       <div className="flex mt-4 gap-2">
         {/* Follow Button */}
         <button
-          onClick={handleFollow}
-          disabled={currentUser?.following?.includes(user._id)}
-          className="w-full py-2 rounded-md flex justify-center items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 active:scale-95 transition text-white cursor-pointer"
+          onClick={handleFollowAction}
+          className={`w-full py-2 rounded-md flex justify-center items-center gap-2 font-medium transition active:scale-95 ${followButtonClass}`}
         >
-          <UserPlus className="w-4 h-4" />{" "}
-          {currentUser?.following.includes(user._id) ? "Following" : "Follow"}
+          <UserPlus className="w-4 h-4" />
+          {followButtonLabel}
         </button>
 
-        {/* Connection Request Button */}
+        {/* Connection / Message Button */}
         <button
-          onClick={handleConnectionRequest}
+          onClick={handleConnectionAction}
           className="flex items-center justify-center w-16 border text-slate-500 group rounded-md cursor-pointer active:scale-95 transition"
         >
-          {currentUser?.connections.includes(user._id) ? (
-            <MessageCircle className="w-5 h-5 group-hover:scale-105 transition" />
+          {isFriend ? (
+            <MessageCircle className="w-5 h-5 group-hover:scale-105 transition text-indigo-600" />
+          ) : isPending ? (
+            <span className="text-sm text-green-600 font-medium">✓</span>
           ) : (
             <Plus className="w-5 h-5 group-hover:scale-105 transition" />
           )}
@@ -104,4 +135,3 @@ const UserCard = ({ user }) => {
 };
 
 export default UserCard;
-

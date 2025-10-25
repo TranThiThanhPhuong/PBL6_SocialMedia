@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useAuth } from "@clerk/clerk-react";
-import { formatPostTime } from '../app/formatDate' 
+import { formatPostTime } from "../app/formatDate";
 import toast from "react-hot-toast";
 import api from "../api/axios";
 import Loading from "../components/Loading";
@@ -20,12 +20,15 @@ const Profile = () => {
   const [activeTab, setActiveTab] = useState("Bài viết");
   const [showEdit, setShowEdit] = useState(false);
 
-  const fetchUser = async (profileId) => {
+  const { slug } = useParams();
+
+  const fetchUser = async (slug) => {
     const token = await getToken();
     try {
       const { data } = await api.post(
         "/api/user/profiles",
-        { profileId}, { headers: { Authorization: `Bearer ${token}` } }
+        { slug }, // gửi slug thay vì profileId
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       if (data.success) {
@@ -40,12 +43,12 @@ const Profile = () => {
   };
 
   useEffect(() => {
-    if (profileId) {
-      fetchUser(profileId);
+    if (slug) {
+      fetchUser(slug);
     } else {
-      fetchUser(currentUser._id);
+      fetchUser(currentUser.username || currentUser.full_name);
     }
-  }, [profileId, currentUser]);
+  }, [slug, currentUser]);
 
   return user ? (
     <div className="relative h-full overflow-y-scroll bg-gray-50 p-6">
@@ -75,7 +78,7 @@ const Profile = () => {
         {/* Tabs */}
         <div className="mt-6">
           <div className="bg-white rounded-xl shadow p-1 flex max-w-md mx-auto">
-            {["Bài viết", "Ảnh", "Thích"].map((tab) => (
+            {["Bài viết", "Ảnh"].map((tab) => (
               <button
                 onClick={() => setActiveTab(tab)}
                 key={tab}
@@ -95,9 +98,9 @@ const Profile = () => {
             <div className="mt-6 flex flex-col items-center gap-6">
               {posts.length > 0 ? (
                 posts
-                .slice() // copy mảng để tránh mutate state gốc
-                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // sắp xếp mới nhất trước
-                .map((post) => <PostCard key={post._id} post={post} />)
+                  .slice() // copy mảng để tránh mutate state gốc
+                  .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // sắp xếp mới nhất trước
+                  .map((post) => <PostCard key={post._id} post={post} />)
               ) : (
                 <p className="text-gray-500">Chưa có bài viết nào.</p>
               )}
