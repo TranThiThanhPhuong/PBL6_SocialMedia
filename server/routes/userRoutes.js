@@ -2,7 +2,7 @@ import express from "express"
 import { protect } from "../middlewares/auth.js" // middleware de kiem tra user da dang nhap chua
 import { upload } from "../configs/multer.js" // middleware de xu ly upload file
 import { getUserRecentMessages } from "../controllers/messageController.js"
-import { followUser, unfollowUser, discoverUser, getUserData, updateUserData, sendConnectionRequest, rejectConnectionRequest, acceptConnectionRequest, getUserConnections, getUserProfiles } from "../controllers/userController.js"
+import { followUser, unfollowUser, discoverUser, getUserData, updateUserData, sendConnectionRequest, rejectConnectionRequest, acceptConnectionRequest, getUserConnections, getUserProfiles, getAllUsers, lockUser, unlockUser } from "../controllers/userController.js"
 
 const userRouter = express.Router()
 
@@ -17,6 +17,9 @@ userRouter.get('/connections', protect, getUserConnections)
 userRouter.post('/reject', protect, rejectConnectionRequest);
 userRouter.post('/profiles', getUserProfiles)
 userRouter.get('/recent-messages', protect, getUserRecentMessages)
+userRouter.get('/all', getAllUsers);
+userRouter.patch('/:userId/lock', lockUser);     
+userRouter.patch('/:userId/unlock', unlockUser);
 
 export default userRouter 
 

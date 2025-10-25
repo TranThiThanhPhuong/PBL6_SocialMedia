@@ -395,3 +395,82 @@ export const acceptConnectionRequest = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
+
+
+// hàm lấy hết users
+export const getAllUsers = async (req, res) => {
+  try {
+    // Có thể thêm middleware để chỉ admin mới gọi được API này
+    const users = await User.find({}).select('-password'); // Lấy tất cả user, bỏ trường password
+    res.json({ success: true, users });
+  } catch (error) {
+    console.error("Lỗi khi lấy tất cả người dùng:", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ: " + error.message });
+  }
+};  
+
+
+
+// Hàm khóa người dùng
+export const lockUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { status: 'locked' },
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Không tìm thấy người dùng' 
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Đã khóa tài khoản ${user.full_name} thành công`,
+      user: user
+    });
+  } catch (error) {
+    console.error("Lỗi khi khóa người dùng:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Lỗi máy chủ: " + error.message 
+    });
+  }
+};
+
+// Hàm mở khóa người dùng
+export const unlockUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { status: 'active' },
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Không tìm thấy người dùng' 
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Đã mở khóa tài khoản ${user.full_name} thành công`,
+      user: user
+    });
+  } catch (error) {
+    console.error("Lỗi khi mở khóa người dùng:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Lỗi máy chủ: " + error.message 
+    });
+  }
+};

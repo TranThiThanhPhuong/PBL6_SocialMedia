@@ -51,7 +51,12 @@ const userSchema = new mongoose.Schema({
     connections: [{
         type: String,
         ref: 'User',
-    }]
+    }],
+    status: {
+    type: String,
+    enum: ['active', 'locked'],
+    default: 'active'
+  },
 }, {timestamps: true, minimize: false});
 
 // Tạo model User
