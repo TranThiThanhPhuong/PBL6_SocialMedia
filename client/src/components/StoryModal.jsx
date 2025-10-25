@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useRef } from "react";
-import { ArrowLeft, TextIcon, Upload, Sparkle } from "lucide-react";
+// 1. Bỏ TextIcon, thêm X
+import { ArrowLeft, Upload, Sparkle, X } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
 import api from "../api/axios";
 import toast from "react-hot-toast";
@@ -22,7 +23,7 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
     bao_luc: "Bản tin chứa nội dung bạo lực / tàn ác!",
   };
 
-   const fileInputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const handleCreateStory = async () => {
     if (!images.length && !content.trim()) {
@@ -77,14 +78,29 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // 3. Hủy URL cũ (nếu có) để tránh memory leak
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+
+      const newPreviewUrl = URL.createObjectURL(file);
       setImages([file]);
-      setPreviewUrl(URL.createObjectURL(file));
+      setPreviewUrl(newPreviewUrl);
       setMode("image");
       setContent("");
 
-      // ✅ Reset input file để có thể chọn lại sau này
       e.target.value = "";
     }
+  };
+
+  // 4. Hàm mới để xóa ảnh và quay lại chế độ text
+  const handleRemoveImage = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setImages([]);
+    setPreviewUrl(null);
+    setMode("text");
   };
 
   return (
@@ -106,24 +122,37 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
         >
           {mode === "text" && (
             <textarea
-              className="bg-transparent text-white w-full h-full p-6 text-lg resize-none focus:outline-none"
+              className="bg-transparent text-white w-full h-full p-6 text-2xl font-semibold text-center resize-none focus:outline-none placeholder:text-gray-300"
               placeholder="Bạn đang nghĩ gì?"
               onChange={(e) => setContent(e.target.value)}
               value={content}
             />
           )}
+          {/* 5. Thêm nút X vào khu vực preview ảnh */}
           {mode === "image" && previewUrl && (
-            <img src={previewUrl} alt="Preview" className="object-contain max-h-full w-full" />
+            <>
+              <img src={previewUrl} alt="Preview" className="object-contain max-h-full w-full" />
+              <button
+                onClick={handleRemoveImage}
+                className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5 text-white hover:bg-black/80 transition"
+                aria-label="Bỏ ảnh"
+              >
+                <X size={18} />
+              </button>
+            </>
           )}
         </div>
 
         {/* Chọn màu nền (chỉ áp dụng cho text mode) */}
         {mode === "text" && (
-          <div className="flex mt-4 gap-2 justify-center">
+          <div className="flex mt-6 gap-3 justify-center"> {/* Tăng gap và margin-top */}
             {bgColors.map((color) => (
               <button
                 key={color}
-                className="w-6 h-6 rounded-full ring cursor-pointer"
+                className={`w-7 h-7 rounded-full cursor-pointer transition-all ${background === color
+                  ? 'ring-2 ring-white ring-offset-2 ring-offset-zinc-900' // Style khi được chọn
+                  : 'ring-1 ring-gray-700' // Style khi không được chọn
+                  }`}
                 style={{ backgroundColor: color }}
                 onClick={() => setBackground(color)}
               />
@@ -131,25 +160,10 @@ const StoryModal = ({ setShowModal, fetchStories }) => {
           </div>
         )}
 
-        {/* Chọn loại tin */}
+        {/* 6. Xóa nút "Văn bản" */}
         <div className="flex gap-2 mt-4">
-          <button
-            onClick={() => {
-              setMode("text");
-              setImages([]);
-              setPreviewUrl(null);
-            }}
-            className={`flex-1 flex items-center justify-center gap-2 p-2 rounded cursor-pointer ${
-              mode === "text" ? "bg-white text-black" : "bg-zinc-800"
-            }`}
-          >
-            <TextIcon size={18} /> Văn bản
-          </button>
-
           <label
-            className={`flex-1 flex items-center justify-center gap-2 p-2 rounded cursor-pointer ${
-              mode === "image" ? "bg-white text-black" : "bg-zinc-800"
-            }`}
+            className="flex-1 flex items-center justify-center gap-2 p-2 rounded cursor-pointer bg-zinc-800"
           >
             <input
               type="file"
