@@ -8,12 +8,17 @@ const initialState = {
 
 // Dùng khi cần lấy thông tin người dùng từ server.
 // Nếu thành công → trả về user, lưu vào Redux state.
-export const fetchUser = createAsyncThunk('user/fetchUser', async (token) => {
+export const fetchUser = createAsyncThunk('user/fetchUser', async (token, { rejectWithValue }) => {
+  try {
     const { data } = await api.get('/api/user/data', {
-        headers: { Authorization: `Bearer ${token}` }
-    }) 
-    return data.success ? data.user : null;
-})
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (data.success) return data.user;
+    return rejectWithValue(data.message);
+  } catch (error) {
+    return rejectWithValue(error.response?.data?.message || 'Không thể tải người dùng');
+  }
+});
 
 // Dùng khi cập nhật thông tin người dùng trên server (ví dụ đổi tên, đổi avatar).
 // Nếu thành công → server trả về user mới, Redux state cũng cập nhật lại theo.

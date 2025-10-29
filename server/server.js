@@ -1,66 +1,78 @@
 import express from "express";
 import cors from "cors";
-import axios from "axios";
+import helmet from "helmet";
+import hpp from "hpp";
+import rateLimit from "express-rate-limit";
+import mongoSanitize from "express-mongo-sanitize";
+import xss from "xss";
+import morgan from "morgan";
+import http from "http";
 import "dotenv/config";
 import connectDB from "./configs/db.js";
 import { Server } from "socket.io";
 import { clerkMiddleware } from "@clerk/express";
+
+import { initSocket } from "./utils/socket.js";
+import { errorHandler } from "./middlewares/errorHandler.js";
 import userRouter from "./routes/userRoutes.js";
 import postRouter from "./routes/postRoutes.js";
 import storyRouter from "./routes/storyRoutes.js";
 import messageRouter from "./routes/messageRoutes.js";
 import commentRouter from "./routes/commentRoutes.js";
 import notificationRouter from "./routes/notificationRouter.js";
-import http from "http";
-import socketConnection from "./utils/socket.js";
 
 const app = express();
 const server = http.createServer(app);
-socketConnection(server);
 
-// 🔌 Socket.IO setup
-const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] },
-});
-const onlineUsers = new Map();
+initSocket(server);
 
-// Lắng nghe sự kiện kết nối socket
-io.on("connection", (socket) => {
-  console.log("✅ Socket connected:", socket.id);
+// Logging
+if (process.env.NODE_ENV !== "production") app.use(morgan("dev"));
 
-  socket.on("register_user", (userId) => {
-    onlineUsers.set(userId, socket.id);
-    console.log(`🟢 ${userId} online`);
-  });
+// ===== Security Middlewares =====
+app.disable("x-powered-by"); // ẩn thông tin Express
+app.use(helmet()); // thêm HTTP security headers
+app.use(hpp()); // chống HTTP parameter pollution
+app.use(express.json({ limit: "10kb" })); // giới hạn body tránh DoS
 
-  socket.on("disconnect", () => {
-    for (const [uid, sid] of onlineUsers.entries()) {
-      if (sid === socket.id) {
-        onlineUsers.delete(uid);
-        console.log(`🔴 ${uid} offline`);
-        break;
-      }
+app.use((req, res, next) => {
+  const clean = (obj) => {
+    for (const key in obj) {
+      if (typeof obj[key] === "object" && obj[key] !== null) clean(obj[key]);
+      else if (typeof obj[key] === "string") obj[key] = xss(obj[key]);
+      if (key.startsWith("$")) delete obj[key]; // chống NoSQL injection
     }
-  });
+  };
+  clean(req.body);
+  clean(req.query);
+  clean(req.params);
+  next();
 });
 
-export { io, onlineUsers };
+// CORS
+app.use(
+  cors({
+    origin: [process.env.FRONTEND_URL],
+    credentials: true,
+  })
+);
 
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  message: "Too many requests from this IP, please try again later.",
+});
+app.use("/api", limiter);
+// ===== End Security Middlewares =====
+
+// Database connection
 await connectDB();
 
-app.use(cors());
-app.use(express.json());
+// Clerk middleware
 app.use(clerkMiddleware());
 
-// setInterval(async () => {
-//   try {
-//     await axios.get(`${process.env.API_HUGGING_FACE_SPACE}`);
-//     console.log("🔄 Ping Hugging Face Space để giữ cho nó luôn hoạt động");
-//   } catch (err) {
-//     console.error("⚠️ Lỗi ping Space:", err.message);
-//   }
-// }, 1000 * 60 * 5); // 5 phút ping 1 lần
-
+// API routes
 app.get("/", (_, res) => res.send("Server OK ✅"));
 app.use("/api/user", userRouter);
 app.use("/api/post", postRouter);
@@ -69,9 +81,11 @@ app.use("/api/message", messageRouter);
 app.use("/api/comment", commentRouter);
 app.use("/api/notifications", notificationRouter);
 
-const PORT = process.env.PORT || 5000
+// Error handler (đặt cuối)
+app.use(errorHandler);
 
-app.listen(PORT, () => console.log(`Server is running on port ${PORT}`))      
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => console.log(`🚀 Server is running on port ${PORT}`));
 
 // Đây là entry point của backend.
 // Nó kết nối DB, cấu hình middleware, mount router, và start server.

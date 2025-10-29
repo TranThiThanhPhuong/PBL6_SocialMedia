@@ -1,5 +1,5 @@
 import Notification from "../models/Notification.js";
-import { io, onlineUsers } from "../server.js";
+import { getIO, getOnlineUsers } from "../utils/socket.js";
 
 export const createNotification = async (req, res) => {
   try {
@@ -7,10 +7,13 @@ export const createNotification = async (req, res) => {
 
     const noti = await Notification.create({ receiver, sender, type, content });
 
+    const io = getIO();
+    const onlineUsers = getOnlineUsers();
+
     const receiverSocket = onlineUsers.get(receiver);
     if (receiverSocket) {
       io.to(receiverSocket).emit("new_notification", { receiver, type, content });
-      console.log("📨 Sent real-time notification:", receiver);
+      console.log("📨 Sent real-time notification to:", receiver);
     }
 
     res.json({ success: true, noti });

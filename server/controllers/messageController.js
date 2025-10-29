@@ -1,109 +1,178 @@
-import fs from 'fs';
+import fs from "fs";
 import imagekit from "../configs/imageKit.js";
-import Message from '../models/Message.js';
+import User from "../models/User.js";
+import Message from "../models/Message.js";
 
-const connections = {};
+const connections = {}; // SSE connections (server → client)
 
-// mở kết nối một chiều từ server → client.
+// -------------------- SSE KẾT NỐI REALTIME --------------------
 export const sseController = (req, res) => {
-    const { userId } = req.params; // lay userId tu params tren url
-    console.log('New client connected:', userId);
+  const { userId } = req.params;
+  console.log("📡 New SSE client connected:", userId);
 
-    res.setHeader('Content-Type', 'text/event-stream'); // set header de biet day la SSE
-    res.setHeader('Cache-Control', 'no-cache'); // khong luu cache
-    res.setHeader('Connection', 'keep-alive'); // giu ket noi luon luon
-    res.setHeader('Access-Control-Allow-Origin', '*'); // cho phep tat ca cac nguon
+  res.set({
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "Access-Control-Allow-Origin": "*",
+  });
 
-    connections[userId] = res; // luu res vao trong connections voi key la userId
+  connections[userId] = res;
+  res.write("event: connected\ndata: Connected to SSE stream\n\n");
 
-    res.write('log: Connected to SSE stream\n\n'); // gui tin nhan ket noi thanh cong
+  req.on("close", () => {
+    delete connections[userId];
+    console.log("❌ SSE client disconnected:", userId);
+  });
+};
 
-    req.on('close', () => { // khi client ngat ket 
-        delete connections[userId]; // xoa res khoi connections
-        console.log('Client disconnected:'); 
+// -------------------- GỬI TIN NHẮN --------------------
+export const sendMessage = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    const { to_user_id, text } = req.body;
+    const image = req.file;
+
+    if (!to_user_id)
+      return res.json({ success: false, message: "Thiếu ID người nhận." });
+
+    const [sender, receiver] = await Promise.all([
+      User.findById(userId).select("connections following blockedUsers"),
+      User.findById(to_user_id).select("connections followers blockedUsers"),
+    ]);
+
+    if (!sender || !receiver)
+      return res.json({ success: false, message: "Người dùng không tồn tại." });
+
+    // Kiểm tra block
+    if (
+      sender.blockedUsers?.includes(to_user_id) ||
+      receiver.blockedUsers?.includes(userId)
+    ) {
+      return res.json({
+        success: false,
+        message: "Không thể nhắn tin vì một trong hai đã chặn nhau.",
+      });
+    }
+
+    // Kiểm tra quan hệ bạn bè hoặc follow
+    const isFriend =
+      sender.connections.includes(to_user_id) &&
+      receiver.connections.includes(userId);
+
+    const isFollowing =
+      sender.following.includes(to_user_id) ||
+      receiver.followers.includes(userId);
+
+    if (!isFriend && !isFollowing) {
+      return res.json({
+        success: false,
+        message: "Chỉ có thể nhắn tin khi đã kết bạn hoặc follow nhau.",
+      });
+    }
+
+    // Upload ảnh nếu có
+    let message_type = image ? "image" : "text";
+    let media_url = "";
+
+    if (image) {
+      const buffer = fs.readFileSync(image.path);
+      const uploaded = await imagekit.upload({
+        file: buffer,
+        fileName: image.originalname,
+      });
+      media_url = imagekit.url({
+        path: uploaded.filePath,
+        transformation: [
+          { quality: "auto" },
+          { format: "webp" },
+          { width: "1280" },
+        ],
+      });
+    }
+
+    // Lưu tin nhắn
+    const message = await Message.create({
+      from_user_id: userId,
+      to_user_id,
+      text,
+      message_type,
+      media_url,
     });
 
-    // SSE (Server-Sent Events) cho phép server đẩy tin nhắn real-time về client qua HTTP stream.
-}
+    // Phản hồi cho người gửi
+    res.json({ success: true, message });
 
-export const sendMessage = async (req, res) => {
-    try {
-        const { userId } = req.auth();
-        const { to_user_id, text } = req.body;
-        const image = req.file; // chi co 1 file media duoc upload len
-        let media_url = ''; // luu tru url cua media (image hoac video)
-        let message_type = image ? 'image' : 'text'; // neu co image thi la image, khong thi la text
+    // Gửi realtime qua SSE
+    const populatedMsg = await Message.findById(message._id).populate(
+      "from_user_id",
+      "full_name username profile_picture"
+    );
 
-        if (message_type === 'image') {
-            const fileBuffer = fs.readFileSync(image.path);
-            const response =  await imagekit.upload({
-                file: fileBuffer, 
-                fileName: image.originalname,
-            });
-            media_url = imagekit.url({
-                path: response.filePath,
-                transformation: [
-                    {quality: 'auto'},
-                    {format: 'webp'},
-                    {width: '1280'}
-                ]
-            }) // lay url cua media vua upload len
-        } 
-
-        const message = await Message.create({
-            from_user_id: userId,
-            to_user_id,
-            text,
-            message_type,
-            media_url
-        })
-
-        res.json({success: true, message});
-
-        // gui tin nhan den nguoi nhan neu su dung sse
-        const messageWithUserData = await Message.findById(message._id).populate('from_user_id'); // lay thong tin nguoi gui tin nhan de gui ve client
-
-        if(connections[to_user_id]) {
-            connections[to_user_id].write(`data: ${JSON.stringify(messageWithUserData)}\n\n`); // gui tin nhan den nguoi nhan
-        } // neu nguoi nhan dang ket noi thi moi gui tin nhan
+    if (connections[to_user_id]) {
+      connections[to_user_id].write(
+        `data: ${JSON.stringify(populatedMsg)}\n\n`
+      );
     }
-    catch(error) {
-        console.log(error);
-        res.json({success: false, message: error.message});
-    }
-}
+  } catch (error) {
+    console.error("sendMessage error:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
 
+// -------------------- LẤY TIN NHẮN GIỮA 2 NGƯỜI --------------------
 export const getChatMessages = async (req, res) => {
-    try {
-        const { userId } = req.auth();
-        const { to_user_id } = req.body;
+  try {
+    const { userId } = req.auth();
+    const { to_user_id } = req.body;
 
-        // lay ra tat ca tin nhan giua minh va nguoi nhan
-        const messages = await Message.find({
-            $or: [
-                { from_user_id: userId, to_user_id }, 
-                { from_user_id: to_user_id, to_user_id: userId }
-            ]
-        }).sort({ createdAt: -1 }); // sap xep tin nhan theo thoi gian giam dan
+    if (!to_user_id)
+      return res.json({ success: false, message: "Thiếu ID người nhận." });
 
-        await Message.updateMany({ from_user_id: to_user_id, to_user_id: userId }, { seen: true }); // cap nhat tat ca tin nhan tu nguoi nhan sang minh thanh da xem
+    const messages = await Message.find({
+      $or: [
+        { from_user_id: userId, to_user_id },
+        { from_user_id: to_user_id, to_user_id: userId },
+      ],
+    }).sort({ createdAt: -1 });
 
-        res.json({ success: true, messages });
-    } 
-    catch (error) {
-        console.log(error);
-        res.json({success: false, message: error.message});
-    }
-}
+    // Đánh dấu tin nhắn đã đọc
+    await Message.updateMany(
+      { from_user_id: to_user_id, to_user_id: userId, seen: false },
+      { seen: true }
+    );
 
+    res.json({ success: true, messages });
+  } catch (error) {
+    console.error("getChatMessages error:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// -------------------- LẤY CUỘC TRÒ CHUYỆN GẦN NHẤT --------------------
 export const getUserRecentMessages = async (req, res) => {
-    try {
-        const { userId } = req.auth();
-        const messages = await Message.find({ to_user_id: userId }).populate('from_user_id to_user_id').sort({ createdAt: -1 }); // lay tat ca tin nhan gui den minh va sap xep theo thoi gian giam dan
+  try {
+    const { userId } = req.auth();
 
-        res.json({ success: true, messages });
-    } catch (error) {
-        console.log(error);
-        res.json({success: false, message: error.message});
-    }
-}
+    const messages = await Message.find({
+      $or: [{ from_user_id: userId }, { to_user_id: userId }],
+    })
+      .populate("from_user_id to_user_id", "full_name username profile_picture")
+      .sort({ createdAt: -1 });
+
+    const lastMessages = {};
+    messages.forEach((msg) => {
+      const partnerId =
+        msg.from_user_id._id.toString() === userId
+          ? msg.to_user_id._id.toString()
+          : msg.from_user_id._id.toString();
+
+      if (!lastMessages[partnerId]) lastMessages[partnerId] = msg;
+    });
+
+    res.json({ success: true, messages: Object.values(lastMessages) });
+  } catch (error) {
+    console.error("getUserRecentMessages error:", error);
+    res.json({ success: false, message: error.message });
+  }
+};

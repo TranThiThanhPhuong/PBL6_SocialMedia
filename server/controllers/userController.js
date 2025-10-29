@@ -1,542 +1,320 @@
+// controllers/userController.js
 import User from "../models/User.js";
 import Post from "../models/Post.js";
-import Connection from "../models/Connection.js";
 import fs from "fs";
 import imagekit from "../configs/imageKit.js";
 import { inngest } from "../inngest/index.js";
-import Notification from "../models/Notification.js";
 
-// Lấy dữ liệu người dùng dựa trên userId từ token xác thực
+const getIdFromReq = (req) => {
+  // Hỗ trợ cả :id (params) và { id } (body)
+  return req.params?.id || req.body?.id || null;
+};
+
 export const getUserData = async (req, res) => {
   try {
-    const { userId } = req.auth(); // Clerk userId
+    const { userId } = req.auth();
+    console.log("getUserData request by:", userId);
 
-    // Tìm user theo _id (vì bạn đã set _id = Clerk userId trong schema)
     const user = await User.findById(userId);
 
     if (!user) {
-      return res.json({ success: false, message: "Không tìm thấy người dùng" });
-    } // neu khong tim thay user thi tra ve loi
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy người dùng",
+      });
+    }
 
-    res.json({ success: true, user }); // tra ve du lieu nguoi dung
+    res.json({ success: true, user });
   } catch (error) {
-    console.error("Lỗi khi tìm người dùng:", error);
-    res.json({ success: false, message: error.message });
+    console.error("❌ Lỗi khi tìm người dùng:", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ nội bộ" });
   }
 };
 
 export const updateUserData = async (req, res) => {
   try {
     const { userId } = req.auth();
-    let { username, bio, location, full_name } = req.body; // lay du lieu tu body, su dung let de co the gan lai gia tri(vi thay doi)
-    const tempUser = await User.findById(userId); // lay thong tin nguoi dung hien tai
+    console.log("updateUserData by:", userId);
 
-    !username && (username = tempUser.username);
+    let { username, bio, location, full_name } = req.body;
 
-    if (tempUser.username !== username) {
-      const user = await User.findOne(username);
-      if (user) {
-        username = tempUser.username;
+    const currentUser = await User.findById(userId);
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy người dùng",
+      });
+    }
+
+    if (!username) username = currentUser.username;
+
+    if (currentUser.username !== username) {
+      const existing = await User.findOne({ username });
+      if (existing) {
+        username = currentUser.username;
       }
     }
 
-    const updatedData = {
-      username,
-      bio,
-      location,
-      full_name,
+    const updatedData = { username, bio, location, full_name };
+
+    const profile = req.files?.profile?.[0];
+    const cover = req.files?.cover?.[0];
+
+    const uploadToImageKit = async (file, width) => {
+      const buffer = fs.readFileSync(file.path);
+      try {
+        const response = await imagekit.upload({
+          file: buffer,
+          fileName: file.originalname,
+        });
+        fs.unlinkSync(file.path);
+        return imagekit.url({
+          path: response.filePath,
+          transformation: [{ quality: "auto", format: "webp", width }],
+        });
+      } catch (err) {
+        console.error("❌ Upload lỗi:", err);
+        try { fs.unlinkSync(file.path); } catch(e){/* ignore */ }
+        return null;
+      }
     };
-    const profile = req.files.profile && req.files.profile[0]; // req.files.profile là mảng các file, lấy phần tử đầu tiên
-    const cover = req.files.cover && req.files.cover[0]; // req.files.cover là mảng các file, lấy phần tử đầu tiên
 
     if (profile) {
-      const buffer = fs.readFileSync(profile.path);
-      const response = await imagekit.upload({
-        file: buffer, // dung de upload file
-        fileName: profile.originalname, // ten file
-      });
-      // Đọc file → upload lên ImageKit.
-      // Sau khi upload thành công → xóa file local.
-      // fs.unlinkSync(profile.path);
-
-      const url = imagekit.url({
-        path: response.filePath,
-        transformation: [
-          {
-            quality: "auto",
-            format: "webp",
-            width: "512",
-          },
-        ],
-      });
-      updatedData.profile_picture = url;
-    } // neu upload thanh cong se tra ve mot object chua thong tin ve file vua upload
+      const url = await uploadToImageKit(profile, 512);
+      if (url) updatedData.profile_picture = url;
+    }
 
     if (cover) {
-      const buffer = fs.readFileSync(cover.path);
-      const response = await imagekit.upload({
-        file: buffer, // dung de upload file
-        fileName: cover.originalname, // ten file
-      }); // neu upload thanh cong se tra ve mot object chua thong tin ve file vua upload
-      // Đọc file → upload lên ImageKit.
-      // Sau khi upload thành công → xóa file local.
-      // fs.unlinkSync(profile.path);
-
-      const url = imagekit.url({
-        path: response.filePath,
-        transformation: [
-          {
-            quality: "auto",
-            format: "webp",
-            width: "1280",
-          },
-        ],
-      }); // tao url voi kich thuoc va dinh dang mong muon
-      updatedData.cover_photo = url; // luu url vao updatedData de cap nhat vao csdl
+      const url = await uploadToImageKit(cover, 1280);
+      if (url) updatedData.cover_photo = url;
     }
 
     const user = await User.findByIdAndUpdate(userId, updatedData, {
       new: true,
-    }); // Tìm và cập nhật dữ liệu người dùng, trả về dữ liệu đã được cập nhật
+    }).select("-blockedUsers");
 
     res.json({
       success: true,
       user,
       message: "Cập nhật thông tin người dùng thành công",
-    }); // Trả về dữ liệu người dùng đã được cập nhật
+    });
   } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+    console.error("❌ Lỗi cập nhật người dùng:", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ nội bộ" });
   }
 };
-
-// export const getUserProfiles = async (req, res) => {
-//   try {
-//     const { profileId } = req.body; // id nguoi dung can lay thong tin
-//     const profile = await User.findById(profileId); // tim nguoi dung theo id
-//     if (!profile) {
-//       return res.json({ success: false, message: "Không tìm thấy hồ sơ" });
-//     }
-//     const posts = await Post.find({ user: profileId }).populate("user"); // populate de lay thong tin nguoi dung cho moi bai viet
-
-//     res.json({ success: true, profile, posts });
-//   } catch (error) {
-//     console.log(error);
-//     res.json({ success: false, message: error.message });
-//   }
-// };
 
 export const getUserProfiles = async (req, res) => {
   try {
     const { profileId, slug } = req.body;
-
     let profile;
+
     if (profileId) {
-      profile = await User.findById(profileId);
+      profile = await User.findById(profileId).select("-blockedUsers");
     } else if (slug) {
       profile = await User.findOne({
         $or: [
           { username: slug },
           { full_name: new RegExp("^" + slug.replace(/-/g, " ") + "$", "i") },
         ],
-      });
+      }).select("-blockedUsers");
     }
 
     if (!profile) {
-      return res.json({ success: false, message: "Không tìm thấy hồ sơ" });
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy hồ sơ",
+      });
     }
 
-    const posts = await Post.find({ user: profile._id }).populate("user");
+    const posts = await Post.find({ user: profile._id })
+      .populate("user", "full_name username profile_picture")
+      .sort({ createdAt: -1 });
+
     res.json({ success: true, profile, posts });
   } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+    console.error("❌ Lỗi khi lấy hồ sơ người dùng:", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ nội bộ" });
   }
 };
 
-// Tìm kiếm người dùng dựa trên input (username, email, full_name, location)
 export const discoverUser = async (req, res) => {
   try {
-    const { userId } = req.auth(); // id nguoi dung hien tai
-    const { input } = req.body; // input để tìm kiếm
+    const { userId } = req.auth();
+    const { input = "" } = req.body;
 
-    const allUsers = await User.find({
-      $or: [
-        { username: new RegExp(input, "i") },
-        { email: new RegExp(input, "i") },
-        { full_name: new RegExp(input, "i") },
-        { location: new RegExp(input, "i") },
-      ],
-    });
+    if (!input.trim()) {
+      const suggestions = await User.find({})
+        .select("full_name username profile_picture location")
+        .limit(20)
+        .lean();
+      return res.json({ success: true, users: suggestions });
+    }
 
-    // Loại bỏ người dùng hiện tại khỏi kết quả tìm kiếm
-    const filteredUsers = allUsers.filter((user) => user._id !== userId);
+    // Nếu bạn đã tạo text index, dùng $text; nếu chưa, fallback sang regex safe
+    let users;
+    try {
+      // dùng text search nếu index đã tạo
+      users = await User.find(
+        { $text: { $search: input } },
+        { score: { $meta: "textScore" } }
+      )
+        .sort({ score: { $meta: "textScore" } })
+        .select("full_name username profile_picture location email")
+        .limit(30)
+        .lean();
+    } catch (e) {
+      // fallback: regex (escape)
+      const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const re = new RegExp(escapeRegex(String(input).slice(0, 60)), "i");
+      users = await User.find({
+        $or: [{ username: re }, { full_name: re }, { email: re }, { location: re }],
+      })
+        .select("full_name username profile_picture location email")
+        .limit(30)
+        .lean();
+    }
 
-    // Trả về kết quả tìm kiếm
-    res.json({ success: true, users: filteredUsers });
+    const filtered = users.filter((u) => u._id.toString() !== userId);
+    res.json({ success: true, users: filtered });
   } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+    console.error("❌ discoverUser error:", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ nội bộ" });
   }
 };
 
-export const getUserConnections = async (req, res) => {
+// hàm lấy hết users
+export const getAllUsers = async (req, res) => {
   try {
-    const { userId } = req.auth();
-    const user = await User.findById(userId).populate(
-      "connections followers following blockedUsers"
-    ); // lay thong tin nguoi dung hien tai
+    // Có thể thêm middleware để chỉ admin mới gọi được API này
+    const users = await User.find({}).select('-password'); // Lấy tất cả user, bỏ trường password
+    res.json({ success: true, users });
+  } catch (error) {
+    console.error("Lỗi khi lấy tất cả người dùng:", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ: " + error.message });
+  }
+};  
 
-    const connections = user.connections; // lay danh sach ket noi
-    const followers = user.followers; // lay danh sach nguoi theo doi
-    const following = user.following; // lay danh sach nguoi dang theo doi
-    const blockedUsers = user.blockedUsers || []; // lay danh sach nguoi bi chan
+// Hàm khóa người dùng
+export const lockUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { status: 'locked' },
+      { new: true }
+    ).select('-password');
 
-    const pendingConnections = (
-      await Connection.find({ to_user_id: userId, status: "pending" }).populate(
-        "from_user_id"
-      )
-    ).map((connection) => connection.from_user_id); // lay danh sach ket noi dang cho duyet
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Không tìm thấy người dùng' 
+      });
+    }
 
     res.json({
       success: true,
-      connections,
-      followers,
-      following,
-      pendingConnections,
-      blockedUsers,
+      message: `Đã khóa tài khoản ${user.full_name} thành công`,
+      user: user
     });
   } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+    console.error("Lỗi khi khóa người dùng:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Lỗi máy chủ: " + error.message 
+    });
   }
 };
 
-// theo doi nguoi dung
-export const followUser = async (req, res) => {
+// Hàm mở khóa người dùng
+export const unlockUser = async (req, res) => {
   try {
-    const { userId } = req.auth();
-    const { id } = req.body; // id nguoi dung can theo doi
+    const { userId } = req.params;
+    
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { status: 'active' },
+      { new: true }
+    ).select('-password');
 
-    // kiem tra nguoi dung can theo doi co ton tai khong
-    const user = await User.findById(userId);
-    if (user.following.includes(id)) {
-      return res.json({
-        success: false,
-        message: "Bạn đã theo dõi người dùng này rồi",
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Không tìm thấy người dùng' 
       });
     }
 
-    // them userId vao followers cua nguoi duoc theo doi
-    user.following.push(id);
-    await user.save();
-
-    const toUser = await User.findById(id);
-    toUser.followers.push(userId);
-    await toUser.save();
-
-    // ✅ Tạo thông báo follow
-    await Notification.create({
-      receiver: id,
-      sender: userId,
-      type: "follow",
-      content: `${user.full_name} đã bắt đầu theo dõi bạn.`,
-    });
-
-    res.json({ success: true, message: "Theo dõi người dùng thành công" });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
-  }
-};
-
-export const unfollowUser = async (req, res) => {
-  try {
-    const { userId } = req.auth();
-    const { id } = req.body; // id nguoi dung can theo doi
-
-    const user = await User.findById(userId);
-
-    user.following = user.following.filter((user) => user !== id);
-    await user.save();
-
-    const toUser = await User.findById(id);
-    toUser.followers = toUser.followers.filter((user) => user !== userId);
-    await toUser.save();
-
-    res.json({ success: true, message: "Đã bỏ theo dõi người dùng" });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
-  }
-};
-
-export const sendConnectionRequest = async (req, res) => {
-  try {
-    const { userId } = req.auth();
-    const { id } = req.body; // id nguoi dung can ket noi
-
-    const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24h truoc ngay hien tai
-    const connectionRequests = await Connection.find({
-      from_user_id: userId,
-      created_at: { $gt: last24Hours },
-    }); // tim tat ca cac yeu cau ket ban trong 24h qua
-
-    if (connectionRequests.length >= 20) {
-      return res.json({
-        success: false,
-        message:
-          "Bạn đã đạt giới hạn 20 lời mời kết nối trong 24 giờ qua. Vui lòng thử lại sau",
-      });
-    } // neu da gui 20 yeu cau trong 24h thi khong cho gui nua, dieu nay de ngan chan spam
-
-    const connection = await Connection.findOne({
-      $or: [
-        { from_user_id: userId, to_user_id: id }, // nguoi gui la userId, nguoi nhan la id
-        { from_user_id: id, to_user_id: userId }, // nguoi gui la id, nguoi nhan la userId
-      ],
-    }); // kiem tra xem da gui yeu cau ket ban chua
-
-    if (!connection) {
-      const newConnection = await Connection.create({
-        from_user_id: userId,
-        to_user_id: id,
-      }); // tao moi yeu cau ket ban
-
-      const sender = await User.findById(userId);
-
-      // ✅ Thêm thông báo friend_request
-      await Notification.create({
-        receiver: id,
-        sender: userId,
-        type: "friend_request",
-        content: `${sender.full_name} đã gửi cho bạn lời mời kết bạn.`,
-      });
-
-      await inngest.send({
-        name: "app/connection-request",
-        data: { connectionId: newConnection._id },
-      }); // gui su kien connection-request den inngest de gui email
-
-      return res.json({
-        success: true,
-        message: "Đã gửi lời mời kết nối",
-      });
-    } // neu chua gui yeu cau thi tao moi yeu cau ket ban
-    else if (connection && connection.status === "accepted") {
-      return res.json({
-        success: false,
-        message: "Bạn đã kết nối với người dùng này rồi",
-      });
-    } // neu da ket ban roi thi khong cho gui yeu cau nua
-
-    return res.json({
-      success: false,
-      message: "Bạn đã gửi lời mời kết nối trước đó",
-    });
-    // neu da gui yeu cau ket ban roi thi thong bao da gui yeu cau roi
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
-  }
-};
-
-export const removeConnectionRequest = async (req, res) => {
-  try {
-    const { userId } = req.auth();
-    const { id } = req.body;
-
-    if (!id) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Thiếu ID người dùng." });
-    }
-
-    // ✅ Dùng đúng field đã tạo (from_user_id, to_user_id)
-    const connection = await Connection.findOne({
-      $or: [
-        { from_user_id: userId, to_user_id: id, status: "accepted" },
-        { from_user_id: id, to_user_id: userId, status: "accepted" },
-      ],
-    });
-
-    if (!connection) {
-      return res.status(404).json({
-        success: false,
-        message: "Không tìm thấy kết nối để hủy.",
-      });
-    }
-
-    // ✅ Xóa bản ghi kết nối
-    await Connection.findByIdAndDelete(connection._id);
-
-    // ✅ Xóa bạn trong danh sách connections của cả hai người
-    await User.findByIdAndUpdate(userId, { $pull: { connections: id } });
-    await User.findByIdAndUpdate(id, { $pull: { connections: userId } });
-
-    res.status(200).json({
+    res.json({
       success: true,
-      message: "Đã hủy kết bạn thành công.",
+      message: `Đã mở khóa tài khoản ${user.full_name} thành công`,
+      user: user
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+    console.error("Lỗi khi mở khóa người dùng:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Lỗi máy chủ: " + error.message 
+    });
+  } 
 };
 
-export const acceptConnectionRequest = async (req, res) => {
-  try {
-    const { userId } = req.auth();
-    const { id } = req.body; // id nguoi dung can chap nhan ket noi
-
-    const connection = await Connection.findOne({
-      from_user_id: id,
-      to_user_id: userId,
-    }); // tim yeu cau ket noi tu id den userId
-
-    if (!connection) {
-      return res.json({
-        success: false,
-        message: "Không tìm thấy lời mời kết nối",
-      });
-    } // neu khong tim thay yeu cau ket noi thi thong bao loi
-
-    const user = await User.findById(userId);
-    user.connections.push(id); // them id vao danh sach ket noi cua nguoi dung hien tai
-    await user.save(); // luu thay doi
-
-    const toUser = await User.findById(id);
-    toUser.connections.push(userId); // them userId vao danh sach ket noi cua nguoi gui yeu cau ket noi
-    await toUser.save(); // luu thay doi
-
-    connection.status = "accepted"; // cap nhat trang thai yeu cau ket noi thanh da chap nhan
-    await connection.save(); // luu thay doi
-
-    // ✅ Gửi thông báo cho người gửi
-    await Notification.create({
-      receiver: connection.from_user_id,
-      sender: userId,
-      type: "friend_accept",
-      content: `${user.full_name} đã chấp nhận lời mời kết bạn của bạn.`,
-    });
-
-    res.json({ success: true, message: "Chấp nhận kết nối thành công" });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
-  }
-};
-
-export const rejectConnectionRequest = async (req, res) => {
-  try {
-    const { userId } = req.auth();
-    const { id } = req.body; // id người gửi lời mời
-
-    if (!id) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Thiếu ID người dùng cần từ chối." });
-    }
-
-    const connection = await Connection.findOne({
-      from_user_id: id,
-      to_user_id: userId,
-      status: "pending",
-    });
-
-    if (!connection) {
-      return res.status(404).json({
-        success: false,
-        message: "Không tìm thấy lời mời kết nối để từ chối.",
-      });
-    }
-
-    // ✅ Cập nhật trạng thái thành 'rejected' thay vì xóa để lưu lịch sử
-    connection.status = "rejected";
-    await connection.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Đã từ chối lời mời kết bạn.",
-    });
-  } catch (error) {
-    console.error("❌ rejectConnectionRequest:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
+// -------------------- BLOCK USER --------------------
 export const blockUser = async (req, res) => {
   try {
-    const { userId } = req.auth(); // ID người thực hiện chặn
-    const { id } = req.body; // ID người bị chặn
+    const { userId } = req.auth();
+    const id = getIdFromReq(req);
 
-    if (!id) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Thiếu ID người dùng cần chặn." });
-    }
+    console.log("blockUser:", { by: userId, target: id });
 
-    // Lấy thông tin người dùng hiện tại
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy người dùng." });
-    }
+    if (!id) return res.status(400).json({ success: false, message: "Thiếu ID người dùng cần chặn." });
+    if (userId === id) return res.json({ success: false, message: "Không thể tự chặn chính mình." });
 
-    // Nếu đã chặn rồi thì không cần chặn lại
-    if (user.blockedUsers?.includes(id)) {
-      return res.json({ success: false, message: "Bạn đã chặn người dùng này rồi." });
-    }
+    await Promise.all([
+      User.findByIdAndUpdate(userId, {
+        $pull: { following: id, followers: id, connections: id },
+        $addToSet: { blockedUsers: id },
+      }),
+      User.findByIdAndUpdate(id, {
+        $pull: { following: userId, followers: userId, connections: userId },
+      }),
+      Connection.deleteMany({
+        $or: [
+          { from_user_id: userId, to_user_id: id },
+          { from_user_id: id, to_user_id: userId },
+        ],
+      }),
+    ]);
 
-    // Thêm vào danh sách chặn
-    user.blockedUsers.push(id);
-
-    // Nếu đang là bạn bè → xóa khỏi connections
-    user.connections = user.connections.filter(conn => conn.toString() !== id);
-    await User.findByIdAndUpdate(id, { $pull: { connections: userId } });
-
-    // Nếu đang theo dõi nhau → hủy theo dõi
-    user.following = user.following.filter(f => f.toString() !== id);
-    user.followers = user.followers.filter(f => f.toString() !== id);
-    await User.findByIdAndUpdate(id, {
-      $pull: { following: userId, followers: userId },
-    });
-
-    await user.save();
-
-    res.json({ success: true, message: "Đã chặn người dùng thành công." });
+    res.json({ success: true, message: "Đã chặn người dùng." });
   } catch (error) {
-    console.error("❌ blockUser:", error);
+    console.error("blockUser error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
+// -------------------- UNBLOCK USER --------------------
 export const unblockUser = async (req, res) => {
   try {
-    const { userId } = req.auth(); // ID người thực hiện bỏ chặn
-    const { id } = req.body; // ID người bị bỏ chặn
+    const { userId } = req.auth();
+    const id = getIdFromReq(req);
 
-    if (!id) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Thiếu ID người dùng cần bỏ chặn." });
-    }
+    console.log("unblockUser:", { by: userId, target: id });
+
+    if (!id) return res.status(400).json({ success: false, message: "Thiếu ID người dùng cần bỏ chặn." });
 
     const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy người dùng." });
+    if (!user) return res.json({ success: false, message: "Không tìm thấy người dùng." });
+
+    if (!user.blockedUsers.some((uid) => uid.toString() === id)) {
+      return res.json({ success: false, message: "Người này chưa bị chặn." });
     }
 
-    // Nếu người này chưa bị chặn
-    if (!user.blockedUsers?.includes(id)) {
-      return res.json({ success: false, message: "Người dùng này không nằm trong danh sách chặn." });
-    }
+    await User.findByIdAndUpdate(userId, { $pull: { blockedUsers: id } });
 
-    // Xóa người dùng khỏi danh sách chặn
-    user.blockedUsers = user.blockedUsers.filter(uid => uid.toString() !== id);
-    await user.save();
-
-    res.json({ success: true, message: "Đã bỏ chặn người dùng thành công." });
+    res.json({ success: true, message: "Đã bỏ chặn người dùng." });
   } catch (error) {
-    console.error("❌ unblockUser:", error);
+    console.error("unblockUser error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

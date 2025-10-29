@@ -154,8 +154,8 @@ const ChatBox = () => {
                   <div className={`flex flex-col ${isReceived ? "items-start" : "items-end"}`}>
                     <div
                       className={`px-4 py-2.5 rounded-2xl max-w-md transition-all hover:shadow-md ${isReceived
-                          ? "bg-white text-gray-800 shadow-sm border border-gray-200"
-                          : "bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md"
+                        ? "bg-white text-gray-800 shadow-sm border border-gray-200"
+                        : "bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md"
                         }`}
                     >
                       {msg.message_type === "image" && (

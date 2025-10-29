@@ -1,38 +1,40 @@
 import { Server } from "socket.io";
-import Message from "../models/Message.js";
 
-const onlineUsers = new Map(); // userId -> socket.id
+let io;
+const onlineUsers = new Map();
 
-export default function socketConnection(server) {
-  const io = new Server(server, {
-    cors: { origin: "*" },
+export const initSocket = (server) => {
+  io = new Server(server, {
+    cors: {
+      origin: process.env.FRONTEND_URL || "*",
+      methods: ["GET", "POST"],
+    },
   });
 
   io.on("connection", (socket) => {
-    console.log("🟢 User connected:", socket.id);
+    console.log(`🟢 Connected: ${socket.id}`);
 
-    // Đăng ký user
     socket.on("register_user", (userId) => {
       onlineUsers.set(userId, socket.id);
-      console.log("✅ Registered:", userId);
-    });
-
-    // Gửi tin nhắn
-    socket.on("send_message", async (data) => {
-      const { from_user_id, to_user_id, text, media_url, message_type } = data;
-      const message = await Message.create({ from_user_id, to_user_id, text, media_url, message_type });
-
-      io.to(onlineUsers.get(to_user_id)).emit("receive_message", message);
+      socket.userId = userId;
+      console.log(`✅ ${userId} online`);
     });
 
     socket.on("disconnect", () => {
-      for (const [userId, socketId] of onlineUsers.entries()) {
-        if (socketId === socket.id) {
-          onlineUsers.delete(userId);
-          break;
-        }
+      if (socket.userId) {
+        onlineUsers.delete(socket.userId);
+        io.emit("user_offline", socket.userId);
+        console.log(`🔴 ${socket.userId} disconnected`);
       }
-      console.log("🔴 User disconnected:", socket.id);
     });
   });
-}
+
+  return io;
+};
+
+export const getIO = () => {
+  if (!io) throw new Error("Socket.io chưa được khởi tạo!");
+  return io;
+};
+
+export const getOnlineUsers = () => onlineUsers;

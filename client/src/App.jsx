@@ -66,43 +66,48 @@ const App = () => {
   //   }
   // }, [user, dispatch]);
 
-   // Kết nối socket.io
+  // Kết nối socket.io
   useEffect(() => {
-    if (user) {
-      socket.connect();
-      socket.emit("register_user", user.id);
+    if (!user) return;
 
-      socket.on("receive_message", (message) => {
-        const currentPath = pathnameRef.current;
-        if (currentPath === `/messages/${message.from_user_id}`) {
-          dispatch(addMessage(message));
-        } else {
-          toast.custom(
-            (t) => (
-              <div className="bg-white shadow-md rounded-lg p-3 flex gap-3 items-center">
-                <img
-                  src={message.from_user_id?.profile_picture}
-                  alt=""
-                  className="w-10 h-10 rounded-full"
-                />
-                <div>
-                  <p className="font-semibold text-gray-800">
-                    {message.from_user_id?.full_name}
-                  </p>
-                  <p className="text-gray-600 text-sm">vừa nhắn tin cho bạn 💬</p>
-                </div>
+    socket.on("register_user", (userId, callback) => {
+      onlineUsers.set(userId, socket.id);
+      console.log("✅ Registered:", userId);
+      if (callback) callback({ success: true });
+    });
+
+    const handleMessage = (message) => {
+      const currentPath = pathnameRef.current;
+      if (currentPath === `/messages/${message.from_user_id}`) {
+        dispatch(addMessage(message));
+      } else {
+        toast.custom(
+          () => (
+            <div className="bg-white shadow-md rounded-lg p-3 flex gap-3 items-center">
+              <img
+                src={message.from_user_id?.profile_picture}
+                alt=""
+                className="w-10 h-10 rounded-full"
+              />
+              <div>
+                <p className="font-semibold text-gray-800">
+                  {message.from_user_id?.full_name}
+                </p>
+                <p className="text-gray-600 text-sm">vừa nhắn tin cho bạn 💬</p>
               </div>
-            ),
-            { position: "bottom-right" }
-          );
-        }
-      });
+            </div>
+          ),
+          { position: "bottom-right" }
+        );
+      }
+    };
 
-      return () => {
-        socket.off("receive_message");
-        socket.disconnect();
-      };
-    }
+    socket.on("receive_message", handleMessage);
+
+    return () => {
+      socket.off("receive_message", handleMessage);
+      socket.disconnect();
+    };
   }, [user]);
 
   return (
@@ -120,7 +125,8 @@ const App = () => {
           <Route path="discover" element={<Discover />} />
           <Route path="profile" element={<Profile />} />
           <Route path="profile/:profileId" element={<Profile />} />
-          <Route path="profile-user/:slug" element={<Profile />} /> {/* Hồ sơ người khác */}
+          <Route path="profile-user/:slug" element={<Profile />} />{" "}
+          {/* Hồ sơ người khác */}
           <Route path="notifications" element={<Notifications />} />
           <Route path="create-post" element={<CreatePost />} />
         </Route>

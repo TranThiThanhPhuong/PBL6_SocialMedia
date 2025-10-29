@@ -1,41 +1,61 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
-  User,
   UserPlus,
-  UserCheck,
-  UserRoundPen,
-  MessageSquare,
   UserX,
-  BadgeCheck,
+  MessageSquare,
+  PenBox,
+  MapPin,
+  Calendar,
+  Verified,
 } from "lucide-react";
 import {
   handleConnectionRequest,
   handleAcceptConnection,
   handleRejectConnection,
   handleRemoveConnection,
-  handleFollow,
-  handleUnfollow,
-  handleBlock,
-  handleUnblock,
+  createConnectionHandlers,
 } from "../service/connectionService";
+import { fetchConnections } from "../features/connections/connectionsSlice";
 import { formatPostTime } from "../app/formatDate";
 import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { useAuth } from "@clerk/clerk-react";
-import { Verified, PenBox, MapPin, Calendar } from "lucide-react";
 
 const UserProfileInfo = ({ user, posts, setShowEdit }) => {
   const currentUser = useSelector((state) => state.user.value);
-
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { getToken } = useAuth();
 
-  const isFollowing = currentUser.following.includes(user._id);
-  const isFollower = currentUser.followers.includes(user._id);
+  useEffect(() => {
+    getToken().then((token) => dispatch(fetchConnections(token)));
+  }, [dispatch, getToken]);
+
+  if (!currentUser || !user) return null;
+
+  // === KIỂM TRA TRẠNG THÁI LIÊN HỆ ===
+  const isFollowing = currentUser.following?.includes(user._id);
+  const isFollower = currentUser.followers?.includes(user._id);
   const isFriend = currentUser.connections?.includes(user._id);
   const isPending = currentUser.pendingConnections?.includes(user._id);
   const hasRequested = user.pendingConnections?.includes(currentUser._id);
+
+  const handlers = createConnectionHandlers(getToken, dispatch, navigate, currentUser);
+
+  // === FOLLOW BUTTON LOGIC (GIỐNG UserCard) ===
+  const followLabel = isFollowing
+    ? "Bỏ theo dõi"
+    : isFollower
+    ? "Theo dõi lại"
+    : "Theo dõi";
+
+  const followAction = isFollowing
+    ? () => handlers.unfollow(user._id)
+    : () => handlers.follow(user._id);
+
+  const followBtnClass = isFollowing
+    ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
+    : "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white";
 
   return (
     <div className="relative py-4 px-6 md:px-8 bg-white">
@@ -73,27 +93,16 @@ const UserProfileInfo = ({ user, posts, setShowEdit }) => {
                 Chỉnh sửa
               </button>
             )}
+
             {/* --- Action Buttons --- */}
             {user._id !== currentUser._id && (
               <div className="flex flex-wrap gap-3 mt-6">
                 {/* ===== 1️⃣ Nút Theo dõi ===== */}
                 <button
-                  onClick={() =>
-                    isFollowing
-                      ? handleUnfollow(user._id, getToken, dispatch)
-                      : handleFollow(user._id, getToken, dispatch)
-                  }
-                  className={`px-5 py-2 rounded-lg text-sm font-medium transition ${
-                    isFollowing
-                      ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      : "bg-indigo-500 text-white hover:bg-indigo-600"
-                  }`}
+                  onClick={followAction}
+                  className={`px-5 py-2 rounded-lg text-sm font-medium transition ${followBtnClass}`}
                 >
-                  {isFollowing
-                    ? "Bỏ theo dõi"
-                    : isFollower
-                    ? "Theo dõi lại"
-                    : "Theo dõi"}
+                  {followLabel}
                 </button>
 
                 {/* ===== 2️⃣ Nút Kết bạn ===== */}
@@ -177,7 +186,7 @@ const UserProfileInfo = ({ user, posts, setShowEdit }) => {
             </span>
           </div>
 
-          {/* Stats: Posts - Followers - Following */}
+          {/* Stats */}
           <div className="flex items-center gap-6 mt-6 border-t border-gray-200 pt-4">
             <div>
               <span className="sm:text-xl font-bold text-gray-900">

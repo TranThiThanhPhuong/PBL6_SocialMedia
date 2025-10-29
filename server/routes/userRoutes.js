@@ -2,7 +2,8 @@ import express from "express"
 import { protect } from "../middlewares/auth.js" // middleware de kiem tra user da dang nhap chua
 import { upload } from "../configs/multer.js" // middleware de xu ly upload file
 import { getUserRecentMessages } from "../controllers/messageController.js"
-import { followUser, unfollowUser, discoverUser, getUserData, updateUserData, sendConnectionRequest, removeConnectionRequest, acceptConnectionRequest, rejectConnectionRequest, blockUser, unblockUser, getUserConnections, getUserProfiles } from "../controllers/userController.js"
+import { followUser, unfollowUser, sendConnectionRequest, removeConnectionRequest, acceptConnectionRequest, rejectConnectionRequest, blockUser, unblockUser, getUserConnections} from "../controllers/connectionController.js"
+import { discoverUser, getUserData, updateUserData, getUserProfiles, getAllUsers, lockUser, unlockUser} from "../controllers/userController.js"
 
 const userRouter = express.Router()
 
@@ -18,6 +19,11 @@ userRouter.post('/accept', protect, acceptConnectionRequest)
 userRouter.get('/connections', protect, getUserConnections)
 userRouter.post('/remove-friend', protect, removeConnectionRequest);
 userRouter.post('/reject', protect, rejectConnectionRequest);
+userRouter.post('/profiles', getUserProfiles)
+userRouter.get('/recent-messages', protect, getUserRecentMessages)
+userRouter.get('/all', getAllUsers);
+userRouter.patch('/:userId/lock', lockUser);     
+userRouter.patch('/:userId/unlock', unlockUser);
 userRouter.post("/block", protect, blockUser);
 userRouter.post("/unblock", protect, unblockUser);
 
