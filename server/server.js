@@ -19,7 +19,8 @@ import postRouter from "./routes/postRoutes.js";
 import storyRouter from "./routes/storyRoutes.js";
 import messageRouter from "./routes/messageRoutes.js";
 import commentRouter from "./routes/commentRoutes.js";
-import notificationRouter from "./routes/notificationRouter.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import reportRouter from "./routes/reportRoutes.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -79,7 +80,8 @@ app.use("/api/post", postRouter);
 app.use("/api/story", storyRouter);
 app.use("/api/message", messageRouter);
 app.use("/api/comment", commentRouter);
-app.use("/api/notifications", notificationRouter);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/report", reportRouter);
 
 // Error handler (đặt cuối)
 app.use(errorHandler);

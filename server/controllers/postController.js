@@ -108,6 +108,121 @@ export const getFeedPosts = async (req, res) => {
   }
 };
 
+// 📝 Cập nhật bài viết
+export const updatePost = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    const { postId } = req.params;
+    const { content } = req.body;
+    const newImages = req.files;
+
+    const post = await Post.findById(postId);
+    if (!post)
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy bài viết." });
+
+    // ❌ Kiểm tra quyền sửa
+    if (post.user.toString() !== userId)
+      return res.status(403).json({
+        success: false,
+        message: "Bạn không có quyền sửa bài viết này.",
+      });
+
+    // 🧠 Gọi AI kiểm duyệt lại nội dung
+    const aiResult = await analyzeContent(content, newImages);
+    const textViolations =
+      aiResult.text_result?.filter(
+        (r) => r.label !== "an_toan" && r.confidence >= 0.65
+      ) || [];
+    const imageViolations = (
+      Array.isArray(aiResult.image_result)
+        ? aiResult.image_result
+        : [aiResult.image_result]
+    ).filter((r) => r.label !== "an_toan" && r.confidence >= 0.65);
+
+    if (textViolations.length > 0 || imageViolations.length > 0) {
+      newImages.forEach((img) => fs.unlinkSync(img.path));
+      return res.status(400).json({
+        success: false,
+        message: "Bài viết chứa nội dung vi phạm, không thể cập nhật.",
+        aiResult,
+      });
+    }
+
+    // 🖼️ Nếu có ảnh mới → upload lên ImageKit
+    let image_urls = post.image_urls; // giữ ảnh cũ
+    if (newImages?.length) {
+      // xóa ảnh cũ nếu có (tùy bạn muốn giữ hay xóa)
+      image_urls = await Promise.all(
+        newImages.map(async (image) => {
+          const buffer = fs.readFileSync(image.path);
+          const uploaded = await imagekit.upload({
+            file: buffer,
+            fileName: image.originalname,
+            folder: "posts",
+          });
+          fs.unlinkSync(image.path);
+          return uploaded.url;
+        })
+      );
+    }
+
+    // ✅ Cập nhật DB
+    post.content = content || post.content;
+    post.image_urls = image_urls;
+    await post.save();
+
+    const updatedPost = await Post.findById(post._id).populate("user");
+    res.json({
+      success: true,
+      message: "Cập nhật bài viết thành công",
+      post: updatedPost,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 🗑️ Xóa bài viết
+export const deletePost = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    const { postId } = req.params;
+
+    const post = await Post.findById(postId);
+    if (!post)
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy bài viết." });
+
+    // ❌ Chỉ chủ bài viết mới có thể xóa
+    if (post.user.toString() !== userId)
+      return res.status(403).json({
+        success: false,
+        message: "Bạn không có quyền xóa bài viết này.",
+      });
+
+    // 🧹 Xóa ảnh trong thư mục tạm nếu có
+    if (post.image_urls?.length) {
+      console.log("🧹 Xóa ảnh cũ (ImageKit):", post.image_urls);
+      // 👉 Nếu bạn lưu cả fileId từ ImageKit thì có thể gọi imagekit.deleteFile(fileId)
+      // Còn hiện tại chỉ log URL, không xóa được file thực tế.
+    }
+
+    await Post.findByIdAndDelete(postId);
+    const posts = await Post.find({ user: userId })
+      .populate("user")
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, message: "Đã xóa bài viết thành công.", posts });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const likePosts = async (req, res) => {
   try {
     const { userId } = req.auth();
@@ -152,7 +267,10 @@ export const sharePost = async (req, res) => {
     const { postId } = req.body;
 
     const post = await Post.findById(postId).populate("user", "full_name");
-    if (!post) return res.status(404).json({ success: false, message: "Không tìm thấy bài viết" });
+    if (!post)
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy bài viết" });
 
     const sender = await User.findById(userId);
 
@@ -168,55 +286,6 @@ export const sharePost = async (req, res) => {
     }
 
     res.json({ success: true, message: "Đã chia sẻ bài viết" });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-export const reportPost = async (req, res) => {
-  try {
-    const { userId } = req.auth();
-    const { postId, reason } = req.body;
-
-    const post = await Post.findById(postId).populate("user", "full_name");
-    const sender = await User.findById(userId);
-
-    // 🔔 Thông báo cho người bị báo cáo
-    if (post.user._id.toString() !== userId) {
-      await Notification.create({
-        receiver: post.user._id,
-        sender: userId,
-        type: "report_post",
-        post: postId,
-        content: `${sender.full_name} đã báo cáo bài viết của bạn.`,
-      });
-    }
-
-    res.json({ success: true, message: "Đã gửi báo cáo bài viết" });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-export const adminDeletePost = async (req, res) => {
-  try {
-    const { postId } = req.params;
-
-    const post = await Post.findById(postId).populate("user", "full_name");
-    if (!post) return res.status(404).json({ success: false, message: "Không tìm thấy bài viết" });
-
-    await Post.findByIdAndDelete(postId);
-
-    // 🔔 Gửi thông báo cho chủ bài viết
-    await Notification.create({
-      receiver: post.user._id,
-      sender: null, // Admin hệ thống
-      type: "admin_delete_post",
-      post: postId,
-      content: `Bài viết của bạn đã bị quản trị viên xóa do vi phạm tiêu chuẩn cộng đồng.`,
-    });
-
-    res.json({ success: true, message: "Đã xóa bài viết và gửi thông báo" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -42,6 +42,16 @@ const Profile = () => {
     }
   };
 
+  const handlePostDeleted = (postId) => {
+    setFeeds((prev) => prev.filter((p) => p._id !== postId));
+  };
+
+  const handlePostUpdated = (updatedPost) => {
+    setFeeds((prev) =>
+      prev.map((p) => (p._id === updatedPost._id ? updatedPost : p))
+    );
+  };
+
   useEffect(() => {
     if (slug) {
       fetchUser(slug);
@@ -100,7 +110,14 @@ const Profile = () => {
                 posts
                   .slice() // copy mảng để tránh mutate state gốc
                   .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // sắp xếp mới nhất trước
-                  .map((post) => <PostCard key={post._id} post={post} />)
+                  .map((post) => (
+                    <PostCard
+                      key={post._id}
+                      post={post}
+                      onPostDeleted={handlePostDeleted}
+                      onPostUpdated={handlePostUpdated}
+                    />
+                  ))
               ) : (
                 <p className="text-gray-500">Chưa có bài viết nào.</p>
               )}

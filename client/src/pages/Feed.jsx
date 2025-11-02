@@ -11,25 +11,34 @@ import RecentMessages from "../components/RecentMessages";
 const Feed = () => {
   const [feeds, setFeeds] = useState([]);
   const [loading, setLoading] = useState(true);
-  const {getToken} = useAuth();
+  const { getToken } = useAuth();
 
   const fetchFeeds = async () => {
     try {
       setLoading(true);
-      const { data } = await api.get('/api/post/feed', {
-        headers: { Authorization: `Bearer ${await getToken()}` }
+      const { data } = await api.get("/api/post/feed", {
+        headers: { Authorization: `Bearer ${await getToken()}` },
       });
-      
+
       if (data.success) {
         setFeeds(data.posts);
       } else {
         toast.error(data.message);
       }
-      
     } catch (error) {
-        toast.error(error.message);
+      toast.error(error.message);
     }
     setLoading(false);
+  };
+
+  const handlePostDeleted = (postId) => {
+    setFeeds((prev) => prev.filter((p) => p._id !== postId));
+  };
+
+  const handlePostUpdated = (updatedPost) => {
+    setFeeds((prev) =>
+      prev.map((p) => (p._id === updatedPost._id ? updatedPost : p))
+    );
   };
 
   useEffect(() => {
@@ -46,7 +55,12 @@ const Feed = () => {
 
         <div className="p-4 space-y-6">
           {feeds.map((post) => (
-            <PostCard key={post._id} post={post} />
+            <PostCard
+              key={post._id}
+              post={post}
+              onPostDeleted={handlePostDeleted}
+              onPostUpdated={handlePostUpdated}
+            />
           ))}
         </div>
       </div>
@@ -62,7 +76,8 @@ const Feed = () => {
           />
           <p className="text-slate-600">Tiếp thị qua Email</p>
           <p className="text-slate-400">
-            Tăng cường hiệu quả tiếp thị của bạn với một nền tảng mạnh mẽ, dễ sử dụng và được xây dựng để mang lại kết quả.
+            Tăng cường hiệu quả tiếp thị của bạn với một nền tảng mạnh mẽ, dễ sử
+            dụng và được xây dựng để mang lại kết quả.
           </p>
         </div>
 
