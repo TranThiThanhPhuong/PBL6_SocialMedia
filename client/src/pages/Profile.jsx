@@ -43,11 +43,11 @@ const Profile = () => {
   };
 
   const handlePostDeleted = (postId) => {
-    setFeeds((prev) => prev.filter((p) => p._id !== postId));
+    setPosts((prev) => prev.filter((p) => p._id !== postId));
   };
 
   const handlePostUpdated = (updatedPost) => {
-    setFeeds((prev) =>
+    setPosts((prev) =>
       prev.map((p) => (p._id === updatedPost._id ? updatedPost : p))
     );
   };

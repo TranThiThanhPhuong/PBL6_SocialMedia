@@ -113,7 +113,7 @@ const PostCard = ({ post, onPostDeleted, onPostUpdated }) => {
     }
     try {
       const { data } = await api.post(
-        "/api/report",
+        "/api/report/post",
         {
           postId: post._id,
           reportedUser: post.user._id,

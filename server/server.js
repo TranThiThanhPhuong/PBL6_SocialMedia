@@ -3,15 +3,14 @@ import cors from "cors";
 import helmet from "helmet";
 import hpp from "hpp";
 import rateLimit from "express-rate-limit";
-import mongoSanitize from "express-mongo-sanitize";
 import xss from "xss";
 import morgan from "morgan";
 import http from "http";
 import "dotenv/config";
 import connectDB from "./configs/db.js";
-import { Server } from "socket.io";
 import { clerkMiddleware } from "@clerk/express";
-
+import { serve } from "inngest/express";
+import { inngest, functions } from "./inngest/index.js";
 import { initSocket } from "./utils/socket.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 import userRouter from "./routes/userRoutes.js";
@@ -82,6 +81,7 @@ app.use("/api/message", messageRouter);
 app.use("/api/comment", commentRouter);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/report", reportRouter);
+app.use("/api/inngest", serve({ client: inngest, functions }));
 
 // Error handler (đặt cuối)
 app.use(errorHandler);

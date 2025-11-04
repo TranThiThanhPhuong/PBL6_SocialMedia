@@ -83,20 +83,12 @@ export const addUserStory = async (req, res) => {
       background_color,
     });
 
-    // await inngest.send({
-    //   name: "app/story.delete",
-    //   data: { storyId: story._id },
-    // });
-
-    // res.json({ success: true });
-
-    // ✅ Gửi sự kiện xóa story sau 24h
-    const inngestResult = await inngest.send({
+    await inngest.send({
       name: "app/story.delete",
       data: { storyId: story._id },
     });
 
-    console.log("📨 Đã gửi event tới Inngest:", inngestResult);
+    res.json({ success: true });
   } catch (error) {
     console.log(error);
     res.json({ success: false, message: error.message });
@@ -119,5 +111,20 @@ export const getStories = async (req, res) => {
   } catch (error) {
     console.log(error);
     res.json({ success: false, message: error.message });
+  }
+};
+
+export const deleteStoryManual = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    const { storyId } = req.params; // ✅ đúng tên param
+
+    const story = await Story.findOneAndDelete({ _id: storyId, user: userId });
+    if (!story)
+      return res.status(404).json({ success: false, message: "Không tìm thấy story." });
+
+    res.json({ success: true, message: "Đã xóa story." });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
