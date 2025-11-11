@@ -73,7 +73,7 @@ export const handleReportSubmit = async (
   }
   try {
     const { data } = await api.post(
-      "/api/report",
+      "/api/report/post",
       { postId, reportedUser, reason: selectedReason },
       { headers: { Authorization: `Bearer ${await getToken()}` } }
     );

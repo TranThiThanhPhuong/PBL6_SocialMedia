@@ -49,10 +49,14 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS
+// CORS: cho phép truy cập vào BE từ FE và trang Admin 
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.ADMIN_URL
+];
 app.use(
   cors({
-    origin: [process.env.FRONTEND_URL],
+    origin: allowedOrigins,
     credentials: true,
   })
 );
