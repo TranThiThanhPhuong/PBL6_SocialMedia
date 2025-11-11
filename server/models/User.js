@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema(
   {
     _id: { type: String, required: true }, // Clerk userId sẽ được dùng làm _id trong MongoDB
     email: { type: String, required: true },
+    password: { type: String, required: true },// them pass de tu xac thuc nguoi dung 
     full_name: { type: String, required: true },
     username: { type: String, unique: true, sparse: true }, // thêm sparse để tránh lỗi unique khi null
     bio: { type: String, default: "I will succeed" },
@@ -21,9 +22,28 @@ const userSchema = new mongoose.Schema(
     following: [{ type: String, ref: "User" }],
     connections: [{ type: String, ref: "User" }],
     blockedUsers: [{ type: String, ref: "User" }],
+    isAdmin: { type: Boolean, default: false },
+    status: { type: String, enum: ['active', 'locked'], default: 'active' },
   },
   { timestamps: true, minimize: false }
 );
+
+// Middleware Mongoose: Hashing mật khẩu trước khi lưu (Pre-save hook)
+userSchema.pre("save", async function (next) {
+  // Chỉ hash nếu trường 'password' bị thay đổi
+  if (!this.isModified("password")) {
+    return next();
+  }
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
+// Phương thức so sánh mật khẩu
+userSchema.methods.matchPassword = async function (enteredPassword) {
+  // So sánh mật khẩu đầu vào với mật khẩu đã hash trong DB
+  return await bcrypt.compare(enteredPassword, this.password);
+};
 
 // Tạo text index cho tìm kiếm toàn văn
 userSchema.index({
