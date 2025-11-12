@@ -3,10 +3,13 @@ import { protect } from "../middlewares/auth.js" // middleware de kiem tra user 
 import { upload } from "../configs/multer.js" // middleware de xu ly upload file
 import { getUserRecentMessages } from "../controllers/messageController.js"
 import { followUser, unfollowUser, sendConnectionRequest, removeConnectionRequest, acceptConnectionRequest, rejectConnectionRequest, blockUser, unblockUser, getUserConnections} from "../controllers/connectionController.js"
-import { discoverUser, getUserData, updateUserData, getUserProfiles, getAllUsers, lockUser, unlockUser} from "../controllers/userController.js"
+import { discoverUser, getUserData, updateUserData, getUserProfiles, getAllUsers, lockUser, unlockUser, loginAdmin} from "../controllers/userController.js"
+import { adminAuth } from '../middlewares/adminAuth.js';
+
 
 const userRouter = express.Router()
 
+userRouter.post("/admin/login", loginAdmin);
 userRouter.get('/data', protect,  getUserData)
 userRouter.post('/profiles', getUserProfiles)
 userRouter.get('/recent-messages', protect, getUserRecentMessages)
@@ -19,9 +22,10 @@ userRouter.post('/accept', protect, acceptConnectionRequest)
 userRouter.get('/connections', protect, getUserConnections)
 userRouter.post('/remove-friend', protect, removeConnectionRequest);
 userRouter.post('/reject', protect, rejectConnectionRequest);
-userRouter.get('/all', getAllUsers);
-userRouter.patch('/:userId/lock', lockUser);     
-userRouter.patch('/:userId/unlock', unlockUser);
+userRouter.post('/profiles', getUserProfiles)
+userRouter.get('/all',adminAuth, getAllUsers);// dùng middleware của admin để get all users
+userRouter.patch('/:userId/lock',adminAuth, lockUser);     
+userRouter.patch('/:userId/unlock', adminAuth, unlockUser);
 userRouter.post("/block", protect, blockUser);
 userRouter.post("/unblock", protect, unblockUser);
 

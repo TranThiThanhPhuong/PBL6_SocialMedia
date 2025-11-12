@@ -4,6 +4,7 @@ import Post from "../models/Post.js";
 import fs from "fs";
 import imagekit from "../configs/imageKit.js";
 import { inngest } from "../inngest/index.js";
+import jwt from "jsonwebtoken";
 
 const getIdFromReq = (req) => {
   // Hỗ trợ cả :id (params) và { id } (body)
@@ -318,3 +319,51 @@ export const unblockUser = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+  
+//--------------- CÁC HÀM CHO ADMIN --------------------
+// Hàm tạo JWT token
+const generateToken = (id, isAdmin) => {
+  // Lấy JWT_SECRET từ biến môi trường đã thiết lập
+  return jwt.sign({ id, isAdmin }, process.env.JWT_SECRET, { 
+    expiresIn: "7d", // Token hết hạn sau 7 ngày
+  });
+};
+
+// Hàm Đăng nhập Admin
+export const loginAdmin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // 1. Tìm người dùng bằng Email
+    const user = await User.findOne({ email });
+
+    // 2. Kiểm tra người dùng tồn tại và mật khẩu khớp
+    if (user && (await user.matchPassword(password))) {
+      // 3. Kiểm tra vai trò Admin (BẮT BUỘC)
+      if (!user.isAdmin) {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Truy cập bị từ chối. Bạn không có quyền Admin." 
+        });
+      }
+
+      // 4. Tạo Token và gửi đi
+      res.json({
+        success: true,
+        _id: user._id,
+        email: user.email,
+        full_name: user.full_name,
+        isAdmin: user.isAdmin,
+        token: generateToken(user._id, user.isAdmin), 
+      });
+    } else {
+      // 5. Trả về lỗi nếu sai thông tin
+      res.status(401).json({ success: false, message: "Email hoặc mật khẩu không đúng." });
+    }
+  } catch (error) {
+    console.error("❌ Lỗi đăng nhập Admin:", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ nội bộ" });
+  }
+};
+  

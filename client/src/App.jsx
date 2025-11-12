@@ -13,6 +13,7 @@ import CreatePost from "./pages/CreatePost";
 import Profile from "./pages/Profile";
 import Layout from "./pages/Layout";
 import Notifications from "./pages/Notifications";
+import LockedAccount from "./pages/LockedAccount";
 
 import { fetchUser } from "./features/user/userSlice";
 import { fetchConnections } from "./features/connections/connectionsSlice";
@@ -139,7 +140,9 @@ const App = () => {
           {/* Hồ sơ người khác */}
           <Route path="notifications" element={<Notifications />} />
           <Route path="create-post" element={<CreatePost />} />
+
         </Route>
+        <Route path="locked" element={<LockedAccount />} />
       </Routes>
     </>
   );
