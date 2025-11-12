@@ -5,6 +5,7 @@
 // Mô hình này sẽ được sử dụng để tương tác với bộ sưu tập người dùng trong MongoDB
 
 import mongoose from "mongoose";
+import bcrypt from "bcrypt";
 
 // Định nghĩa schema User
 const userSchema = new mongoose.Schema(
