@@ -1,61 +1,87 @@
+// src/components/Messages.jsx
 import React, { useState, useEffect } from "react";
 import { Search, MessageSquare, MoreHorizontal } from "lucide-react";
-import { useNavigate, Routes, Route, useParams } from "react-router-dom";
-import { useAuth, useUser } from "@clerk/clerk-react";
+import { useNavigate, Routes, Route } from "react-router-dom";
+import { useAuth } from "@clerk/clerk-react"; // nếu dùng Clerk
+import { useSelector } from "react-redux";
 import { formatPostTime } from "../app/formatDate";
 import api from "../api/axios";
 import toast from "react-hot-toast";
 import ChatBox from "./ChatBox";
+import { useDispatch } from "react-redux";
+import { fetchRecentMessages, addMessage } from "../features/messages/messagesSlice";
 
 const Messages = () => {
   const navigate = useNavigate();
-  const { user } = useUser();
-  const { getToken } = useAuth();
-  const [messages, setMessages] = useState([]);
+  const dispatch = useDispatch();
+  const { getToken } = useAuth?.() || {}; // nếu dùng Clerk
+  // --- your preferred currentUser from redux ---
+  const currentUser = useSelector((state) => state.user?.value); // <-- bạn thường dùng cái này
+  // Fallback: if you use Clerk's useUser instead, you can set currentUser from there.
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const fetchRecentMessages = async () => {
-    if (!user) return;
+  // Local messages state sourced from Redux (keeps single source of truth)
+  const messages = useSelector((state) => state.messages.recent) || [];
+
+  const initFetch = async () => {
     try {
-      const token = await getToken();
-      const { data } = await api.get("/api/user/recent-messages", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (data.success) {
-        const grouped = data.messages.reduce((acc, m) => {
-          const sender = m.from_user_id._id;
-          if (!acc[sender] || new Date(m.createdAt) > new Date(acc[sender].createdAt))
-            acc[sender] = m;
-          return acc;
-        }, {});
-        const sorted = Object.values(grouped).sort(
-          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-        );
-        setMessages(sorted);
-      } else toast.error(data.message);
+      setLoading(true);
+      // use token only if needed (protected endpoints)
+      const token = getToken ? await getToken() : null;
+      await dispatch(fetchRecentMessages({ token }));
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.message || "Lỗi khi lấy tin nhắn gần đây");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRecentMessages();
-  }, [user]);
+    if (!currentUser?.id) return; // chờ currentUser
+    initFetch();
+
+    // SSE realtime: connect to server to receive messages & seen updates
+    const sseUrl = `/api/message/${currentUser.id}`; // route của bạn (không cần token ở server hiện tại)
+    const evtSource = new EventSource(sseUrl);
+    evtSource.onmessage = (e) => {
+      try {
+        const parsed = JSON.parse(e.data);
+        // server gửi object message (populated)
+        dispatch(addMessage(parsed));
+      } catch (err) {
+        console.warn("SSE message parse failed", err);
+      }
+    };
+    evtSource.addEventListener("message_seen", (e) => {
+      // You may handle UI update for seen badges if you want
+      // payload should contain { conversationWith: userId }
+      try {
+        const payload = JSON.parse(e.data);
+        // Optionally refetch recent messages or update slice
+        dispatch(fetchRecentMessages({ token: null }));
+      } catch {}
+    });
+
+    evtSource.onerror = () => {
+      console.warn("SSE error");
+      evtSource.close();
+    };
+
+    return () => evtSource.close();
+  }, [currentUser?.id]);
 
   const filtered = messages.filter((msg) => {
-    const from = msg.from_user_id;
+    const partner = msg.from_user_id;
+    if (!partner) return false;
     return (
-      from.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      from.username.toLowerCase().includes(searchTerm.toLowerCase())
+      (partner.full_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (partner.username || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
   });
 
   return (
     <div className="flex w-full h-screen bg-gray-100">
-      {/* Danh sách bên trái - Improved */}
       <div className="w-full md:w-96 flex flex-col bg-white border-r border-gray-200 shadow-sm">
         <div className="flex justify-between items-center p-5 border-b border-gray-200">
           <h1 className="text-2xl font-bold text-gray-900">Tin nhắn</h1>
@@ -64,7 +90,6 @@ const Messages = () => {
           </button>
         </div>
 
-        {/* Tìm kiếm - Improved */}
         <div className="p-4">
           <div className="relative">
             <input
@@ -78,7 +103,6 @@ const Messages = () => {
           </div>
         </div>
 
-        {/* Danh sách cuộc trò chuyện - Improved */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex flex-col items-center justify-center h-full">
@@ -95,25 +119,27 @@ const Messages = () => {
           ) : (
             <div className="px-2">
               {filtered.map((msg) => {
-                const isActive = window.location.pathname.includes(msg.from_user_id._id);
+                const partner = msg.from_user_id;
+                const partnerId = partner?._id || partner?.id;
+                const isActive = window.location.pathname.includes(partnerId);
                 return (
                   <div
                     key={msg._id}
-                    onClick={() => navigate(`/messages/${msg.from_user_id._id}`)}
+                    onClick={() => navigate(`/messages/${partnerId}`)}
                     className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all mb-1 ${isActive
                         ? "bg-indigo-50 border border-indigo-200"
-                        : !msg.seen
+                        : !msg.seen && msg.from_user_id._id !== currentUser?.id
                           ? "bg-blue-50 hover:bg-blue-100"
                           : "hover:bg-gray-50"
                       }`}
                   >
                     <div className="relative flex-shrink-0">
                       <img
-                        src={msg.from_user_id.profile_picture}
-                        alt={msg.from_user_id.full_name}
+                        src={partner.profile_picture}
+                        alt={partner.full_name}
                         className="w-14 h-14 rounded-full object-cover ring-2 ring-gray-100"
                       />
-                      {!msg.seen && (
+                      {!msg.seen && partnerId !== currentUser?.id && (
                         <div className="absolute -top-1 -right-1 min-w-5 h-5 px-1.5 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
                           <span className="text-white text-xs font-bold leading-none">1</span>
                         </div>
@@ -122,18 +148,15 @@ const Messages = () => {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline mb-0.5">
-                        <p className={`truncate ${!msg.seen ? "font-bold text-gray-900" : "font-semibold text-gray-900"
-                          }`}>
-                          {msg.from_user_id.full_name}
+                        <p className={`truncate ${!msg.seen ? "font-bold text-gray-900" : "font-semibold text-gray-900"}`}>
+                          {partner.full_name}
                         </p>
-                        <p className={`text-xs ml-2 flex-shrink-0 ${!msg.seen ? "text-gray-700 font-semibold" : "text-gray-500"
-                          }`}>
+                        <p className={`text-xs ml-2 flex-shrink-0 ${!msg.seen ? "text-gray-700 font-semibold" : "text-gray-500"}`}>
                           {formatPostTime(msg.createdAt)}
                         </p>
                       </div>
 
-                      <p className={`text-sm truncate ${!msg.seen ? "font-bold text-gray-900" : "font-normal text-gray-600"
-                        }`}
+                      <p className={`text-sm truncate ${!msg.seen ? "font-bold text-gray-900" : "font-normal text-gray-600"}`}
                         style={!msg.seen ? { fontWeight: '700' } : {}}>
                         {msg.text || "📷 Đã gửi một hình ảnh"}
                       </p>
@@ -146,7 +169,6 @@ const Messages = () => {
         </div>
       </div>
 
-      {/* Cột phải: ChatBox - Improved */}
       <div className="flex-1 bg-white flex items-center justify-center overflow-hidden">
         <Routes>
           <Route path="/" element={

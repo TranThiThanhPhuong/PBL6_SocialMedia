@@ -19,7 +19,6 @@ userRouter.post('/accept', protect, acceptConnectionRequest)
 userRouter.get('/connections', protect, getUserConnections)
 userRouter.post('/remove-friend', protect, removeConnectionRequest);
 userRouter.post('/reject', protect, rejectConnectionRequest);
-userRouter.post('/profiles', getUserProfiles)
 userRouter.get('/all', getAllUsers);
 userRouter.patch('/:userId/lock', lockUser);     
 userRouter.patch('/:userId/unlock', unlockUser);
