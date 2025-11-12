@@ -1,5 +1,3 @@
-// client/src/pages/LockedAccountPage.jsx
-
 import React from 'react';
 import { ShieldAlert } from 'lucide-react';
 

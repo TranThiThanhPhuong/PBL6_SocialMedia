@@ -1,8 +1,7 @@
-// client/src/api/axios.js (Phiên bản CHUYỂN HƯỚNG TỰ ĐỘNG)
-
+// page xu li ly tat ca cac yeu cau HTTP den server
+// update them xu li khi user bi khoa tai khoan hoac token het han
 import axios from "axios";
-import { toast } from "react-hot-toast"; // Vẫn giữ toast để phòng hờ
-
+import { toast } from "react-hot-toast"; 
 const API_URL = import.meta.env.VITE_BASEURL;
 
 const api = axios.create({
@@ -43,3 +42,7 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+// file api.js giống như cầu nối chính thức giữa client React và server Express.
+// Mọi tương tác (login, lấy user, gửi post, upload, nhắn tin…) đều đi qua đây.
+// Su dung api de thuc hien cac yeu cau HTTP den server voi baseURL da duoc cau hinh
