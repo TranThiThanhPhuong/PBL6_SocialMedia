@@ -110,14 +110,14 @@ const App = () => {
   //   };
   // }, [user]);
 
-  useEffect(() => {
-  const sse = new EventSource(`${SERVER_URL}/api/message/${currentUser._id}`);
-  sse.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
-    dispatch(addMessage(msg));
-  };
-  return () => sse.close();
-}, [currentUser]);
+//   useEffect(() => {
+//   const sse = new EventSource(`${SERVER_URL}/api/message/${currentUser._id}`);
+//   sse.onmessage = (e) => {
+//     const msg = JSON.parse(e.data);
+//     dispatch(addMessage(msg));
+//   };
+//   return () => sse.close();
+// }, [currentUser]);
 
 
   return (

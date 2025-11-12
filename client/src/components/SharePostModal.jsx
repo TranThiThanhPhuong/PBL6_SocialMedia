@@ -4,17 +4,30 @@ import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { assets, dummyConnectionsData } from "../assets/assets";
+import { useAuth } from "@clerk/clerk-react";
+import api from "../api/axios";
 
 const SharePostModal = ({ post, onClose }) => {
   const navigate = useNavigate();
+  const { getToken } = useAuth();
   const currentUser = useSelector((state) => state.user.value);
   const [shareText, setShareText] = useState("");
   const postUrl = `${window.location.origin}/post/${post._id}`;
 
-  const handleShareToTimeline = () => {
-    navigate("/create-post", { state: { sharedPost: post, text: shareText } });
-    onClose();
-  };
+  const handleShareToTimeline = async () => {
+  try {
+    const token = await getToken();
+    const { data } = await api.post(`/api/post/share/${post._id}`, {}, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (data.success) {
+      toast.success("Đã chia sẻ bài viết!");
+      onClose();
+    } else toast.error(data.message);
+  } catch (error) {
+    toast.error("Lỗi khi chia sẻ bài viết!");
+  }
+};
 
   const handleShareToExternal = (platform) => {
     const text = shareText ? shareText : `Hãy xem bài viết này: ${post.content.slice(0, 100)}...`;

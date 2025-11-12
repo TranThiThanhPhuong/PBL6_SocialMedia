@@ -1,14 +1,13 @@
-import api from "../api/axios";
+import api from "./axios";
 import toast from "react-hot-toast";
 
-export const handleLike = async (postId, currentUserId, getToken, setLikes) => {
+export const likePost = async (postId, getToken, currentUserId, setLikes) => {
   try {
     const { data } = await api.post(
       "/api/post/like",
       { postId },
       { headers: { Authorization: `Bearer ${await getToken()}` } }
     );
-
     if (data.success) {
       setLikes((prev) =>
         prev.includes(currentUserId)
@@ -17,11 +16,11 @@ export const handleLike = async (postId, currentUserId, getToken, setLikes) => {
       );
     } else toast.error(data.message);
   } catch (error) {
-    toast.error("Lỗi khi like bài viết");
+    toast.error(error.message);
   }
 };
 
-export const handleDelete = async (postId, getToken, onPostDeleted) => {
+export const deletePost = async (postId, getToken, onPostDeleted) => {
   if (!window.confirm("Bạn có chắc muốn xóa bài viết này không?")) return;
   try {
     const { data } = await api.delete(`/api/post/delete/${postId}`, {
@@ -36,16 +35,10 @@ export const handleDelete = async (postId, getToken, onPostDeleted) => {
   }
 };
 
-export const handleUpdate = async (
-  postId,
-  editContent,
-  getToken,
-  setEditMode,
-  onPostUpdated
-) => {
+export const updatePost = async (postId, content, getToken, setEditMode, onPostUpdated) => {
   try {
     const formData = new FormData();
-    formData.append("content", editContent);
+    formData.append("content", content);
     const { data } = await api.put(`/api/post/update/${postId}`, formData, {
       headers: { Authorization: `Bearer ${await getToken()}` },
     });
@@ -55,35 +48,23 @@ export const handleUpdate = async (
       onPostUpdated?.(data.post);
     } else toast.error(data.message);
   } catch (error) {
-    toast.error("Lỗi khi cập nhật bài viết");
+    toast.error(error.message);
   }
 };
 
-export const handleReportSubmit = async (
-  postId,
-  reportedUser,
-  selectedReason,
-  getToken,
-  setShowReportModal,
-  setSelectedReason
-) => {
-  if (!selectedReason) {
-    toast.error("Vui lòng chọn lý do báo cáo!");
-    return;
-  }
+export const reportPost = async (postId, reportedUserId, reason, getToken, setShowReportModal, setSelectedReason) => {
+  if (!reason) return toast.error("Vui lòng chọn lý do báo cáo!");
   try {
     const { data } = await api.post(
       "/api/report/post",
-      { postId, reportedUser, reason: selectedReason },
+      { postId, reportedUser: reportedUserId, reason },
       { headers: { Authorization: `Bearer ${await getToken()}` } }
     );
     if (data.success) {
       toast.success("Đã gửi báo cáo đến quản trị viên!");
       setShowReportModal(false);
       setSelectedReason(null);
-    } else {
-      toast.error(data.message);
-    }
+    } else toast.error(data.message);
   } catch (error) {
     toast.error("Lỗi khi gửi báo cáo!");
   }

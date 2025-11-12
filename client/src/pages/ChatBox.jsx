@@ -126,59 +126,86 @@ const ChatBox = () => {
       {/* Messages - Improved */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="space-y-3 max-w-4xl mx-auto">
-          {messages
-            .toSorted((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-            .map((msg, i) => {
-              const isReceived = msg.to_user_id !== user._id;
-              const showAvatar = i === 0 || messages[i - 1]?.to_user_id !== msg.to_user_id;
+  {messages
+    .toSorted((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+    .map((msg, i) => {
+      const isReceived = msg.to_user_id !== user._id;
+      const showAvatar = i === 0 || messages[i - 1]?.to_user_id !== msg.to_user_id;
 
-              return (
-                <div
-                  key={i}
-                  className={`flex gap-2 ${isReceived ? "justify-start" : "justify-end"}`}
-                >
-                  {isReceived && (
-                    <div className="flex-shrink-0">
-                      {showAvatar ? (
-                        <img
-                          src={user.profile_picture}
-                          alt=""
-                          className="w-8 h-8 rounded-full"
-                        />
-                      ) : (
-                        <div className="w-8"></div>
-                      )}
-                    </div>
-                  )}
+      // 👉 Thêm phần hiển thị ngày/giờ nếu cách tin trước > 10 phút
+      const currentTime = new Date(msg.createdAt);
+      const prevTime = i > 0 ? new Date(messages[i - 1].createdAt) : null;
+      const showTimeSeparator = !prevTime || (currentTime - prevTime) / (1000 * 60) > 10;
 
-                  <div className={`flex flex-col ${isReceived ? "items-start" : "items-end"}`}>
-                    <div
-                      className={`px-4 py-2.5 rounded-2xl max-w-md transition-all hover:shadow-md ${isReceived
-                        ? "bg-white text-gray-800 shadow-sm border border-gray-200"
-                        : "bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md"
-                        }`}
-                    >
-                      {msg.message_type === "image" && (
-                        <img
-                          src={msg.media_url}
-                          className="max-w-xs rounded-lg mb-1 cursor-pointer hover:opacity-90 transition-opacity"
-                          alt="Shared image"
-                        />
-                      )}
-                      {msg.text && <p className="text-sm leading-relaxed break-words">{msg.text}</p>}
-                    </div>
-                    <span className="text-xs text-gray-400 mt-1 px-1">
-                      {new Date(msg.createdAt).toLocaleTimeString('vi-VN', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          <div ref={messagesEndRef}></div>
-        </div>
+      const formattedTime = currentTime.toLocaleString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+
+      return (
+        <React.Fragment key={i}>
+          {/* Thêm separator thời gian giữa các nhóm tin nhắn */}
+          {showTimeSeparator && (
+            <div className="text-center my-4">
+              <span className="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full shadow-sm">
+                {formattedTime}
+              </span>
+            </div>
+          )}
+
+          <div
+            className={`flex gap-2 ${isReceived ? "justify-start" : "justify-end"}`}
+          >
+            {isReceived && (
+              <div className="flex-shrink-0">
+                {showAvatar ? (
+                  <img
+                    src={user.profile_picture}
+                    alt=""
+                    className="w-8 h-8 rounded-full"
+                  />
+                ) : (
+                  <div className="w-8"></div>
+                )}
+              </div>
+            )}
+
+            <div className={`flex flex-col ${isReceived ? "items-start" : "items-end"}`}>
+              <div
+                className={`px-4 py-2.5 rounded-2xl max-w-md transition-all hover:shadow-md ${
+                  isReceived
+                    ? "bg-white text-gray-800 shadow-sm border border-gray-200"
+                    : "bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md"
+                }`}
+              >
+                {msg.message_type === "image" && (
+                  <img
+                    src={msg.media_url}
+                    className="max-w-xs rounded-lg mb-1 cursor-pointer hover:opacity-90 transition-opacity"
+                    alt="Shared image"
+                  />
+                )}
+                {msg.text && (
+                  <p className="text-sm leading-relaxed break-words">{msg.text}</p>
+                )}
+              </div>
+              <span className="text-xs text-gray-400 mt-1 px-1">
+                {new Date(msg.createdAt).toLocaleTimeString("vi-VN", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            </div>
+          </div>
+        </React.Fragment>
+      );
+    })}
+  <div ref={messagesEndRef}></div>
+</div>
+
       </div>
 
       {/* Image Preview */}

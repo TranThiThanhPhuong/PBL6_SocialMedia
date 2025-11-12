@@ -151,28 +151,30 @@ export const getChatMessages = async (req, res) => {
 
 // -------------------- LẤY CUỘC TRÒ CHUYỆN GẦN NHẤT --------------------
 export const getUserRecentMessages = async (req, res) => {
+    try {
+        const { userId } = req.auth();
+        const messages = await Message.find({ to_user_id: userId }).populate('from_user_id to_user_id').sort({ createdAt: -1 }); // lay tat ca tin nhan gui den minh va sap xep theo thoi gian giam dan
+
+        res.json({ success: true, messages });
+    } catch (error) {
+        console.log(error);
+        res.json({success: false, message: error.message});
+    }
+}
+
+export const markSeen = async (req, res) => {
   try {
     const { userId } = req.auth();
-
-    const messages = await Message.find({
-      $or: [{ from_user_id: userId }, { to_user_id: userId }],
-    })
-      .populate("from_user_id to_user_id", "full_name username profile_picture")
-      .sort({ createdAt: -1 });
-
-    const lastMessages = {};
-    messages.forEach((msg) => {
-      const partnerId =
-        msg.from_user_id._id.toString() === userId
-          ? msg.to_user_id._id.toString()
-          : msg.from_user_id._id.toString();
-
-      if (!lastMessages[partnerId]) lastMessages[partnerId] = msg;
-    });
-
-    res.json({ success: true, messages: Object.values(lastMessages) });
+    const { from_user_id } = req.body;
+    if (!from_user_id)
+      return res.json({ success: false, message: "Thiếu ID người gửi." });  
+    await Message.updateMany(
+      { from_user_id, to_user_id: userId, seen: false },
+      { seen: true }
+    );
+    res.json({ success: true, message: "Đã đánh dấu tin nhắn là đã xem." });
   } catch (error) {
-    console.error("getUserRecentMessages error:", error);
+    console.error("markSeen error:", error);
     res.json({ success: false, message: error.message });
   }
 };

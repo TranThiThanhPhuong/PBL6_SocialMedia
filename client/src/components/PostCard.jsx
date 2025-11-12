@@ -105,7 +105,6 @@ const PostCard = ({ post, onPostDeleted, onPostUpdated }) => {
     }
   };
 
-  // 🚨 Gửi báo cáo bài viết
   const handleReportSubmit = async () => {
     if (!selectedReason) {
       toast.error("Vui lòng chọn lý do báo cáo!");
@@ -262,10 +261,73 @@ const PostCard = ({ post, onPostDeleted, onPostUpdated }) => {
             <img
               src={img}
               key={index}
-              className={`w-full h-48 object-cover rounded-lg ${post.image_urls.length === 1 && "col-span-2 h-auto"
-                }`}
+              className={`w-full h-48 object-cover rounded-lg ${
+                post.image_urls.length === 1 && "col-span-2 h-auto"
+              }`}
             />
           ))}
+        </div>
+      )}
+
+      {/* Shared Post */}
+      {post.post_type === "shared" && post.shared_from && (
+        <div className="border rounded-xl p-3 bg-gray-50 mt-3">
+          <div className="flex items-center gap-2 mb-2">
+            <img
+              src={post.shared_from.user?.profile_picture}
+              alt="avatar"
+              className="w-8 h-8 rounded-full"
+              onClick={() => {
+                if (post.shared_from.user._id === currentUser._id) {
+                  navigate("/profile");
+                } else {
+                  const slug = post.shared_from.user.username
+                    ? post.shared_from.user.username
+                    : post.shared_from.user.full_name
+                        .toLowerCase()
+                        .replace(/\s+/g, "-");
+                  navigate(`/profile-user/${slug}`);
+                }
+              }}
+            />
+            <div>
+              <p className="text-sm font-semibold">
+                {post.shared_from.user?.full_name}
+              </p>
+              <p className="text-xs text-gray-500">
+                @{post.shared_from.user?.username} •{" "}
+                {formatPostTime(post.shared_from.createdAt)}
+              </p>
+            </div>
+          </div>
+
+          {post.shared_from.content && (
+            <p
+              className="text-gray-700 text-sm whitespace-pre-line"
+              dangerouslySetInnerHTML={{
+                __html: post.shared_from.content.replace(
+                  /(#\w+)/g,
+                  '<span class="text-indigo-600">$1</span>'
+                ),
+              }}
+            />
+          )}
+
+          {post.shared_from.image_urls?.length > 0 && (
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              {post.shared_from.image_urls.map((img, index) => (
+                <img
+                  key={index}
+                  src={img}
+                  alt=""
+                  className={`w-full h-40 object-cover rounded-lg ${
+                    post.shared_from.image_urls.length === 1 &&
+                    "col-span-2 h-auto"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -284,8 +346,9 @@ const PostCard = ({ post, onPostDeleted, onPostUpdated }) => {
       <div className="flex justify-around items-center pt-3 text-gray-600 font-medium">
         <button
           onClick={handleLike}
-          className={`flex items-center justify-center gap-2 w-1/3 py-2 rounded-lg hover:bg-gray-100 transition ${likes.includes(currentUser._id) ? "text-red-500" : ""
-            }`}
+          className={`flex items-center justify-center gap-2 w-1/3 py-2 rounded-lg hover:bg-gray-100 transition ${
+            likes.includes(currentUser._id) ? "text-red-500" : ""
+          }`}
         >
           <Heart
             className="w-5 h-5"
@@ -305,13 +368,15 @@ const PostCard = ({ post, onPostDeleted, onPostUpdated }) => {
           <span>Bình luận</span>
         </button>
 
-        <button
-          onClick={() => setShowShareModal(true)}
-          className="flex items-center justify-center gap-2 w-1/3 py-2 rounded-lg hover:bg-gray-100 transition"
-        >
-          <Share2 className="w-5 h-5" />
-          <span>Chia sẻ</span>
-        </button>
+        {post.post_type !== "shared" && (
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="flex items-center justify-center gap-2 w-1/3 py-2 rounded-lg hover:bg-gray-100 transition"
+          >
+            <Share2 className="w-5 h-5" />
+            <span>Chia sẻ</span>
+          </button>
+        )}
       </div>
 
       {/* Report Modal */}
@@ -329,10 +394,11 @@ const PostCard = ({ post, onPostDeleted, onPostUpdated }) => {
               {Object.entries(violationMessages).map(([key, text]) => (
                 <label
                   key={key}
-                  className={`flex items-center gap-2 border p-2 rounded-lg cursor-pointer ${selectedReason === key
-                    ? "border-red-500 bg-red-50"
-                    : "border-gray-200 hover:bg-gray-50"
-                    }`}
+                  className={`flex items-center gap-2 border p-2 rounded-lg cursor-pointer ${
+                    selectedReason === key
+                      ? "border-red-500 bg-red-50"
+                      : "border-gray-200 hover:bg-gray-50"
+                  }`}
                 >
                   <input
                     type="radio"
@@ -385,7 +451,11 @@ const PostCard = ({ post, onPostDeleted, onPostUpdated }) => {
       )}
 
       {showShareModal && (
-        <SharePostModal post={post} onClose={() => setShowShareModal(false)} />
+        <SharePostModal
+          post={post}
+          onClose={() => setShowShareModal(false)}
+          onShared={(newPost) => setShares((prev) => prev + 1)}
+        />
       )}
     </div>
   );

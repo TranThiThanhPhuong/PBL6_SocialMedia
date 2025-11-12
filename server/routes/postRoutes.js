@@ -1,7 +1,7 @@
 import express from "express";
 import { protect } from "../middlewares/auth.js"
 import { upload } from "../configs/multer.js"
-import { addPost, getFeedPosts, likePosts, updatePost, deletePost } from "../controllers/postController.js";
+import { addPost, getFeedPosts, likePosts, updatePost, deletePost, sharePost } from "../controllers/postController.js";
 
 const postRouter = express.Router();
 
@@ -10,5 +10,6 @@ postRouter.get('/feed', protect, getFeedPosts);
 postRouter.post('/like', protect, likePosts);
 postRouter.put('/update/:postId', protect, upload.array('images', 4), updatePost);
 postRouter.delete('/delete/:postId', protect, deletePost);
+postRouter.post('/share/:postId', protect, sharePost);
 
 export default postRouter;

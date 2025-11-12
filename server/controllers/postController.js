@@ -99,6 +99,10 @@ export const getFeedPosts = async (req, res) => {
 
     const posts = await Post.find({ user: { $in: userIds } })
       .populate("user") // populate de lay thong tin nguoi dung cho moi bai viet
+      .populate({
+        path: "shared_from", // bài gốc
+        populate: { path: "user" }, // thông tin user bài gốc
+      })
       .sort({ createdAt: -1 }); // sap xep theo thoi gian tao bai viet, moi nhat o tren cung
 
     res.json({ success: true, posts });
@@ -263,21 +267,49 @@ export const likePosts = async (req, res) => {
 
 export const sharePost = async (req, res) => {
   try {
-    const { userId } = req.auth();
-    const { postId } = req.body;
+    const { userId } = req.auth;
+    const { postId } = req.params;
 
-    const post = await Post.findById(postId).populate("user", "full_name");
-    if (!post)
-      return res
-        .status(404)
-        .json({ success: false, message: "Không tìm thấy bài viết" });
+    // Tìm bài viết gốc
+    const originalPost = await Post.findById(postId);
+    if (!originalPost)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy bài viết để chia sẻ.",
+      });
 
-    const sender = await User.findById(userId);
+    // Không cho chia sẻ bài đã là post shared
+    if (originalPost.post_type === "shared")
+      return res.status(400).json({
+        success: false,
+        message: "Không thể chia sẻ bài viết đã chia sẻ.",
+      });
 
-    // 🔔 Gửi thông báo cho chủ bài viết
-    if (post.user._id.toString() !== userId) {
+    if (originalPost.user.toString() === userId)
+      return res.status(400).json({
+        success: false,
+        message: "Bạn không thể chia sẻ bài viết của chính mình.",
+      });
+
+    // Lấy thông tin user của bài viết gốc
+    const originalUser = await User.findById(originalPost.user, "username full_name profile_picture");
+
+    // Tạo post mới kiểu "shared"
+    const newPost = await Post.create({
+      user: userId,
+      post_type: "shared",
+      shared_from: originalPost._id,
+    });
+
+    // Cập nhật số lượt chia sẻ
+    originalPost.shares_count += 1;
+    await originalPost.save();
+
+    // Tạo thông báo
+    if (originalPost.user.toString() !== userId) {
+      const sender = await User.findById(userId);
       await Notification.create({
-        receiver: post.user._id,
+        receiver: originalPost.user,
         sender: userId,
         type: "share",
         post: postId,
@@ -285,8 +317,19 @@ export const sharePost = async (req, res) => {
       });
     }
 
-    res.json({ success: true, message: "Đã chia sẻ bài viết" });
+    res.json({
+      success: true,
+      message: "Chia sẻ bài viết thành công.",
+      post: {
+        ...newPost.toObject(),
+        shared_from: {
+          ...originalPost.toObject(),
+          user: originalUser,
+        },
+      },
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error(error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ: " + error.message });
   }
 };
