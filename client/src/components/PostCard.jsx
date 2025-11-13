@@ -344,6 +344,8 @@ const PostCard = ({ post, onPostDeleted, onPostUpdated }) => {
 
       {/* Actions */}
       <div className="flex justify-around items-center pt-3 text-gray-600 font-medium">
+        
+        {/* Like */}
         <button
           onClick={handleLike}
           className={`flex items-center justify-center gap-2 w-1/3 py-2 rounded-lg hover:bg-gray-100 transition ${
@@ -360,6 +362,7 @@ const PostCard = ({ post, onPostDeleted, onPostUpdated }) => {
           <span>Thích</span>
         </button>
 
+        {/* Comment */}
         <button
           onClick={() => setShowCommentModal(true)}
           className="flex items-center justify-center gap-2 w-1/3 py-2 rounded-lg hover:bg-gray-100 transition"
@@ -368,6 +371,7 @@ const PostCard = ({ post, onPostDeleted, onPostUpdated }) => {
           <span>Bình luận</span>
         </button>
 
+        {/* Share */}
         {post.post_type !== "shared" && (
           <button
             onClick={() => setShowShareModal(true)}
@@ -454,7 +458,11 @@ const PostCard = ({ post, onPostDeleted, onPostUpdated }) => {
         <SharePostModal
           post={post}
           onClose={() => setShowShareModal(false)}
-          onShared={(newPost) => setShares((prev) => prev + 1)}
+          onShared={(newPost) => {
+            setShares((prev) => prev + 1);
+            onPostUpdated?.(newPost);
+            toast.success("Đã chia sẻ bài viết!");
+          }}
         />
       )}
     </div>

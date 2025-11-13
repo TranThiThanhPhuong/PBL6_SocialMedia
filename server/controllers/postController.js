@@ -97,22 +97,29 @@ export const getFeedPosts = async (req, res) => {
 
     const userIds = [userId, ...user.connections, ...user.following]; // mang chua id cua nguoi dung, nguoi dung ket ban va nguoi dung dang theo doi
 
-    const posts = await Post.find({ user: { $in: userIds } })
-      .populate("user") // populate de lay thong tin nguoi dung cho moi bai viet
+    const posts = await Post.find({
+      user: { $in: userIds },
+      deleted: { $ne: true },
+    })
+      .populate("user") 
       .populate({
-        path: "shared_from", // bài gốc
-        populate: { path: "user" }, // thông tin user bài gốc
+        path: "shared_from", 
+        match: { deleted: { $ne: true } }, 
+        populate: { path: "user" },
+        options: { strictPopulate: false } 
       })
-      .sort({ createdAt: -1 }); // sap xep theo thoi gian tao bai viet, moi nhat o tren cung
+      .sort({ createdAt: -1 });
 
-    res.json({ success: true, posts });
+    const validPosts = posts.filter(
+    (p) => !(p.post_type === "shared" && !p.shared_from)
+    );
+    res.json({ success: true, posts: validPosts });
   } catch (error) {
     console.log(error);
     res.json({ success: false, message: error.message });
   }
 };
 
-// 📝 Cập nhật bài viết
 export const updatePost = async (req, res) => {
   try {
     const { userId } = req.auth();
@@ -189,7 +196,6 @@ export const updatePost = async (req, res) => {
   }
 };
 
-// 🗑️ Xóa bài viết
 export const deletePost = async (req, res) => {
   try {
     const { userId } = req.auth();
@@ -201,22 +207,36 @@ export const deletePost = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Không tìm thấy bài viết." });
 
-    // ❌ Chỉ chủ bài viết mới có thể xóa
     if (post.user.toString() !== userId)
       return res.status(403).json({
         success: false,
         message: "Bạn không có quyền xóa bài viết này.",
       });
 
-    // 🧹 Xóa ảnh trong thư mục tạm nếu có
     if (post.image_urls?.length) {
       console.log("🧹 Xóa ảnh cũ (ImageKit):", post.image_urls);
-      // 👉 Nếu bạn lưu cả fileId từ ImageKit thì có thể gọi imagekit.deleteFile(fileId)
-      // Còn hiện tại chỉ log URL, không xóa được file thực tế.
     }
 
-    await Post.findByIdAndDelete(postId);
-    const posts = await Post.find({ user: userId })
+    if (post.post_type === "shared" && post.shared_from) {
+      const original = await Post.findById(post.shared_from);
+      if (original && !original.deleted && original.shares_count > 0) {
+        original.shares_count -= 1;
+        await original.save();
+      }
+    }
+
+    if (post.post_type === "original") {
+      await Post.updateMany(
+        { shared_from: post._id },
+        { $set: { deleted: true } }
+      );
+    }
+
+    // await Post.findByIdAndDelete(postId);
+    post.deleted = true;
+    await post.save();
+
+    const posts = await Post.find({ user: userId,deleted: { $ne: true } })
       .populate("user")
       .sort({ createdAt: -1 });
 
@@ -267,18 +287,16 @@ export const likePosts = async (req, res) => {
 
 export const sharePost = async (req, res) => {
   try {
-    const { userId } = req.auth;
+    const { userId } = req.auth();
     const { postId } = req.params;
 
-    // Tìm bài viết gốc
     const originalPost = await Post.findById(postId);
-    if (!originalPost)
+    if (!originalPost || originalPost.deleted)
       return res.status(404).json({
         success: false,
         message: "Không tìm thấy bài viết để chia sẻ.",
       });
 
-    // Không cho chia sẻ bài đã là post shared
     if (originalPost.post_type === "shared")
       return res.status(400).json({
         success: false,
@@ -291,21 +309,20 @@ export const sharePost = async (req, res) => {
         message: "Bạn không thể chia sẻ bài viết của chính mình.",
       });
 
-    // Lấy thông tin user của bài viết gốc
-    const originalUser = await User.findById(originalPost.user, "username full_name profile_picture");
+    const originalUser = await User.findById(
+      originalPost.user,
+      "username full_name profile_picture"
+    );
 
-    // Tạo post mới kiểu "shared"
     const newPost = await Post.create({
       user: userId,
       post_type: "shared",
       shared_from: originalPost._id,
     });
 
-    // Cập nhật số lượt chia sẻ
-    originalPost.shares_count += 1;
+    originalPost.shares_count = (originalPost.shares_count || 0) + 1;
     await originalPost.save();
 
-    // Tạo thông báo
     if (originalPost.user.toString() !== userId) {
       const sender = await User.findById(userId);
       await Notification.create({
@@ -330,6 +347,8 @@ export const sharePost = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: "Lỗi máy chủ: " + error.message });
+    res
+      .status(500)
+      .json({ success: false, message: "Lỗi máy chủ: " + error.message });
   }
 };

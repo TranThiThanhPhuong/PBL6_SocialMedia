@@ -1,7 +1,7 @@
 import api from "./axios";
 import toast from "react-hot-toast";
 
-export const likePost = async (postId, getToken, currentUserId, setLikes) => {
+export const handleLike = async (postId, getToken, currentUserId, setLikes) => {
   try {
     const { data } = await api.post(
       "/api/post/like",
@@ -20,7 +20,7 @@ export const likePost = async (postId, getToken, currentUserId, setLikes) => {
   }
 };
 
-export const deletePost = async (postId, getToken, onPostDeleted) => {
+export const handleDelete = async (postId, getToken, onPostDeleted) => {
   if (!window.confirm("Bạn có chắc muốn xóa bài viết này không?")) return;
   try {
     const { data } = await api.delete(`/api/post/delete/${postId}`, {
@@ -35,7 +35,7 @@ export const deletePost = async (postId, getToken, onPostDeleted) => {
   }
 };
 
-export const updatePost = async (postId, content, getToken, setEditMode, onPostUpdated) => {
+export const handleUpdate = async (postId, content, getToken, setEditMode, onPostUpdated) => {
   try {
     const formData = new FormData();
     formData.append("content", content);
@@ -52,7 +52,7 @@ export const updatePost = async (postId, content, getToken, setEditMode, onPostU
   }
 };
 
-export const reportPost = async (postId, reportedUserId, reason, getToken, setShowReportModal, setSelectedReason) => {
+export const handleReportSubmit = async (postId, reportedUserId, reason, getToken, setShowReportModal, setSelectedReason) => {
   if (!reason) return toast.error("Vui lòng chọn lý do báo cáo!");
   try {
     const { data } = await api.post(

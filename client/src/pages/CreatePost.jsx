@@ -199,7 +199,7 @@ const CreatePost = () => {
           message: detailMsg || "Bài viết vi phạm nội dung.",
         });
       } else {
-        toast.error("⚠️ Lỗi khi đăng bài.");
+        toast.error("Lỗi khi đăng bài.");
         setStatus({ type: "error", message: "Lỗi khi đăng bài." });
       }
     }
