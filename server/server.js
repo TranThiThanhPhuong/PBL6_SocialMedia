@@ -20,6 +20,7 @@ import messageRouter from "./routes/messageRoutes.js";
 import commentRouter from "./routes/commentRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import reportRouter from "./routes/reportRoutes.js";
+import analyticsRoutes from "./routes/analyticsRoutes.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -86,6 +87,7 @@ app.use("/api/comment", commentRouter);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/report", reportRouter);
 app.use("/api/inngest", serve({ client: inngest, functions }));
+app.use("/api/analytics", analyticsRoutes);
 
 // Error handler (đặt cuối)
 app.use(errorHandler);

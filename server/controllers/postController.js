@@ -185,44 +185,67 @@ export const updatePost = async (req, res) => {
   }
 };
 
-// 🗑️ Xóa bài viết
+export const deletePostService = async (postId, user) => {
+  // user là object người dùng (có thể là Admin hoặc chủ bài viết)
+
+  const post = await Post.findById(postId);
+  if (!post) {
+    throw new Error("Không tìm thấy bài viết.");
+  }
+
+  // --- LOGIC KIỂM TRA QUYỀN MỚI ---
+  const isOwner = post.user.toString() === user._id.toString();
+  const isAdmin = user.isAdmin === true;
+
+  // ❌ Nếu KHÔNG PHẢI chủ bài viết VÀ CŨNG KHÔNG PHẢI Admin
+  if (!isOwner && !isAdmin) { 
+    throw new Error("Bạn không có quyền xóa bài viết này.");
+  }
+
+  // (Logic xóa ảnh ImageKit - giữ nguyên)
+  if (post.image_urls?.length) {
+    console.log("🧹 Xóa ảnh (ImageKit):", post.image_urls);
+    // (Thêm logic xóa ImageKit ở đây nếu bạn có fileId)
+  }
+
+  // Xóa bài viết
+  await Post.findByIdAndDelete(postId);
+  
+  // (Chúng ta có thể thêm logic xóa Comments liên quan ở đây nếu cần)
+  
+  return { success: true, message: "Đã xóa bài viết (từ service)." };
+};
+
+
+// ==========================================================
+// 🟢 BƯỚC 1.2: CẬP NHẬT CONTROLLER 'deletePost' CŨ
+// Hàm deletePost (controller) giờ sẽ gọi hàm service
+// ==========================================================
 export const deletePost = async (req, res) => {
   try {
-    const { userId } = req.auth();
+    const { user } = req; // Lấy user đầy đủ từ middleware 'protect'
     const { postId } = req.params;
 
-    const post = await Post.findById(postId);
-    if (!post)
-      return res
-        .status(404)
-        .json({ success: false, message: "Không tìm thấy bài viết." });
+    // Gọi service function
+    await deletePostService(postId, user); 
 
-    // ❌ Chỉ chủ bài viết mới có thể xóa
-    if (post.user.toString() !== userId)
-      return res.status(403).json({
-        success: false,
-        message: "Bạn không có quyền xóa bài viết này.",
-      });
-
-    // 🧹 Xóa ảnh trong thư mục tạm nếu có
-    if (post.image_urls?.length) {
-      console.log("🧹 Xóa ảnh cũ (ImageKit):", post.image_urls);
-      // 👉 Nếu bạn lưu cả fileId từ ImageKit thì có thể gọi imagekit.deleteFile(fileId)
-      // Còn hiện tại chỉ log URL, không xóa được file thực tế.
-    }
-
-    await Post.findByIdAndDelete(postId);
-    const posts = await Post.find({ user: userId })
+    // Trả về danh sách post mới (như logic cũ của bạn)
+    const posts = await Post.find({ user: user._id })
       .populate("user")
       .sort({ createdAt: -1 });
 
     res.json({ success: true, message: "Đã xóa bài viết thành công.", posts });
   } catch (error) {
     console.error(error);
+    if (error.message.includes("Bạn không có quyền")) {
+      return res.status(403).json({ success: false, message: error.message });
+    }
+    if (error.message.includes("Không tìm thấy")) {
+      return res.status(404).json({ success: false, message: error.message });
+    }
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
 export const likePosts = async (req, res) => {
   try {
     const { userId } = req.auth();

@@ -1,7 +1,9 @@
 import Story from "../models/Story.js";
 import Report from "../models/Report.js";
 import Post from "../models/Post.js";
-
+import { deletePost } from "./postController.js";
+import Notification from "../models/Notification.js";
+import { createNotification } from "./notificationController.js";
 // Các lý do cho cả Post và Story
 const allowedReasons = {
   spam: "Spam hoặc nội dung gây phiền nhiễu",
@@ -91,6 +93,72 @@ export const getAllReports = async (req, res) => {
       .sort({ createdAt: -1 });
 
     res.json({ success: true, reports });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+// 🟠 Admin xử lý báo cáo (review hoặc dismiss)
+export const updateReport = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body; // 'reviewed' (Xử lí) hoặc 'dismissed' (Bỏ qua)
+    
+    // Lấy admin user từ middleware 'adminAuth'
+    const adminUser = req.user; 
+
+    if (!["reviewed", "dismissed"].includes(status)) {
+      return res.status(400).json({ success: false, message: "Trạng thái không hợp lệ." });
+    }
+
+    const report = await Report.findById(id);
+    if (!report) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy báo cáo." });
+    }
+
+    // --- LOGIC XỬ LÍ (SẠCH SẼ HƠN) ---
+    if (status === 'reviewed') {
+      
+      // 1. XÓA BÀI VIẾT (NẾU LÀ BÁO CÁO POST)
+      if (report.type === 'post' && report.post) {
+        try {
+          const reportedPost = await Post.findById(report.post);
+          
+          if (reportedPost) {
+            const violatorId = reportedPost.user; // ID người vi phạm
+            
+            // --- GỌI TRỰC TIẾP HÀM SERVICE (SẠCH SẼ) ---
+            await deletePostService(report.post, adminUser); // Truyền postId và adminUser
+
+            // 2. GỬI THÔNG BÁO
+            await createNotification({
+              user: report.reporter,
+              type: "report_approved",
+              content: `Báo cáo của bạn về một bài viết đã được xử lý. Cảm ơn bạn đã đóng góp.`,
+              link: `/profile` 
+            });
+            await createNotification({
+              user: violatorId,
+              type: "post_deleted",
+              content: "Một bài viết của bạn đã bị gỡ bỏ do vi phạm chính sách cộng đồng (bị báo cáo).",
+            });
+          }
+        } catch (deleteError) {
+          console.error("Lỗi khi gọi deletePostService hoặc createNotification:", deleteError.message);
+        }
+      } 
+      // (Bạn có thể thêm logic xóa 'story' tương tự ở đây)
+    }
+
+    // 3. CẬP NHẬT TRẠNG THÁI BÁO CÁO
+    report.status = status;
+    await report.save();
+
+    res.json({ 
+      success: true, 
+      message: `Đã ${status === 'reviewed' ? 'xử lý' : 'bỏ qua'} báo cáo.`, 
+      report 
+    });
+
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
