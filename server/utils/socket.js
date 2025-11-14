@@ -15,18 +15,19 @@ export const initSocket = (server) => {
     console.log(`🟢 Connected: ${socket.id}`);
 
     socket.on("register_user", (userId) => {
-      onlineUsers.set(userId, socket.id);
-      socket.userId = userId;
-      console.log(`✅ ${userId} online`);
-    });
+  onlineUsers.set(userId, { socketId: socket.id, lastSeen: new Date() });
+  socket.userId = userId;
+  io.emit("user_online", { userId }); // gửi object, dễ check
+  io.emit("get_online_users", Array.from(onlineUsers.keys()));
+});
 
-    socket.on("disconnect", () => {
-      if (socket.userId) {
-        onlineUsers.delete(socket.userId);
-        io.emit("user_offline", socket.userId);
-        console.log(`🔴 ${socket.userId} disconnected`);
-      }
-    });
+socket.on("disconnect", () => {
+  if (socket.userId) {
+    const lastSeen = new Date();
+    onlineUsers.set(socket.userId, { socketId: null, lastSeen });
+    io.emit("user_offline", { userId: socket.userId, lastSeen });
+  }
+});
   });
 
   return io;

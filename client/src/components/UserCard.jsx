@@ -5,6 +5,7 @@ import { useAuth } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import { createConnectionHandlers } from "../service/connectionService";
 import { fetchConnections } from "../features/connections/connectionsSlice";
+import { slugifyUser } from "../app/slugifyUser";
 
 const UserCard = ({ user }) => {
   const currentUser = useSelector((state) => state.user.value);
@@ -57,10 +58,7 @@ const UserCard = ({ user }) => {
         onClick={() => {
           if (user._id === currentUser._id) navigate("/profile");
           else {
-            const slug = user.username
-              ? user.username
-              : user.full_name.toLowerCase().replace(/\s+/g, "-");
-            navigate(`/profile-user/${slug}`);
+            navigate(`/profile-user/${slugifyUser(user)}`);
           }
         }}
       >

@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import api from "../api/axios";
+import toast from "react-hot-toast";
 import {
   BadgeCheck,
   Heart,
@@ -13,8 +15,8 @@ import { formatPostTime } from "../app/formatDate";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
-import api from "../api/axios";
-import toast from "react-hot-toast";
+import { slugifyUser } from "../app/slugifyUser";
+import UserAvatar from "../components/dropdownmenu/UserAvatar";
 import CommentModal from "./CommentModal";
 import SharePostModal from "./SharePostModal";
 
@@ -132,39 +134,58 @@ const PostCard = ({ post, onPostDeleted, onPostUpdated }) => {
     }
   };
 
+  const handleUserClick = (user) => {
+    if (!user) return;
+
+    if (user._id === currentUser._id) {
+      navigate("/profile");
+    } else {
+      navigate(`/profile-user/${slugifyUser(user)}`);
+    }
+  };
+
+  // const MiniProfile = ({ user }) => {
+  //   if (!user) return null;
+  //   return (
+  //     <div className="bg-white shadow-lg rounded-xl p-3 w-56 text-center">
+  //       <img
+  //         src={user.profile_picture}
+  //         alt={user.full_name}
+  //         className="w-16 h-16 rounded-full mx-auto mb-2 border"
+  //       />
+  //       <p className="font-semibold text-gray-800">{user.full_name}</p>
+  //       <p className="text-gray-500 text-sm">@{user.username}</p>
+  //       <div className="mt-2 text-xs text-gray-600">
+  //         <span className="font-medium">{user.followers?.length || 0}</span>{" "}
+  //         người theo dõi
+  //       </div>
+  //       <button
+  //         onClick={() => handleUserClick(user)}
+  //         className="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-full text-sm transition"
+  //       >
+  //         Xem trang cá nhân
+  //       </button>
+  //     </div>
+  //   );
+  // };
+
   return (
     <div className="bg-white rounded-xl shadow p-4 space-y-4 w-full max-w-2xl relative">
       {/* User Info */}
       <div className="flex justify-between items-start">
         <div className="inline-flex items-center gap-3">
-          <img
-            src={post.user.profile_picture}
-            onClick={() => {
-              if (post.user._id === currentUser._id) {
-                navigate("/profile");
-              } else {
-                const slug = post.user.username
-                  ? post.user.username
-                  : post.user.full_name.toLowerCase().replace(/\s+/g, "-");
-                navigate(`/profile-user/${slug}`);
-              }
-            }}
-            className="w-10 h-10 rounded-full shadow cursor-pointer"
-          />
+          <UserAvatar user={post.user}>
+            <img
+              src={post.user.profile_picture}
+              onClick={() => handleUserClick(post.user)}
+              className="w-10 h-10 rounded-full shadow cursor-pointer"
+            />
+          </UserAvatar>
           <div>
             <div className="flex items-center space-x-1">
               <span
                 className="cursor-pointer font-semibold"
-                onClick={() => {
-                  if (post.user._id === currentUser._id) {
-                    navigate("/profile");
-                  } else {
-                    const slug = post.user.username
-                      ? post.user.username
-                      : post.user.full_name.toLowerCase().replace(/\s+/g, "-");
-                    navigate(`/profile-user/${slug}`);
-                  }
-                }}
+                onClick={() => handleUserClick(post.user)}
               >
                 {post.user.full_name}
               </span>
@@ -273,23 +294,14 @@ const PostCard = ({ post, onPostDeleted, onPostUpdated }) => {
       {post.post_type === "shared" && post.shared_from && (
         <div className="border rounded-xl p-3 bg-gray-50 mt-3">
           <div className="flex items-center gap-2 mb-2">
-            <img
-              src={post.shared_from.user?.profile_picture}
-              alt="avatar"
-              className="w-8 h-8 rounded-full"
-              onClick={() => {
-                if (post.shared_from.user._id === currentUser._id) {
-                  navigate("/profile");
-                } else {
-                  const slug = post.shared_from.user.username
-                    ? post.shared_from.user.username
-                    : post.shared_from.user.full_name
-                        .toLowerCase()
-                        .replace(/\s+/g, "-");
-                  navigate(`/profile-user/${slug}`);
-                }
-              }}
-            />
+            <UserAvatar user={post.shared_from.user}>
+              <img
+                src={post.shared_from.user?.profile_picture}
+                alt="avatar"
+                className="w-8 h-8 rounded-full"
+                onClick={handleUserClick(post.shared_from.user)}
+              />
+            </UserAvatar>
             <div>
               <p className="text-sm font-semibold">
                 {post.shared_from.user?.full_name}
@@ -344,7 +356,6 @@ const PostCard = ({ post, onPostDeleted, onPostUpdated }) => {
 
       {/* Actions */}
       <div className="flex justify-around items-center pt-3 text-gray-600 font-medium">
-        
         {/* Like */}
         <button
           onClick={handleLike}

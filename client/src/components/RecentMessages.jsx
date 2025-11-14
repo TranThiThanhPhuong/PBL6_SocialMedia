@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
+import api from "../api/axios";
+import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
 import { formatPostTime } from "../app/formatDate";
 import { useAuth, useUser } from "@clerk/clerk-react";
-import api from "../api/axios";
-import toast from "react-hot-toast";
+import { slugifyUser } from "../app/slugifyUser";
 
 const RecentMessages = () => {
   const [messages, setMessages] = useState([]);
@@ -32,7 +33,7 @@ const RecentMessages = () => {
 
         const sortedMessages = Object.values(groupedMessages)
           .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-          .slice(0, 2); // ✅ chỉ lấy 2 người nhắn gần nhất
+          .slice(0, 2);
 
         setMessages(sortedMessages);
       } else {
@@ -51,7 +52,6 @@ const RecentMessages = () => {
     }
   }, [user]);
 
-  // ✅ Hàm cắt ngắn tin nhắn
   const truncateText = (text, length = 25) => {
     if (!text) return "";
     return text.length > length ? text.slice(0, length) + "..." : text;
@@ -64,7 +64,8 @@ const RecentMessages = () => {
         {messages.length > 0 ? (
           messages.map((message, index) => (
             <Link
-              to={`/messages/${message.from_user_id._id}`}
+              to={`/messages/${slugifyUser(message.from_user_id)}`}
+              state={{ userId: message.from_user_id._id }}
               key={index}
               className="flex items-start gap-2 py-2 px-1 hover:bg-slate-100 rounded-lg transition"
             >

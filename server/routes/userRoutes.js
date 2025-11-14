@@ -22,7 +22,6 @@ userRouter.post('/accept', protect, acceptConnectionRequest)
 userRouter.get('/connections', protect, getUserConnections)
 userRouter.post('/remove-friend', protect, removeConnectionRequest);
 userRouter.post('/reject', protect, rejectConnectionRequest);
-userRouter.post('/profiles', getUserProfiles)
 userRouter.get('/all',adminAuth, getAllUsers);// dùng middleware của admin để get all users
 userRouter.patch('/:userId/lock',adminAuth, lockUser);     
 userRouter.patch('/:userId/unlock', adminAuth, unlockUser);

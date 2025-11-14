@@ -27,7 +27,7 @@ const Profile = () => {
     try {
       const { data } = await api.post(
         "/api/user/profiles",
-        { slug }, // gửi slug thay vì profileId
+        { slug },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

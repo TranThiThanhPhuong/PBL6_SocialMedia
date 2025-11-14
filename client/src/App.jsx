@@ -18,7 +18,7 @@ import LockedAccount from "./pages/LockedAccount";
 import { fetchUser } from "./features/user/userSlice";
 import { fetchConnections } from "./features/connections/connectionsSlice";
 import { addMessage } from "./features/messages/messagesSlice";
-import socket from "./app/socket";
+import socket from "./sockethandler/socket";
 
 const App = () => {
   const { user } = useUser(); // Sử dụng useUser để lấy thông tin người dùng hiện tại
@@ -28,7 +28,6 @@ const App = () => {
   const dispatch = useDispatch(); // Sử dụng useDispatch để lấy hàm dispatch từ Redux store
 
   useEffect(() => {
-    // Hàm để thiết lập token vào header của tất cả các yêu cầu fetch
     const fetchData = async () => {
       if (user) {
         const token = await getToken(); // Lấy token JWT của người dùng hiện tại
@@ -130,17 +129,14 @@ const App = () => {
         <Route path="/" element={!user ? <Login /> : <Layout />}>
           <Route index element={<Feed />} />
           <Route path="messages/*" element={<Messages />} />
-          {/* <Route path="messages" element={<Messages />} /> */}
-          {/* <Route path="messages/:userId" element={<ChatBox />} /> */}
+          <Route path="messages-user/:slug" element={<Messages />} />{" "}
           <Route path="connections" element={<Connections />} />
           <Route path="discover" element={<Discover />} />
           <Route path="profile" element={<Profile />} />
           <Route path="profile/:profileId" element={<Profile />} />
           <Route path="profile-user/:slug" element={<Profile />} />{" "}
-          {/* Hồ sơ người khác */}
           <Route path="notifications" element={<Notifications />} />
           <Route path="create-post" element={<CreatePost />} />
-
         </Route>
         <Route path="locked" element={<LockedAccount />} />
       </Routes>

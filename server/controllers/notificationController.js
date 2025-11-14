@@ -29,7 +29,7 @@ export const getNotifications = async (req, res) => {
     const { userId } = req.auth();
 
     const notifications = await Notification.find({ receiver: userId })
-      .populate("sender", "full_name profile_picture")
+      .populate("sender", "full_name profile_picture connections followers following")
       .sort({ createdAt: -1 });
 
     res.json({

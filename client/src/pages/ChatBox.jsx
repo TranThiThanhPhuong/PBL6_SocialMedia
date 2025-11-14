@@ -1,19 +1,39 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ImageIcon, SendHorizontal, X, Phone, Video, MoreVertical } from "lucide-react";
-import { useParams } from "react-router-dom";
+import {
+  ImageIcon,
+  SendHorizontal,
+  X,
+  Phone,
+  Video,
+  MoreVertical,
+} from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
 import { useAuth } from "@clerk/clerk-react";
+import { useLocation } from "react-router-dom";
 import api from "../api/axios";
-import { addMessage, fetchMessages, resetMessages } from "../features/messages/messagesSlice";
+import {
+  addMessage,
+  fetchMessages,
+  resetMessages,
+} from "../features/messages/messagesSlice";
 import toast from "react-hot-toast";
-import socket from "../app/socket";
+import socket from "../sockethandler/socket";
 
 const ChatBox = () => {
-  const { userId } = useParams();
+  const location = useLocation();
+  const realUserId = location.state?.userId;
+  const userId = realUserId || slug;
   const { getToken } = useAuth();
   const dispatch = useDispatch();
+
   const { messages } = useSelector((state) => state.messages);
   const connections = useSelector((state) => state.connections.connections);
+  const following = useSelector((state) => state.connections.following);
+  const followers = useSelector((state) => state.connections.followers);
+
+  const [isOnline, setIsOnline] = useState(false);
+const [lastSeen, setLastSeen] = useState(null);
+
   const [text, setText] = useState("");
   const [image, setImage] = useState(null);
   const [user, setUser] = useState(null);
@@ -33,11 +53,12 @@ const ChatBox = () => {
   }, [userId]);
 
   useEffect(() => {
-    if (connections.length > 0) {
-      const u = connections.find((c) => c._id === userId);
-      setUser(u);
-    }
-  }, [connections, userId]);
+    const u =
+      connections.find((c) => c._id === userId) ||
+      following.find((f) => f._id === userId) ||
+      followers.find((f) => f._id === userId);
+    setUser(u || null);
+  }, [connections, following, followers, userId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -101,14 +122,14 @@ const ChatBox = () => {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => toast.success('Tính năng gọi thoại đang phát triển')}
+            onClick={() => toast.success("Tính năng gọi thoại đang phát triển")}
             className="p-2.5 rounded-full hover:bg-indigo-50 text-indigo-600 transition-colors"
             title="Gọi thoại"
           >
             <Phone size={20} />
           </button>
           <button
-            onClick={() => toast.success('Tính năng gọi video đang phát triển')}
+            onClick={() => toast.success("Tính năng gọi video đang phát triển")}
             className="p-2.5 rounded-full hover:bg-indigo-50 text-indigo-600 transition-colors"
             title="Gọi video"
           >
@@ -126,86 +147,94 @@ const ChatBox = () => {
       {/* Messages - Improved */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="space-y-3 max-w-4xl mx-auto">
-  {messages
-    .toSorted((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-    .map((msg, i) => {
-      const isReceived = msg.to_user_id !== user._id;
-      const showAvatar = i === 0 || messages[i - 1]?.to_user_id !== msg.to_user_id;
+          {messages
+            .toSorted((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+            .map((msg, i) => {
+              const isReceived = msg.to_user_id !== user._id;
+              const showAvatar =
+                i === 0 || messages[i - 1]?.to_user_id !== msg.to_user_id;
 
-      // 👉 Thêm phần hiển thị ngày/giờ nếu cách tin trước > 10 phút
-      const currentTime = new Date(msg.createdAt);
-      const prevTime = i > 0 ? new Date(messages[i - 1].createdAt) : null;
-      const showTimeSeparator = !prevTime || (currentTime - prevTime) / (1000 * 60) > 10;
+              const currentTime = new Date(msg.createdAt);
+              const prevTime =
+                i > 0 ? new Date(messages[i - 1].createdAt) : null;
+              const showTimeSeparator =
+                !prevTime || (currentTime - prevTime) / (1000 * 60) > 10;
 
-      const formattedTime = currentTime.toLocaleString("vi-VN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
+              const formattedTime = currentTime.toLocaleString("vi-VN", {
+                hour: "2-digit",
+                minute: "2-digit",
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              });
 
-      return (
-        <React.Fragment key={i}>
-          {/* Thêm separator thời gian giữa các nhóm tin nhắn */}
-          {showTimeSeparator && (
-            <div className="text-center my-4">
-              <span className="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full shadow-sm">
-                {formattedTime}
-              </span>
-            </div>
-          )}
+              return (
+                <React.Fragment key={i}>
+                  {showTimeSeparator && (
+                    <div className="text-center my-4">
+                      <span className="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full shadow-sm">
+                        {formattedTime}
+                      </span>
+                    </div>
+                  )}
 
-          <div
-            className={`flex gap-2 ${isReceived ? "justify-start" : "justify-end"}`}
-          >
-            {isReceived && (
-              <div className="flex-shrink-0">
-                {showAvatar ? (
-                  <img
-                    src={user.profile_picture}
-                    alt=""
-                    className="w-8 h-8 rounded-full"
-                  />
-                ) : (
-                  <div className="w-8"></div>
-                )}
-              </div>
-            )}
+                  <div
+                    className={`flex gap-2 ${
+                      isReceived ? "justify-start" : "justify-end"
+                    }`}
+                  >
+                    {isReceived && (
+                      <div className="flex-shrink-0">
+                        {showAvatar ? (
+                          <img
+                            src={user.profile_picture}
+                            alt=""
+                            className="w-8 h-8 rounded-full"
+                          />
+                        ) : (
+                          <div className="w-8"></div>
+                        )}
+                      </div>
+                    )}
 
-            <div className={`flex flex-col ${isReceived ? "items-start" : "items-end"}`}>
-              <div
-                className={`px-4 py-2.5 rounded-2xl max-w-md transition-all hover:shadow-md ${
-                  isReceived
-                    ? "bg-white text-gray-800 shadow-sm border border-gray-200"
-                    : "bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md"
-                }`}
-              >
-                {msg.message_type === "image" && (
-                  <img
-                    src={msg.media_url}
-                    className="max-w-xs rounded-lg mb-1 cursor-pointer hover:opacity-90 transition-opacity"
-                    alt="Shared image"
-                  />
-                )}
-                {msg.text && (
-                  <p className="text-sm leading-relaxed break-words">{msg.text}</p>
-                )}
-              </div>
-              <span className="text-xs text-gray-400 mt-1 px-1">
-                {new Date(msg.createdAt).toLocaleTimeString("vi-VN", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            </div>
-          </div>
-        </React.Fragment>
-      );
-    })}
-  <div ref={messagesEndRef}></div>
-</div>
-
+                    <div
+                      className={`flex flex-col ${
+                        isReceived ? "items-start" : "items-end"
+                      }`}
+                    >
+                      <div
+                        className={`px-4 py-2.5 rounded-2xl max-w-md transition-all hover:shadow-md ${
+                          isReceived
+                            ? "bg-white text-gray-800 shadow-sm border border-gray-200"
+                            : "bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md"
+                        }`}
+                      >
+                        {msg.message_type === "image" && (
+                          <img
+                            src={msg.media_url}
+                            className="max-w-xs rounded-lg mb-1 cursor-pointer hover:opacity-90 transition-opacity"
+                            alt="Shared image"
+                          />
+                        )}
+                        {msg.text && (
+                          <p className="text-sm leading-relaxed break-words">
+                            {msg.text}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-400 mt-1 px-1">
+                        {new Date(msg.createdAt).toLocaleTimeString("vi-VN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </React.Fragment>
+              );
+            })}
+          <div ref={messagesEndRef}></div>
+        </div>
       </div>
 
       {/* Image Preview */}
@@ -232,7 +261,10 @@ const ChatBox = () => {
         <div className="max-w-4xl mx-auto">
           <div className="flex items-end gap-2 bg-gray-50 border border-gray-300 rounded-3xl px-4 py-2.5 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent transition-all">
             <label htmlFor="image" className="flex-shrink-0 cursor-pointer">
-              <ImageIcon className="text-gray-500 hover:text-indigo-600 transition-colors" size={22} />
+              <ImageIcon
+                className="text-gray-500 hover:text-indigo-600 transition-colors"
+                size={22}
+              />
               <input
                 type="file"
                 id="image"
@@ -248,7 +280,9 @@ const ChatBox = () => {
               className="flex-1 bg-transparent outline-none text-gray-800 placeholder-gray-400"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
+              onKeyDown={(e) =>
+                e.key === "Enter" && !e.shiftKey && sendMessage()
+              }
             />
 
             <button

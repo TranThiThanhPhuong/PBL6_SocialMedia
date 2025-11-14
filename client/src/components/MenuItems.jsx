@@ -4,7 +4,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { menuItemsData } from "../assets/assets";
 import api from "../api/axios";
 import { useAuth } from "@clerk/clerk-react";
-import socket from "../app/socket";
+import socket from "../sockethandler/socket";
 
 const MenuItems = ({ setSidebarOpen }) => {
   const currentUser = useSelector((state) => state.user.value);

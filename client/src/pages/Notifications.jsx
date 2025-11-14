@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import api from "../api/axios";
+import UserAvatar from "../components/dropdownmenu/UserAvatar";
 import { formatPostTime } from "../app/formatDate";
 import {
   Heart,
@@ -12,7 +14,6 @@ import {
   Trash2,
   Reply,
 } from "lucide-react";
-import api from "../api/axios";
 import { useAuth } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 
@@ -99,16 +100,19 @@ const Notifications = () => {
             }`}
           >
             <div className="flex items-start gap-4">
-              <img
-                onClick={() => navigate("/profile/" + noti.sender?._id)}
-                src={noti.sender?.profile_picture || "/default-avatar.png"}
-                alt="avatar"
-                className="w-10 h-10 rounded-full"
-              />
+              <UserAvatar user={noti.sender}>
+                <img
+                  onClick={() => {
+                    navigate(`/profile-user/${slugifyUser(noti.sender)}`);
+                  }}
+                  src={noti.sender?.profile_picture || "/default-avatar.png"}
+                  alt="avatar"
+                  className="w-10 h-10 rounded-full"
+                />
+              </UserAvatar>
               <div>
                 <p className="text-sm font-medium">
-                  <span className="font-bold"></span>{" "}
-                  {noti.content}
+                  <span className="font-bold"></span> {noti.content}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
                   {formatPostTime(noti.createdAt)} trước

@@ -177,14 +177,14 @@ export const getComments = async (req, res) => {
     const { postId } = req.params;
 
     const parents = await Comment.find({ post: postId, parentComment: null })
-      .populate("user", "full_name profile_picture")
+      .populate("user", "full_name profile_picture connections followers following")
       .sort({ createdAt: -1 })
       .lean();
 
     const result = await Promise.all(
       parents.map(async (p) => {
         const replies = await Comment.find({ parentComment: p._id })
-          .populate("user", "full_name profile_picture")
+          .populate("user", "full_name profile_picture connections followers following")
           .sort({ createdAt: 1 })
           .lean();
 

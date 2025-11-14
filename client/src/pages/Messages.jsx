@@ -3,6 +3,8 @@ import { Search, MessageSquare, MoreHorizontal } from "lucide-react";
 import { useNavigate, Routes, Route, useParams } from "react-router-dom";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { formatPostTime } from "../app/formatDate";
+import { slugifyUser } from "../app/slugifyUser";
+import UserAvatar from "../components/dropdownmenu/UserAvatar";
 import api from "../api/axios";
 import toast from "react-hot-toast";
 import ChatBox from "./ChatBox";
@@ -112,7 +114,7 @@ const Messages = () => {
                 return (
                   <div
                     key={msg._id}
-                    onClick={() => navigate(`/messages/${u._id}`)}
+                    onClick={() => navigate(`/messages/${slugifyUser(u)}`, { state: { userId: u._id } })}
                     className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all mb-1 ${
                       isActive
                         ? "bg-indigo-50 border border-indigo-200"
@@ -122,11 +124,13 @@ const Messages = () => {
                     }`}
                   >
                     <div className="relative flex-shrink-0">
+                      <UserAvatar user={u}>
                       <img
                         src={u.profile_picture}
                         alt={u.full_name}
                         className="w-14 h-14 rounded-full object-cover ring-2 ring-gray-100"
                       />
+                      </UserAvatar>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline mb-0.5">

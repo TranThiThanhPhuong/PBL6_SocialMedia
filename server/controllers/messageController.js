@@ -37,41 +37,25 @@ export const sendMessage = async (req, res) => {
       return res.json({ success: false, message: "Thiếu ID người nhận." });
 
     const [sender, receiver] = await Promise.all([
-      User.findById(userId).select("connections following blockedUsers"),
-      User.findById(to_user_id).select("connections followers blockedUsers"),
+      User.findById(userId).select("connections following followers blockedUsers"),
+      User.findById(to_user_id).select("connections following followers blockedUsers"),
     ]);
 
     if (!sender || !receiver)
       return res.json({ success: false, message: "Người dùng không tồn tại." });
 
-    // Kiểm tra block
-    if (
-      sender.blockedUsers?.includes(to_user_id) ||
-      receiver.blockedUsers?.includes(userId)
-    ) {
+    const canMessage =
+      sender.connections.includes(to_user_id) && receiver.connections.includes(userId) // là bạn bè
+      || sender.following.includes(to_user_id) // bạn theo dõi người kia
+      || receiver.following.includes(userId); // người kia theo dõi bạn
+
+    if (!canMessage) {
       return res.json({
         success: false,
-        message: "Không thể nhắn tin vì một trong hai đã chặn nhau.",
+        message: "Chỉ có thể nhắn tin khi đã kết bạn hoặc theo dõi nhau.",
       });
     }
 
-    // Kiểm tra quan hệ bạn bè hoặc follow
-    const isFriend =
-      sender.connections.includes(to_user_id) &&
-      receiver.connections.includes(userId);
-
-    const isFollowing =
-      sender.following.includes(to_user_id) ||
-      receiver.followers.includes(userId);
-
-    if (!isFriend && !isFollowing) {
-      return res.json({
-        success: false,
-        message: "Chỉ có thể nhắn tin khi đã kết bạn hoặc follow nhau.",
-      });
-    }
-
-    // Upload ảnh nếu có
     let message_type = image ? "image" : "text";
     let media_url = "";
 
@@ -100,7 +84,6 @@ export const sendMessage = async (req, res) => {
       media_url,
     });
 
-    // Phản hồi cho người gửi
     res.json({ success: true, message });
 
     // Gửi realtime qua SSE

@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from "react";
+import Tippy from "@tippyjs/react";
+import "tippy.js/dist/tippy.css";
+import api from "../api/axios";
+import toast from "react-hot-toast";
 import { X, Send, Heart } from "lucide-react";
 import { useSelector } from "react-redux";
 import { useAuth } from "@clerk/clerk-react";
-import api from "../api/axios";
-import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
+import { slugifyUser } from "../app/slugifyUser";
+import MiniProfile from "./MiniProfile";
 import { formatPostTime } from "../app/formatDate";
 
 const CommentModal = ({ post, onClose, onCommentAdded }) => {
   const currentUser = useSelector((state) => state.user.value);
   const { getToken } = useAuth();
+  const navigate = useNavigate();
 
   const [comments, setComments] = useState([]);
   const [content, setContent] = useState("");
@@ -239,6 +245,15 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
     }
   };
 
+  const handleUserClick = (user) => {
+    if (!user) return;
+    if (user._id === currentUser._id) {
+      navigate("/profile");
+    } else {
+      navigate(`/profile-user/${slugifyUser(user)}`);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50">
       <div className="bg-white w-full max-w-lg h-[80vh] rounded-2xl shadow-lg flex flex-col">
@@ -262,14 +277,41 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
           )}
           {comments.map((cmt) => (
             <div key={cmt._id} className="flex items-start gap-3">
-              <img
-                src={cmt.user.profile_picture}
-                alt="avatar"
-                className="w-10 h-10 rounded-full shadow"
-              />
+              <Tippy
+                content={<MiniProfile user={cmt.user} />}
+                placement="top"
+                interactive={true}
+                delay={[500, 200]}
+              >
+                <img
+                  src={cmt.user.profile_picture}
+                  alt="avatar"
+                  className="w-10 h-10 rounded-full shadow cursor-pointer hover:opacity-80 transition"
+                  onClick={() => handleUserClick(cmt.user)}
+                />
+              </Tippy>
+
+              <Tippy
+                content={<MiniProfile user={cmt.user} />}
+                placement="top"
+                interactive={true}
+                delay={[500, 200]}
+              ></Tippy>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold">{cmt.user.full_name}</span>
+                  <Tippy
+                    content={<MiniProfile user={cmt.user} />}
+                    placement="top"
+                    interactive={true}
+                    delay={[500, 200]}
+                  >
+                    <span
+                      className="font-semibold cursor-pointer hover:text-blue-500 transition"
+                      onClick={() => handleUserClick(cmt.user)}
+                    >
+                      {cmt.user.full_name}
+                    </span>
+                  </Tippy>
                   <span className="text-gray-500 text-sm">
                     {formatPostTime(cmt.createdAt)}
                   </span>
@@ -312,11 +354,19 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
                 {/* Reply Form */}
                 {replyingTo === cmt._id && (
                   <div className="mt-2 flex items-center gap-2">
-                    <img
-                      src={currentUser.profile_picture}
-                      alt="me"
-                      className="w-8 h-8 rounded-full"
-                    />
+                    <Tippy
+                      content={<MiniProfile user={reply.user} />}
+                      placement="top"
+                      interactive={true}
+                      delay={[500, 200]}
+                    >
+                      <img
+                        src={reply.user.profile_picture}
+                        alt="avatar"
+                        className="w-10 h-10 rounded-full shadow cursor-pointer hover:opacity-80 transition"
+                        onClick={() => handleUserClick(reply.user)}
+                      />
+                    </Tippy>
                     <input
                       type="text"
                       className="flex-1 border rounded-full px-3 py-1 text-sm outline-none"
@@ -369,16 +419,34 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
                   <div className="ml-10 mt-2 space-y-2">
                     {cmt.replies.map((reply) => (
                       <div key={reply._id} className="flex items-start gap-2">
-                        <img
-                          src={reply.user.profile_picture}
-                          alt="avatar"
-                          className="w-8 h-8 rounded-full shadow"
-                        />
+                        <Tippy
+                          content={<MiniProfile user={reply.user} />}
+                          placement="top"
+                          interactive={true}
+                          delay={[500, 200]}
+                        >
+                          <img
+                            src={reply.user.profile_picture}
+                            alt="avatar"
+                            className="w-10 h-10 rounded-full shadow cursor-pointer hover:opacity-80 transition"
+                            onClick={() => handleUserClick(reply.user)}
+                          />
+                        </Tippy>
                         <div>
                           <div className="flex items-center gap-1">
-                            <span className="font-semibold text-sm">
-                              {reply.user.full_name}
-                            </span>
+                            <Tippy
+                              content={<MiniProfile user={reply.user} />}
+                              placement="top"
+                              interactive={true}
+                              delay={[500, 200]}
+                            >
+                              <span
+                                className="font-semibold cursor-pointer hover:text-blue-500 transition"
+                                onClick={() => handleUserClick(reply.user)}
+                              >
+                                {reply.user.full_name}
+                              </span>
+                            </Tippy>
                             <span className="text-gray-400 text-xs">
                               {formatPostTime(reply.createdAt)}
                             </span>
