@@ -23,6 +23,7 @@ const userSchema = new mongoose.Schema(
     following: [{ type: String, ref: "User" }],
     connections: [{ type: String, ref: "User" }],
     blockedUsers: [{ type: String, ref: "User" }],
+    pendingMessages: [{ type: String, ref: "User" }],
     isAdmin: { type: Boolean, default: false },
     status: { type: String, enum: ['active', 'locked'], default: 'active' },
   },

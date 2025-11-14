@@ -1,37 +1,46 @@
 import { Server } from "socket.io";
 
 let io;
-const onlineUsers = new Map();
+const onlineUsers = new Map();      // userId -> socketId
+const lastSeen = new Map();         // userId -> timestamp
 
 export const initSocket = (server) => {
   io = new Server(server, {
-    cors: {
-      origin: process.env.FRONTEND_URL || "*",
-      methods: ["GET", "POST"],
-    },
+    cors: { origin: "*", methods: ["GET", "POST"] }
   });
 
   io.on("connection", (socket) => {
-    console.log(`🟢 Connected: ${socket.id}`);
 
+    // user login + register socket
     socket.on("register_user", (userId) => {
-  onlineUsers.set(userId, { socketId: socket.id, lastSeen: new Date() });
-  socket.userId = userId;
-  io.emit("user_online", { userId }); // gửi object, dễ check
-  io.emit("get_online_users", Array.from(onlineUsers.keys()));
-});
+      socket.userId = userId;
 
-socket.on("disconnect", () => {
-  if (socket.userId) {
-    const lastSeen = new Date();
-    onlineUsers.set(socket.userId, { socketId: null, lastSeen });
-    io.emit("user_offline", { userId: socket.userId, lastSeen });
-  }
-});
+      onlineUsers.set(userId, socket.id);
+      lastSeen.delete(userId);
+
+      io.emit("user_online", userId);
+    });
+
+    // user disconnect
+    socket.on("disconnect", () => {
+      const userId = socket.userId;
+      if (!userId) return;
+
+      onlineUsers.delete(userId);
+      lastSeen.set(userId, Date.now());
+
+      io.emit("user_offline", {
+        userId,
+        lastSeen: lastSeen.get(userId),
+      });
+    });
   });
 
   return io;
 };
+
+export const getLastSeen = (userId) => lastSeen.get(userId) || null;
+export const isOnline = (userId) => onlineUsers.has(userId);
 
 export const getIO = () => {
   if (!io) throw new Error("Socket.io chưa được khởi tạo!");

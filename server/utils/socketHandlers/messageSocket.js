@@ -1,4 +1,4 @@
-import { getIO, getOnlineUsers } from "./initSocket.js";
+//import { getIO, getOnlineUsers } from "../socket.js";
 
 const userLastSeen = new Map(); // userId -> timestamp
 

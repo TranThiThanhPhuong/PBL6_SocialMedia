@@ -141,7 +141,7 @@ export const handleReport = async (userId, getToken, dispatch) => {
   const token = await getToken();
   try {
     const { data } = await api.post(
-      "/api/report/user",
+      "/api/user/report-user",
       { userId },
       { headers: { Authorization: `Bearer ${token}` } }
     );

@@ -1,5 +1,6 @@
 import React from "react";
 import { MessageSquare, UserX } from "lucide-react";
+import { slugifyUser } from "../../app/slugifyUser";
 
 const ConnectionActions = ({ tab, user, handlers, currentUser, navigate }) => {
   const isFollowing = currentUser?.following?.includes(user._id);
@@ -48,7 +49,7 @@ const ConnectionActions = ({ tab, user, handlers, currentUser, navigate }) => {
             Bỏ theo dõi
           </button>
           <button
-            onClick={() => navigate(`/messages/${user._id}`)}
+            onClick={() => navigate(`/messages/${slugifyUser(user)}`, { state: { userId: user._id } })}
             className="w-full py-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-sm font-medium flex items-center justify-center gap-2"
           >
             <MessageSquare className="w-4 h-4" /> Nhắn tin
@@ -84,7 +85,7 @@ const ConnectionActions = ({ tab, user, handlers, currentUser, navigate }) => {
       return (
         <>
           <button
-            onClick={() => navigate(`/messages/${user._id}`)}
+            onClick={() => navigate(`/messages/${slugifyUser(user)}`, { state: { userId: user._id } })}
             className="w-full py-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-sm font-medium flex items-center justify-center gap-2"
           >
             <MessageSquare className="w-4 h-4" /> Nhắn tin

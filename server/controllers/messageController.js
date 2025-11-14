@@ -2,6 +2,7 @@ import fs from "fs";
 import imagekit from "../configs/imageKit.js";
 import User from "../models/User.js";
 import Message from "../models/Message.js";
+import { getIO, getOnlineUsers, isOnline , getLastSeen } from "../utils/socket.js";
 
 const connections = {}; // SSE connections (server → client)
 
@@ -97,6 +98,12 @@ export const sendMessage = async (req, res) => {
         `data: ${JSON.stringify(populatedMsg)}\n\n`
       );
     }
+
+    const io = getIO();
+    const receiverSocketId = getOnlineUsers().get(to_user_id);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("receive_message", populatedMsg);
+    }
   } catch (error) {
     console.error("sendMessage error:", error);
     res.json({ success: false, message: error.message });
@@ -117,7 +124,8 @@ export const getChatMessages = async (req, res) => {
         { from_user_id: userId, to_user_id },
         { from_user_id: to_user_id, to_user_id: userId },
       ],
-    }).sort({ createdAt: -1 });
+      deletedBy: { $ne: userId },
+    }).sort({ createdAt: 1 });
 
     // Đánh dấu tin nhắn đã đọc
     await Message.updateMany(
@@ -145,6 +153,16 @@ export const getUserRecentMessages = async (req, res) => {
     }
 }
 
+export const getSocket = async (req, res) => {
+  const { userId } = req.params;
+
+  return res.json({
+    success: true,
+    online: isOnline(userId),
+    lastSeen: getLastSeen(userId),
+  });
+};
+
 export const markSeen = async (req, res) => {
   try {
     const { userId } = req.auth();
@@ -159,5 +177,39 @@ export const markSeen = async (req, res) => {
   } catch (error) {
     console.error("markSeen error:", error);
     res.json({ success: false, message: error.message });
+  }
+};
+
+export const deleteChat = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    const { userId: otherId } = req.body;
+
+    await Message.updateMany(
+      { $or: [
+          { from_user_id: userId, to_user_id: otherId },
+          { from_user_id: otherId, to_user_id: userId }
+        ] },
+      { $addToSet: { deletedBy: userId } } // thêm trường deletedBy nếu chưa có
+    );
+
+    res.json({ success: true, message: "Đã xóa chat bên bạn." });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const moveToPending = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    const { userId: targetId } = req.body;
+
+    await User.findByIdAndUpdate(userId, {
+      $addToSet: { pendingMessages: targetId }
+    });
+
+    res.json({ success: true, message: "Đã đưa vào tin nhắn chờ." });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };

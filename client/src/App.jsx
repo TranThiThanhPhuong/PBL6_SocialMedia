@@ -17,7 +17,6 @@ import LockedAccount from "./pages/LockedAccount";
 
 import { fetchUser } from "./features/user/userSlice";
 import { fetchConnections } from "./features/connections/connectionsSlice";
-import { addMessage } from "./features/messages/messagesSlice";
 import socket from "./sockethandler/socket";
 
 const App = () => {
@@ -42,83 +41,16 @@ const App = () => {
     pathnameRef.current = pathname; // Mỗi lần URL đổi (/messages, /profile, /discover...), thì pathnameRef.current được cập nhật theo.
   }, [pathname]);
 
-  // useEffect(()=>{
-  //   if(user){
-  //     const eventSource = new EventSource(import.meta.env.VITE_BASEURL + '/api/message/' + user.id);
+  const currentUserId = user?._id;
+  useEffect(() => {
+    if (!currentUserId) return;
 
-  //     eventSource.onmessage = (event)=> {
-  //       const message = JSON.parse(event.data);
+    socket.emit("register_user", currentUserId);
 
-  //       if(pathnameRef.current === ('/message/' + message.from_user_id._id)){
-  //         dispatch(addMessage(message));
-  //       // Nếu bạn đang ở đúng chat box của người gửi tin nhắn (/message/:id) → thì thêm tin nhắn vào Redux (hiện ngay trong UI).
-  //       }
-  //       else {
-  //         toast.custom((t)=>(
-  //           <Notifications t={t} message={message}/>
-  //         ), {position: "bottom-right"});
-  //       // Nếu bạn đang ở chỗ khác → thì show thông báo (toast).
-  //       }
-  //     }
-  //     return ()=> {
-  //       eventSource.close();
-  //     }
-  //   }
-  // }, [user, dispatch]);
-
-  // Kết nối socket.io
-  // useEffect(() => {
-  //   if (!user) return;
-
-  //   socket.on("register_user", (userId, callback) => {
-  //     onlineUsers.set(userId, socket.id);
-  //     console.log("✅ Registered:", userId);
-  //     if (callback) callback({ success: true });
-  //   });
-
-  //   const handleMessage = (message) => {
-  //     const currentPath = pathnameRef.current;
-  //     if (currentPath === `/messages/${message.from_user_id}`) {
-  //       dispatch(addMessage(message));
-  //     } else {
-  //       toast.custom(
-  //         () => (
-  //           <div className="bg-white shadow-md rounded-lg p-3 flex gap-3 items-center">
-  //             <img
-  //               src={message.from_user_id?.profile_picture}
-  //               alt=""
-  //               className="w-10 h-10 rounded-full"
-  //             />
-  //             <div>
-  //               <p className="font-semibold text-gray-800">
-  //                 {message.from_user_id?.full_name}
-  //               </p>
-  //               <p className="text-gray-600 text-sm">vừa nhắn tin cho bạn 💬</p>
-  //             </div>
-  //           </div>
-  //         ),
-  //         { position: "bottom-right" }
-  //       );
-  //     }
-  //   };
-
-  //   socket.on("receive_message", handleMessage);
-
-  //   return () => {
-  //     socket.off("receive_message", handleMessage);
-  //     socket.disconnect();
-  //   };
-  // }, [user]);
-
-//   useEffect(() => {
-//   const sse = new EventSource(`${SERVER_URL}/api/message/${currentUser._id}`);
-//   sse.onmessage = (e) => {
-//     const msg = JSON.parse(e.data);
-//     dispatch(addMessage(msg));
-//   };
-//   return () => sse.close();
-// }, [currentUser]);
-
+    return () => {
+      socket.disconnect();
+    };
+  }, [currentUserId]);
 
   return (
     <>

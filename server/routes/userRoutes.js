@@ -3,7 +3,7 @@ import { protect } from "../middlewares/auth.js" // middleware de kiem tra user 
 import { upload } from "../configs/multer.js" // middleware de xu ly upload file
 import { getUserRecentMessages } from "../controllers/messageController.js"
 import { followUser, unfollowUser, sendConnectionRequest, removeConnectionRequest, acceptConnectionRequest, rejectConnectionRequest, blockUser, unblockUser, getUserConnections} from "../controllers/connectionController.js"
-import { discoverUser, getUserData, updateUserData, getUserProfiles, getAllUsers, lockUser, unlockUser, loginAdmin} from "../controllers/userController.js"
+import { discoverUser, getUserData, updateUserData, getUserProfiles, reportUser, getAllUsers, lockUser, unlockUser, loginAdmin} from "../controllers/userController.js"
 import { adminAuth } from '../middlewares/adminAuth.js';
 
 
@@ -22,6 +22,7 @@ userRouter.post('/accept', protect, acceptConnectionRequest)
 userRouter.get('/connections', protect, getUserConnections)
 userRouter.post('/remove-friend', protect, removeConnectionRequest);
 userRouter.post('/reject', protect, rejectConnectionRequest);
+userRouter.post("/report-user", protect, reportUser);
 userRouter.get('/all',adminAuth, getAllUsers);// dùng middleware của admin để get all users
 userRouter.patch('/:userId/lock',adminAuth, lockUser);     
 userRouter.patch('/:userId/unlock', adminAuth, unlockUser);

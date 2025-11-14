@@ -5,6 +5,7 @@ import fs from "fs";
 import imagekit from "../configs/imageKit.js";
 import { inngest } from "../inngest/index.js";
 import jwt from "jsonwebtoken";
+import ReportUser from "../models/ReportUser.js";
 
 const getIdFromReq = (req) => {
   // Hỗ trợ cả :id (params) và { id } (body)
@@ -181,6 +182,30 @@ export const discoverUser = async (req, res) => {
   } catch (error) {
     console.error("❌ discoverUser error:", error);
     res.status(500).json({ success: false, message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
+export const reportUser = async (req, res) => {
+  try {
+    const { userId: reporterId } = req.auth();
+    const reportedId = getIdFromReq(req);
+
+    if (!reportedId)
+      return res.json({ success: false, message: "Thiếu ID người báo cáo." });
+
+    if (reportedId === reporterId)
+      return res.json({ success: false, message: "Không thể tự báo cáo chính mình." });
+
+    await ReportUser.create({
+      reporter: reporterId,
+      reported: reportedId,
+      reason: req.body.reason || "Không cung cấp lý do",
+    });
+
+    res.json({ success: true, message: "Đã gửi báo cáo đến admin." });
+
+  } catch (error) {
+    res.json({ success: false, message: error.message });
   }
 };
 

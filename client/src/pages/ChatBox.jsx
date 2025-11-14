@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
+import api from "../api/axios";
+import toast from "react-hot-toast";
 import {
   ImageIcon,
   SendHorizontal,
@@ -10,13 +12,11 @@ import {
 import { useSelector, useDispatch } from "react-redux";
 import { useAuth } from "@clerk/clerk-react";
 import { useLocation } from "react-router-dom";
-import api from "../api/axios";
 import {
-  addMessage,
   fetchMessages,
   resetMessages,
 } from "../features/messages/messagesSlice";
-import toast from "react-hot-toast";
+import ChatOptionsMenu from "../components/dropdownmenu/ChatOptionsMenu";
 import socket from "../sockethandler/socket";
 
 const ChatBox = () => {
@@ -26,13 +26,19 @@ const ChatBox = () => {
   const { getToken } = useAuth();
   const dispatch = useDispatch();
 
-  const { messages } = useSelector((state) => state.messages);
+  const currentUser = useSelector((state) => state.user.value);
+  const currentUserId = currentUser?._id;
+
+  const reduxMessages = useSelector((state) => state.messages.messages);
+  const [messages, setMessages] = useState([]);
+  const [showMenu, setShowMenu] = useState(false);
+
   const connections = useSelector((state) => state.connections.connections);
   const following = useSelector((state) => state.connections.following);
   const followers = useSelector((state) => state.connections.followers);
 
   const [isOnline, setIsOnline] = useState(false);
-const [lastSeen, setLastSeen] = useState(null);
+  const [lastSeen, setLastSeen] = useState(null);
 
   const [text, setText] = useState("");
   const [image, setImage] = useState(null);
@@ -64,6 +70,10 @@ const [lastSeen, setLastSeen] = useState(null);
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    setMessages(reduxMessages);
+  }, [reduxMessages]);
+
   const sendMessage = async () => {
     try {
       if (!text && !image) return;
@@ -78,20 +88,87 @@ const [lastSeen, setLastSeen] = useState(null);
       });
 
       if (data.success) {
-        dispatch(addMessage(data.message));
+        setMessages((prev) => [...prev, data.message]);
         setText("");
         setImage(null);
-        socket.emit("send_message", {
-          from_user_id: data.message.from_user_id,
-          to_user_id: data.message.to_user_id,
-          text: data.message.text,
-          media_url: data.message.media_url,
-          message_type: data.message.message_type,
-        });
       } else toast.error(data.message);
     } catch (error) {
       toast.error(error.message);
     }
+  };
+
+  useEffect(() => {
+    if (!userId) return;
+
+    (async () => {
+      const token = await getToken();
+
+      const res = await api.get(`/api/message/last-seen/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setIsOnline(res.data.online);
+      setLastSeen(res.data.lastSeen);
+    })();
+  }, [userId, getToken]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    socket.on("user_online", (id) => {
+      if (id === userId) {
+        setIsOnline(true);
+        setLastSeen(null);
+      }
+    });
+
+    socket.on("user_offline", (data) => {
+      if (data.userId === userId) {
+        setIsOnline(false);
+        setLastSeen(data.lastSeen);
+      }
+    });
+
+    return () => {
+      socket.off("user_online");
+      socket.off("user_offline");
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    socket.emit("register_user", currentUserId);
+
+    return () => {
+      socket.emit("user_disconnect", currentUserId);
+    };
+  }, [currentUserId]);
+
+  useEffect(() => {
+    socket.on("receive_message", (msg) => {
+      if (msg.from_user_id._id === userId || msg.to_user_id === currentUserId) {
+        setMessages((prev) => [...prev, msg]);
+      }
+    });
+
+    return () => socket.off("receive_message");
+  }, [userId, currentUserId]);
+
+  const formatLastSeen = (timestamp) => {
+    if (!timestamp) return "";
+
+    const diff = Date.now() - timestamp;
+    const minutes = Math.floor(diff / 60000);
+
+    if (minutes < 1) return "Vừa xong";
+    if (minutes < 60) return `${minutes} phút trước`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} giờ trước`;
+
+    const days = Math.floor(hours / 24);
+    return `${days} ngày trước`;
   };
 
   if (!user)
@@ -112,11 +189,23 @@ const [lastSeen, setLastSeen] = useState(null);
               alt=""
               className="w-11 h-11 rounded-full ring-2 ring-indigo-100"
             />
-            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+
+            <div
+              className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white
+      ${isOnline ? "bg-green-500" : "bg-gray-400"}
+    `}
+            ></div>
           </div>
           <div>
             <p className="font-semibold text-gray-900">{user.full_name}</p>
-            <p className="text-xs text-gray-500">@{user.username}</p>
+
+            {isOnline ? (
+              <p className="text-sm text-green-500">Đang hoạt động</p>
+            ) : (
+              <p className="text-xs text-gray-500">
+                Hoạt động {formatLastSeen(lastSeen)}
+              </p>
+            )}
           </div>
         </div>
 
@@ -138,9 +227,19 @@ const [lastSeen, setLastSeen] = useState(null);
           <button
             className="p-2.5 rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
             title="Tùy chọn"
+            onClick={() => setShowMenu((prev) => !prev)}
           >
             <MoreVertical size={20} />
           </button>
+
+          {showMenu && (
+            <ChatOptionsMenu
+              userId={user._id}
+              onClose={() => setShowMenu(false)}
+              getToken={getToken}
+              dispatch={dispatch}
+            />
+          )}
         </div>
       </div>
 
@@ -150,13 +249,25 @@ const [lastSeen, setLastSeen] = useState(null);
           {messages
             .toSorted((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
             .map((msg, i) => {
-              const isReceived = msg.to_user_id !== user._id;
-              const showAvatar =
-                i === 0 || messages[i - 1]?.to_user_id !== msg.to_user_id;
+              const isReceived = msg.from_user_id !== currentUserId;
+
+              const prevMsg = i > 0 ? messages[i - 1] : null;
+
+              const isDifferentSender =
+                !prevMsg || prevMsg.from_user_id !== msg.from_user_id;
+
+              const isTimeGapBig =
+                !prevMsg ||
+                (new Date(msg.createdAt) - new Date(prevMsg.createdAt)) /
+                  (1000 * 60) >
+                  10;
+
+              const showAvatar = isDifferentSender || isTimeGapBig;
 
               const currentTime = new Date(msg.createdAt);
               const prevTime =
                 i > 0 ? new Date(messages[i - 1].createdAt) : null;
+
               const showTimeSeparator =
                 !prevTime || (currentTime - prevTime) / (1000 * 60) > 10;
 
