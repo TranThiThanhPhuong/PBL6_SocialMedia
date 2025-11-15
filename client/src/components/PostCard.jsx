@@ -144,31 +144,6 @@ const PostCard = ({ post, onPostDeleted, onPostUpdated }) => {
     }
   };
 
-  // const MiniProfile = ({ user }) => {
-  //   if (!user) return null;
-  //   return (
-  //     <div className="bg-white shadow-lg rounded-xl p-3 w-56 text-center">
-  //       <img
-  //         src={user.profile_picture}
-  //         alt={user.full_name}
-  //         className="w-16 h-16 rounded-full mx-auto mb-2 border"
-  //       />
-  //       <p className="font-semibold text-gray-800">{user.full_name}</p>
-  //       <p className="text-gray-500 text-sm">@{user.username}</p>
-  //       <div className="mt-2 text-xs text-gray-600">
-  //         <span className="font-medium">{user.followers?.length || 0}</span>{" "}
-  //         người theo dõi
-  //       </div>
-  //       <button
-  //         onClick={() => handleUserClick(user)}
-  //         className="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-full text-sm transition"
-  //       >
-  //         Xem trang cá nhân
-  //       </button>
-  //     </div>
-  //   );
-  // };
-
   return (
     <div className="bg-white rounded-xl shadow p-4 space-y-4 w-full max-w-2xl relative">
       {/* User Info */}

@@ -24,7 +24,7 @@ const ChatOptionsMenu = ({ userId, onClose, getToken, dispatch }) => {
       const token = await getToken();
       const { data } = await api.post(
         "/api/message/delete-chat",
-        { to_user_id: userId },
+        { id: userId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -46,7 +46,7 @@ const ChatOptionsMenu = ({ userId, onClose, getToken, dispatch }) => {
 
       const { data } = await api.post(
         "/api/user/report-user",
-        { userId },
+        { id: userId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

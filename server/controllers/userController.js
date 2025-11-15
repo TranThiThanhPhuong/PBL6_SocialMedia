@@ -188,7 +188,7 @@ export const discoverUser = async (req, res) => {
 export const reportUser = async (req, res) => {
   try {
     const { userId: reporterId } = req.auth();
-    const reportedId = getIdFromReq(req);
+    const reportedId = getIdFromReq(req); // hỗ trợ body.id hoặc params.id
 
     if (!reportedId)
       return res.json({ success: false, message: "Thiếu ID người báo cáo." });
@@ -203,8 +203,8 @@ export const reportUser = async (req, res) => {
     });
 
     res.json({ success: true, message: "Đã gửi báo cáo đến admin." });
-
   } catch (error) {
+    console.error("reportUser error:", error);
     res.json({ success: false, message: error.message });
   }
 };
