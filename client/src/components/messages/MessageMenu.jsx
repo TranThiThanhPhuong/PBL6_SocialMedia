@@ -1,43 +1,25 @@
 import React from "react";
-import { Inbox, Users, Bookmark, MessageSquare } from "lucide-react";
 
-const MessageMenu = ({ onSelect, currentChatUser }) => {
+const MessageMenu = ({ onSelect }) => {
   return (
-    <div className="absolute top-12 right-0 w-56 bg-white shadow-xl rounded-lg border border-gray-200 z-50">
-      {/* 🔹 Quay lại tin nhắn hiện tại */}
+    <div className="absolute right-5 top-16 bg-white shadow-xl rounded-xl border w-48 z-50">
       <button
-        onClick={() => onSelect("current")}
-        disabled={!currentChatUser}
-        className={`flex items-center gap-2 px-4 py-2 w-full text-left
-          ${
-            currentChatUser
-              ? "hover:bg-gray-100 cursor-pointer"
-              : "opacity-40 cursor-not-allowed"
-          }
-        `}
+        onClick={() => onSelect("private")}
+        className="w-full text-left px-4 py-3 hover:bg-gray-100"
       >
-        <MessageSquare size={18} /> Tin nhắn hiện tại
+        ⭐ Tin nhắn hiện tại
       </button>
-
+      <button
+        onClick={() => onSelect("group")}
+        className="w-full text-left px-4 py-3 hover:bg-gray-100"
+      >
+        👥 Tin nhắn nhóm
+      </button>
       <button
         onClick={() => onSelect("pending")}
-        className="flex items-center gap-2 px-4 py-2 w-full hover:bg-gray-100 text-left"
+        className="w-full text-left px-4 py-3 hover:bg-gray-100"
       >
-        <Inbox size={18} /> Tin nhắn chờ
-      </button>
-
-      <button
-        onClick={() => onSelect("groups")}
-        className="flex items-center gap-2 px-4 py-2 w-full hover:bg-gray-100 text-left"
-      >
-        <Users size={18} /> Tin nhắn nhóm
-      </button>
-
-      <button
-        onClick={() => onSelect("saved")}
-        className="flex items-center gap-2 px-4 py-2 w-full hover:bg-gray-100 text-left"
-      >
-        <Bookmark size={18} /> Đã lưu
+        ⏳ Tin nhắn chờ
       </button>
     </div>
   );

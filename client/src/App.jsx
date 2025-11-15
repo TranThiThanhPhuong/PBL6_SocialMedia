@@ -61,7 +61,6 @@ const App = () => {
         <Route path="/" element={!user ? <Login /> : <Layout />}>
           <Route index element={<Feed />} />
           <Route path="messages/*" element={<Messages />} />
-          {/* <Route path="messages-user/:slug" element={<Messages />} />{" "} */}
           <Route path="connections" element={<Connections />} />
           <Route path="discover" element={<Discover />} />
           <Route path="profile" element={<Profile />} />

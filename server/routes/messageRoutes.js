@@ -11,7 +11,5 @@ messageRouter.post('/get', protect, getChatMessages); // lay toan bo tin nhan tr
 messageRouter.post('/seen', protect, markSeen);
 messageRouter.get('/last-seen/:userId', protect , getSocket);
 messageRouter.post("/delete-chat", protect, deleteChat);
-messageRouter.post("/move-to-pending", protect, moveToPending);
-messageRouter.get("/pending", protect, getPendingMessages);
 
 export default messageRouter;
