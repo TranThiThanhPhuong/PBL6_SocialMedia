@@ -24,24 +24,21 @@ import analyticsRoutes from "./routes/analyticsRoutes.js";
 
 const app = express();
 const server = http.createServer(app);
-
 initSocket(server);
 
-// Logging
 if (process.env.NODE_ENV !== "production") app.use(morgan("dev"));
 
-// ===== Security Middlewares =====
-app.disable("x-powered-by"); // ẩn thông tin Express
-app.use(helmet()); // thêm HTTP security headers
-app.use(hpp()); // chống HTTP parameter pollution
-app.use(express.json({ limit: "10kb" })); // giới hạn body tránh DoS
+app.disable("x-powered-by");
+app.use(helmet()); 
+app.use(hpp()); 
+app.use(express.json({ limit: "10kb" }));
 
 app.use((req, res, next) => {
   const clean = (obj) => {
     for (const key in obj) {
       if (typeof obj[key] === "object" && obj[key] !== null) clean(obj[key]);
       else if (typeof obj[key] === "string") obj[key] = xss(obj[key]);
-      if (key.startsWith("$")) delete obj[key]; // chống NoSQL injection
+      if (key.startsWith("$")) delete obj[key]; 
     }
   };
   clean(req.body);
@@ -62,19 +59,14 @@ app.use(
   })
 );
 
-// Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
   message: "Too many requests from this IP, please try again later.",
 });
 app.use("/api", limiter);
-// ===== End Security Middlewares =====
 
-// Database connection
 await connectDB();
-
-// Clerk middleware
 app.use(clerkMiddleware());
 
 // API routes
@@ -89,7 +81,6 @@ app.use("/api/report", reportRouter);
 app.use("/api/inngest", serve({ client: inngest, functions }));
 app.use("/api/analytics", analyticsRoutes);
 
-// Error handler (đặt cuối)
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
