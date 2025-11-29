@@ -14,7 +14,6 @@ const MenuItems = ({ setSidebarOpen }) => {
 
   const [hasUnread, setHasUnread] = useState(false);
 
-  // 🔌 Kết nối socket khi user đăng nhập
   useEffect(() => {
     if (!userId) return;
 
@@ -28,7 +27,6 @@ const MenuItems = ({ setSidebarOpen }) => {
     return () => socket.off("new_notification");
   }, [userId]);
 
-  // 🔔 Kiểm tra xem có thông báo chưa đọc không
   useEffect(() => {
     const fetchUnread = async () => {
       try {
@@ -47,7 +45,6 @@ const MenuItems = ({ setSidebarOpen }) => {
     fetchUnread();
   }, [getToken]);
 
-  // 🔕 Vào trang /notifications thì đánh dấu đã đọc
   useEffect(() => {
     const markAllAsRead = async () => {
       if (location.pathname === "/notifications") {
@@ -83,11 +80,13 @@ const MenuItems = ({ setSidebarOpen }) => {
             }`
           }
         >
-          <Icon className="w-5 h-5" />
-          {label}
-          {to === "/notifications" && hasUnread && (
-            <span className="absolute top-2 right-3 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></span>
-          )}
+          <div className="relative flex items-center justify-center">
+            <Icon className="w-5 h-5" /> 
+            {to === "/notifications" && hasUnread && (
+              <span className="absolute top-0 right-0 block w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white transform translate-x-1/4 -translate-y-1/4"></span>
+            )}
+          </div>
+          <span>{label}</span>
         </NavLink>
       ))}
     </div>

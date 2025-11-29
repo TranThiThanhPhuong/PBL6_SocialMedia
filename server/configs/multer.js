@@ -1,26 +1,8 @@
 import multer from "multer";
-import path from "path";
 
-// Kiểm tra loại file hợp lệ
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
-  if (!allowedTypes.includes(file.mimetype)) {
-    return cb(new Error("❌ Invalid file type. Only JPG, PNG, WEBP are allowed."));
-  }
-  cb(null, true);
-};
+const storage = multer.diskStorage({});
 
-// Giới hạn kích thước ảnh (tối đa 2MB)
-const limits = { fileSize: 2 * 1024 * 1024 }; // 2 MB
-
-// Không lưu vào ổ đĩa server → giảm nguy cơ malware
-const storage = multer.memoryStorage();
-
-export const upload = multer({
-  storage,
-  fileFilter,
-  limits,
-});
+export const upload = multer({storage});
 
 // File multer.js này dùng để cấu hình và xuất middleware Multer cho việc upload file trong Node.js/Express.
 // Nó nhận file từ client, dùng để xử lý multipart/form-data (form có chứa file upload).

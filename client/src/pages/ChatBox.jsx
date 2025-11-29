@@ -16,7 +16,6 @@ import {
   fetchMessages,
   resetMessages,
 } from "../features/messages/messagesSlice";
-import UserAvatar from "../components/dropdownmenu/UserAvatar";
 import ChatOptionsMenu from "../components/dropdownmenu/ChatOptionsMenu";
 import socket from "../sockethandler/socket";
 
@@ -185,17 +184,16 @@ const ChatBox = () => {
       <div className="flex items-center justify-between gap-3 p-4 bg-white border-b border-gray-200 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <UserAvatar user={user}>
             <img
               src={user.profile_picture}
               alt=""
               className="w-11 h-11 rounded-full ring-2 ring-indigo-100"
             />
-            </UserAvatar>
+
             <div
               className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white
-                ${isOnline ? "bg-green-500" : "bg-gray-400"}
-              `}
+      ${isOnline ? "bg-green-500" : "bg-gray-400"}
+    `}
             ></div>
           </div>
           <div>

@@ -4,11 +4,6 @@ import { useNavigate, Routes, Route, useParams } from "react-router-dom";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { formatPostTime } from "../app/formatDate";
 import { slugifyUser } from "../app/slugifyUser";
-import { useLocation } from "react-router-dom";
-import MessageMenu from "../components/messages/MessageMenu";
-import MessagesPrivate from "../components/messages/MessagesPrivate";
-import MessagesGroup from "../components/messages/MessagesGroup";
-import MessagesPending from "../components/messages//MessagesPending";
 import UserAvatar from "../components/dropdownmenu/UserAvatar";
 import api from "../api/axios";
 import toast from "react-hot-toast";
@@ -21,9 +16,6 @@ const Messages = () => {
   const [messages, setMessages] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-
-  const [showMenu, setShowMenu] = useState(false);
-  const location = useLocation();
 
   const fetchRecentMessages = async () => {
     if (!user) return;
@@ -42,7 +34,7 @@ const Messages = () => {
             !acc[otherUser._id] ||
             new Date(m.createdAt) > new Date(acc[otherUser._id].createdAt)
           ) {
-            acc[otherUser._id] = { ...m, otherUser };
+            acc[otherUser._id] = { ...m, otherUser }; 
           }
           return acc;
         }, {});
@@ -70,43 +62,17 @@ const Messages = () => {
     );
   });
 
-  const currentTab = location.pathname.includes("group")
-    ? "group"
-    : location.pathname.includes("pending")
-    ? "pending"
-    : "private";
-
   return (
     <div className="flex w-full h-screen bg-gray-100">
       {/* Danh sách bên trái - Improved */}
       <div className="w-full md:w-96 flex flex-col bg-white border-r border-gray-200 shadow-sm">
-        <div className="flex justify-between items-center p-5 border-b border-gray-200 relative">
-          <div>
-            {currentTab === "private" && <MessagesPrivate />}
-            {currentTab === "group" && <MessagesGroup />}
-            {currentTab === "pending" && <MessagesPending />}
-          </div>
-
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="p-2 rounded-full hover:bg-gray-100"
-          >
+        <div className="flex justify-between items-center p-5 border-b border-gray-200">
+          <h1 className="text-2xl font-bold text-gray-900">Tin nhắn</h1>
+          <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
             <MoreHorizontal size={20} className="text-gray-600" />
           </button>
-
-          {showMenu && (
-            <MessageMenu
-              onSelect={(tab) => {
-                setShowMenu(false);
-                navigate(`/messages/${tab}`);
-              }}
-            />
-          )}
         </div>
-        <Routes>
-          <Route path="messages/group" element={<MessagesGroup />} />
-          <Route path="pending" element={<MessagesPending />} />
-        </Routes>
+
         {/* Tìm kiếm - Improved */}
         <div className="p-4">
           <div className="relative">
@@ -148,11 +114,7 @@ const Messages = () => {
                 return (
                   <div
                     key={msg._id}
-                    onClick={() =>
-                      navigate(`/messages/${slugifyUser(u)}`, {
-                        state: { userId: u._id },
-                      })
-                    }
+                    onClick={() => navigate(`/messages/${slugifyUser(u)}`, { state: { userId: u._id } })}
                     className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all mb-1 ${
                       isActive
                         ? "bg-indigo-50 border border-indigo-200"
@@ -163,11 +125,11 @@ const Messages = () => {
                   >
                     <div className="relative flex-shrink-0">
                       <UserAvatar user={u}>
-                        <img
-                          src={u.profile_picture}
-                          alt={u.full_name}
-                          className="w-14 h-14 rounded-full object-cover ring-2 ring-gray-100"
-                        />
+                      <img
+                        src={u.profile_picture}
+                        alt={u.full_name}
+                        className="w-14 h-14 rounded-full object-cover ring-2 ring-gray-100"
+                      />
                       </UserAvatar>
                     </div>
                     <div className="flex-1 min-w-0">

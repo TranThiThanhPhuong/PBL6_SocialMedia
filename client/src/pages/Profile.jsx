@@ -116,6 +116,7 @@ const Profile = () => {
                       post={post}
                       onPostDeleted={handlePostDeleted}
                       onPostUpdated={handlePostUpdated}
+                      isProfileView={true}
                     />
                   ))
               ) : (

@@ -7,11 +7,14 @@ import Loading from "../components/Loading";
 import StoriesBar from "../components/StoriesBar";
 import PostCard from "../components/PostCard";
 import RecentMessages from "../components/RecentMessages";
+import MiniChatBox from "../components/MiniChatBox";
 
 const Feed = () => {
   const [feeds, setFeeds] = useState([]);
   const [loading, setLoading] = useState(true);
   const { getToken } = useAuth();
+
+  const [activeChatUser, setActiveChatUser] = useState(null);
 
   const fetchFeeds = async () => {
     try {
@@ -36,9 +39,15 @@ const Feed = () => {
   };
 
   const handlePostUpdated = (updatedPost) => {
-    setFeeds((prev) =>
-      prev.map((p) => (p._id === updatedPost._id ? updatedPost : p))
-    );
+    const postIndex = feeds.findIndex((p) => p._id === updatedPost._id);
+
+    if (postIndex !== -1) {
+      setFeeds((prev) =>
+        prev.map((p) => (p._id === updatedPost._id ? updatedPost : p))
+      );
+    } else {
+      setFeeds((prev) => [updatedPost, ...prev]);
+    }
   };
 
   useEffect(() => {
@@ -81,8 +90,14 @@ const Feed = () => {
           </p>
         </div>
 
-        <RecentMessages />
+        <RecentMessages onUserSelect={(user) => setActiveChatUser(user)} />
       </div>
+      {activeChatUser && (
+        <MiniChatBox 
+            targetUser={activeChatUser} 
+            onClose={() => setActiveChatUser(null)} 
+        />
+      )}
     </div>
   );
 };

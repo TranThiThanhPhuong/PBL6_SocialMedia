@@ -129,8 +129,15 @@ export const getUserProfiles = async (req, res) => {
       });
     }
 
-    const posts = await Post.find({ user: profile._id })
+    const posts = await Post.find({ user: profile._id, deleted: { $ne: true } })
       .populate("user", "full_name username profile_picture")
+      .populate({
+          path: 'shared_from',
+          populate: { 
+              path: 'user',
+              select: 'full_name username profile_picture'
+          }
+      })
       .sort({ createdAt: -1 });
 
     res.json({ success: true, profile, posts });
@@ -140,45 +147,61 @@ export const getUserProfiles = async (req, res) => {
   }
 };
 
+const escapeRegex = (string) => {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+};
+
 export const discoverUser = async (req, res) => {
   try {
     const { userId } = req.auth();
     const { input = "" } = req.body;
 
     if (!input.trim()) {
-      const suggestions = await User.find({})
+      const suggestions = await User.find({ _id: { $ne: userId } })
         .select("full_name username profile_picture location")
-        .limit(20)
+        .limit(2)
         .lean();
       return res.json({ success: true, users: suggestions });
     }
 
-    // Nếu bạn đã tạo text index, dùng $text; nếu chưa, fallback sang regex safe
-    let users;
-    try {
-      // dùng text search nếu index đã tạo
-      users = await User.find(
-        { $text: { $search: input } },
-        { score: { $meta: "textScore" } }
-      )
-        .sort({ score: { $meta: "textScore" } })
-        .select("full_name username profile_picture location email")
-        .limit(30)
-        .lean();
-    } catch (e) {
-      // fallback: regex (escape)
-      const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const re = new RegExp(escapeRegex(String(input).slice(0, 60)), "i");
-      users = await User.find({
-        $or: [{ username: re }, { full_name: re }, { email: re }, { location: re }],
-      })
-        .select("full_name username profile_picture location email")
-        .limit(30)
-        .lean();
-    }
+    const cleanInput = input.trim();
+    const searchRegex = new RegExp(escapeRegex(cleanInput), "i");
 
-    const filtered = users.filter((u) => u._id.toString() !== userId);
-    res.json({ success: true, users: filtered });
+    const users = await User.find({
+      _id: { $ne: userId },
+      $or: [
+        { username: { $regex: searchRegex } },
+        { full_name: { $regex: searchRegex } },
+        { email: { $regex: searchRegex } },
+        { location: { $regex: searchRegex } },
+      ],
+    })
+      .select("full_name username profile_picture location email")
+      .collation({ locale: "vi", strength: 1 }) // 🔥 KEY MAGIC: strength 1 bỏ qua dấu (a == á)
+      .limit(50) // Lấy dư ra một chút để sort lại
+      .lean();
+
+      const sortedUsers = users.sort((a, b) => {
+      const nameA = a.full_name.toLowerCase();
+      const nameB = b.full_name.toLowerCase();
+      const keyword = cleanInput.toLowerCase();
+
+      const exactA = nameA === keyword;
+      const exactB = nameB === keyword;
+      if (exactA && !exactB) return -1;
+      if (!exactA && exactB) return 1;
+
+      const startA = nameA.startsWith(keyword);
+      const startB = nameB.startsWith(keyword);
+      if (startA && !startB) return -1;
+      if (!startA && startB) return 1;
+
+      return 0;
+    });
+
+    const finalResults = sortedUsers.slice(0, 20);
+
+    res.json({ success: true, users: finalResults });
   } catch (error) {
     console.error("❌ discoverUser error:", error);
     res.status(500).json({ success: false, message: "Lỗi máy chủ nội bộ" });

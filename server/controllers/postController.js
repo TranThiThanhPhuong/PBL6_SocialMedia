@@ -101,17 +101,21 @@ export const getFeedPosts = async (req, res) => {
       user: { $in: userIds },
       deleted: { $ne: true },
     })
-      .populate("user") 
+      .populate("user")
       .populate({
-        path: "shared_from", 
-        match: { deleted: { $ne: true } }, 
+        path: "shared_from",
+        populate: {
+          path: "user",
+          select: "full_name username profile_picture",
+        },
+        match: { deleted: { $ne: true } },
         populate: { path: "user" },
-        options: { strictPopulate: false } 
+        options: { strictPopulate: false },
       })
       .sort({ createdAt: -1 });
 
     const validPosts = posts.filter(
-    (p) => !(p.post_type === "shared" && !p.shared_from)
+      (p) => !(p.post_type === "shared" && !p.shared_from)
     );
     res.json({ success: true, posts: validPosts });
   } catch (error) {
@@ -124,7 +128,7 @@ export const updatePost = async (req, res) => {
   try {
     const { userId } = req.auth();
     const { postId } = req.params;
-    const { content } = req.body;
+    const { content, keptImageUrls: keptImageUrlsRaw } = req.body;
     const newImages = req.files;
 
     const post = await Post.findById(postId);
@@ -139,6 +143,20 @@ export const updatePost = async (req, res) => {
         success: false,
         message: "Bạn không có quyền sửa bài viết này.",
       });
+
+    let keptImageUrls = [];
+    if (keptImageUrlsRaw) {
+      try {
+        keptImageUrls = JSON.parse(keptImageUrlsRaw);
+      } catch (e) {
+        keptImageUrls = Array.isArray(keptImageUrlsRaw)
+          ? keptImageUrlsRaw
+          : [keptImageUrlsRaw];
+      }
+      keptImageUrls = keptImageUrls.filter(
+        (url) => url && typeof url === "string"
+      );
+    }
 
     // 🧠 Gọi AI kiểm duyệt lại nội dung
     const aiResult = await analyzeContent(content, newImages);
@@ -161,11 +179,9 @@ export const updatePost = async (req, res) => {
       });
     }
 
-    // 🖼️ Nếu có ảnh mới → upload lên ImageKit
-    let image_urls = post.image_urls; // giữ ảnh cũ
+    let newImageUrls = [];
     if (newImages?.length) {
-      // xóa ảnh cũ nếu có (tùy bạn muốn giữ hay xóa)
-      image_urls = await Promise.all(
+      newImageUrls = await Promise.all(
         newImages.map(async (image) => {
           const buffer = fs.readFileSync(image.path);
           const uploaded = await imagekit.upload({
@@ -178,10 +194,15 @@ export const updatePost = async (req, res) => {
         })
       );
     }
-
-    // ✅ Cập nhật DB
+    const finalImageUrls = [...keptImageUrls, ...newImageUrls];
     post.content = content || post.content;
-    post.image_urls = image_urls;
+    post.image_urls = finalImageUrls;
+    post.post_type =
+      finalImageUrls.length > 0 && post.content
+        ? "text_with_image"
+        : finalImageUrls.length > 0
+        ? "image"
+        : "text";
     await post.save();
 
     const updatedPost = await Post.findById(post._id).populate("user");
@@ -236,7 +257,7 @@ export const deletePost = async (req, res) => {
     post.deleted = true;
     await post.save();
 
-    const posts = await Post.find({ user: userId,deleted: { $ne: true } })
+    const posts = await Post.find({ user: userId, deleted: { $ne: true } })
       .populate("user")
       .sort({ createdAt: -1 });
 
@@ -301,12 +322,6 @@ export const sharePost = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Không thể chia sẻ bài viết đã chia sẻ.",
-      });
-
-    if (originalPost.user.toString() === userId)
-      return res.status(400).json({
-        success: false,
-        message: "Bạn không thể chia sẻ bài viết của chính mình.",
       });
 
     const originalUser = await User.findById(

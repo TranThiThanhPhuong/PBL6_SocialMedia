@@ -4,30 +4,6 @@ import User from "../models/User.js";
 import Message from "../models/Message.js";
 import { getIO, getOnlineUsers, isOnline , getLastSeen } from "../utils/socket.js";
 
-// const connections = {}; // SSE connections (server → client)
-
-// // -------------------- SSE KẾT NỐI REALTIME --------------------
-// export const sseController = (req, res) => {
-//   const { userId } = req.params;
-//   console.log("📡 New SSE client connected:", userId);
-
-//   res.set({
-//     "Content-Type": "text/event-stream",
-//     "Cache-Control": "no-cache",
-//     Connection: "keep-alive",
-//     "Access-Control-Allow-Origin": "*",
-//   });
-
-//   connections[userId] = res;
-//   res.write("event: connected\ndata: Connected to SSE stream\n\n");
-
-//   req.on("close", () => {
-//     delete connections[userId];
-//     console.log("❌ SSE client disconnected:", userId);
-//   });
-// };
-
-// -------------------- GỬI TIN NHẮN --------------------
 export const sendMessage = async (req, res) => {
   try {
     const { userId } = req.auth();
@@ -80,9 +56,9 @@ export const sendMessage = async (req, res) => {
           { width: "1280" },
         ],
       });
+      fs.unlinkSync(image.path);
     }
 
-    // Lưu tin nhắn
     const message = await Message.create({
       from_user_id: userId,
       to_user_id,
@@ -103,6 +79,7 @@ export const sendMessage = async (req, res) => {
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("receive_message", populatedMsg);
     }
+    return res.json({ success: true, message: populatedMsg });
   } catch (error) {
     console.error("sendMessage error:", error);
     res.json({ success: false, message: error.message });
