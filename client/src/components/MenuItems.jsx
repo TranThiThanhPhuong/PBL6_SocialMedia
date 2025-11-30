@@ -7,30 +7,48 @@ import { useAuth } from "@clerk/clerk-react";
 import socket from "../sockethandler/socket";
 
 const MenuItems = ({ setSidebarOpen }) => {
+  // Lấy currentUser từ Redux để có _id chính xác (giống ChatBox)
   const currentUser = useSelector((state) => state.user.value);
   const userId = currentUser?._id;
+  
   const { getToken } = useAuth();
   const location = useLocation();
-
   const [hasUnread, setHasUnread] = useState(false);
 
+  // 1. Logic Socket: Tự đảm bảo đăng ký user và lắng nghe (Mô hình giống ChatBox)
   useEffect(() => {
     if (!userId) return;
 
-    socket.connect();
+    // Đảm bảo socket kết nối nếu chưa
+    if (!socket.connected) {
+      socket.connect();
+    }
+    
+    // Đăng ký user (Backup an toàn)
     socket.emit("register_user", userId);
 
-    socket.on("new_notification", (data) => {
-      if (data.receiver === userId) setHasUnread(true);
-    });
+    const handleNewNotification = (data) => {
+      console.log("🔔 MenuItems received:", data);
+      // Chỉ hiện chấm đỏ nếu KHÔNG ở trang notifications
+      if (location.pathname !== "/notifications") {
+        setHasUnread(true);
+      }
+    };
 
-    return () => socket.off("new_notification");
-  }, [userId]);
+    socket.on("new_notification", handleNewNotification);
 
+    return () => {
+      socket.off("new_notification", handleNewNotification);
+    };
+  }, [userId, location.pathname]); // Re-run khi userId có hoặc đổi trang để cập nhật listener
+
+  // 2. Fetch trạng thái ban đầu
   useEffect(() => {
     const fetchUnread = async () => {
       try {
         const token = await getToken();
+        if (!token) return; 
+        
         const { data } = await api.get("/api/notifications", {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -42,14 +60,20 @@ const MenuItems = ({ setSidebarOpen }) => {
         console.error("Lỗi lấy thông báo:", err);
       }
     };
-    fetchUnread();
-  }, [getToken]);
+    
+    if (userId) {
+        fetchUnread();
+    }
+  }, [getToken, userId]);
 
+  // 3. Mark read khi vào trang
   useEffect(() => {
     const markAllAsRead = async () => {
       if (location.pathname === "/notifications") {
         try {
           const token = await getToken();
+          if (!token) return;
+
           await api.patch(
             "/api/notifications/read-all",
             {},
@@ -81,7 +105,7 @@ const MenuItems = ({ setSidebarOpen }) => {
           }
         >
           <div className="relative flex items-center justify-center">
-            <Icon className="w-5 h-5" /> 
+            <Icon className="w-6 h-6" />
             {to === "/notifications" && hasUnread && (
               <span className="absolute top-0 right-0 block w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white transform translate-x-1/4 -translate-y-1/4"></span>
             )}

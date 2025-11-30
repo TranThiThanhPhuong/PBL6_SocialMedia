@@ -2,7 +2,12 @@ import fs from "fs";
 import imagekit from "../configs/imageKit.js";
 import User from "../models/User.js";
 import Message from "../models/Message.js";
-import { getIO, getOnlineUsers, isOnline , getLastSeen } from "../utils/socket.js";
+import {
+  getIO,
+  getOnlineUsers,
+  isOnline,
+  getLastSeen,
+} from "../utils/socket.js";
 
 export const sendMessage = async (req, res) => {
   try {
@@ -14,17 +19,22 @@ export const sendMessage = async (req, res) => {
       return res.json({ success: false, message: "Thiếu ID người nhận." });
 
     const [sender, receiver] = await Promise.all([
-      User.findById(userId).select("connections following followers blockedUsers pendingMessages"),
-      User.findById(to_user_id).select("connections following followers blockedUsers pendingMessages"),
+      User.findById(userId).select(
+        "connections following followers blockedUsers pendingMessages"
+      ),
+      User.findById(to_user_id).select(
+        "connections following followers blockedUsers pendingMessages"
+      ),
     ]);
 
     if (!sender || !receiver)
       return res.json({ success: false, message: "Người dùng không tồn tại." });
 
     const canMessage =
-      sender.connections.includes(to_user_id) && receiver.connections.includes(userId) // là bạn bè
-      || sender.following.includes(to_user_id) // bạn theo dõi người kia
-      || receiver.following.includes(userId); // người kia theo dõi bạn
+      (sender.connections.includes(to_user_id) &&
+        receiver.connections.includes(userId)) || // là bạn bè
+      sender.following.includes(to_user_id) || // bạn theo dõi người kia
+      receiver.following.includes(userId); // người kia theo dõi bạn
 
     if (!canMessage) {
       return res.json({
@@ -33,10 +43,16 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    const senderFollowsReceiver = Array.isArray(sender.following) && sender.following.includes(to_user_id);
-    const priorMsgExists = await Message.exists({ from_user_id: userId, to_user_id }); // trước khi tạo -> kiểm tra có lịch sử gửi từ sender->receiver
+    const senderFollowsReceiver =
+      Array.isArray(sender.following) && sender.following.includes(to_user_id);
+    const priorMsgExists = await Message.exists({
+      from_user_id: userId,
+      to_user_id,
+    }); // trước khi tạo -> kiểm tra có lịch sử gửi từ sender->receiver
     if (senderFollowsReceiver && !priorMsgExists) {
-      await User.findByIdAndUpdate(to_user_id, { $addToSet: { pendingMessages: userId } });
+      await User.findByIdAndUpdate(to_user_id, {
+        $addToSet: { pendingMessages: userId },
+      });
     }
 
     let message_type = image ? "image" : "text";
@@ -67,17 +83,25 @@ export const sendMessage = async (req, res) => {
       media_url,
     });
 
-    await User.findByIdAndUpdate(userId, { $pull: { pendingMessages: to_user_id } });
+    await User.findByIdAndUpdate(userId, {
+      $pull: { pendingMessages: to_user_id },
+    });
 
-    const populatedMsg = await Message.findById(message._id).populate(
-      "from_user_id",
-      "full_name username profile_picture"
-    );
+    const populatedMsg = await Message.findById(message._id)
+      .populate("from_user_id", "full_name username profile_picture")
+      .populate("to_user_id", "full_name username profile_picture")
+      .lean();
 
     const io = getIO();
-    const receiverSocketId = getOnlineUsers().get(to_user_id);
+    const onlineUsers = getOnlineUsers();
+    const receiverSocketId = onlineUsers.get(to_user_id);
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("receive_message", populatedMsg);
+    }
+
+    const senderSocketId = onlineUsers.get(userId);
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("receive_message", populatedMsg);
     }
     return res.json({ success: true, message: populatedMsg });
   } catch (error) {
@@ -114,6 +138,14 @@ export const getChatMessages = async (req, res) => {
       { seen: true }
     );
 
+    const io = getIO();
+    const senderSocketId = getOnlineUsers().get(otherId);
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("messages_seen", {
+        viewerId: userId, // ID người vừa xem (là mình)
+      });
+    }
+
     res.json({ success: true, messages });
   } catch (error) {
     console.error("getChatMessages error:", error);
@@ -121,19 +153,40 @@ export const getChatMessages = async (req, res) => {
   }
 };
 
+export const getUserRecentMessages2 = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    const messages = await Message.find({
+      $or: [{ from_user_id: userId }, { to_user_id: userId }],
+      deletedBy: { $ne: userId },
+    })
+      .populate("from_user_id", "full_name username profile_picture")
+      .populate("to_user_id", "full_name username profile_picture")
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, messages });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
 
 // -------------------- LẤY CUỘC TRÒ CHUYỆN GẦN NHẤT --------------------
 export const getUserRecentMessages = async (req, res) => {
-    try {
-        const { userId } = req.auth();
-        const messages = await Message.find({ to_user_id: userId, deletedBy: { $ne: userId } }).populate('from_user_id to_user_id').sort({ createdAt: -1 }); // lay tat ca tin nhan gui den minh va sap xep theo thoi gian giam dan
+  try {
+    const { userId } = req.auth();
+    const messages = await Message.find({
+      to_user_id: userId,
+      deletedBy: { $ne: userId },
+    })
+      .populate("from_user_id to_user_id")
+      .sort({ createdAt: -1 }); // lay tat ca tin nhan gui den minh va sap xep theo thoi gian giam dan
 
-        res.json({ success: true, messages });
-    } catch (error) {
-        console.log(error);
-        res.json({success: false, message: error.message});
-    }
-}
+    res.json({ success: true, messages });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
 
 export const getSocket = async (req, res) => {
   const { userId } = req.params;
@@ -150,11 +203,18 @@ export const markSeen = async (req, res) => {
     const { userId } = req.auth();
     const { from_user_id } = req.body;
     if (!from_user_id)
-      return res.json({ success: false, message: "Thiếu ID người gửi." });  
+      return res.json({ success: false, message: "Thiếu ID người gửi." });
     await Message.updateMany(
       { from_user_id, to_user_id: userId, seen: false },
       { seen: true }
     );
+    const io = getIO();
+    const senderSocketId = getOnlineUsers().get(from_user_id);
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("messages_seen", {
+        viewerId: userId,
+      });
+    }
     res.json({ success: true, message: "Đã đánh dấu tin nhắn là đã xem." });
   } catch (error) {
     console.error("markSeen error:", error);
@@ -167,14 +227,17 @@ export const deleteChat = async (req, res) => {
     const { userId } = req.auth();
     // hỗ trợ nhiều cách truyền id: body.to_user_id, body.id, params.id
     const otherId = req.body?.to_user_id || req.body?.id || req.params?.id;
-    if (!otherId) return res.status(400).json({ success: false, message: "Thiếu ID người cần xóa" });
+    if (!otherId)
+      return res
+        .status(400)
+        .json({ success: false, message: "Thiếu ID người cần xóa" });
 
     await Message.updateMany(
       {
         $or: [
           { from_user_id: userId, to_user_id: otherId },
-          { from_user_id: otherId, to_user_id: userId }
-        ]
+          { from_user_id: otherId, to_user_id: userId },
+        ],
       },
       { $addToSet: { deletedBy: userId } }
     );

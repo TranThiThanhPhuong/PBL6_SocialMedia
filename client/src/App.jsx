@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { useUser, useAuth } from "@clerk/clerk-react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux"; // 👈 Import useSelector
 import toast, { Toaster } from "react-hot-toast";
 
 import Login from "./pages/Login";
@@ -20,43 +20,75 @@ import { fetchConnections } from "./features/connections/connectionsSlice";
 import socket from "./sockethandler/socket";
 
 const App = () => {
-  const { user } = useUser(); // Sử dụng useUser để lấy thông tin người dùng hiện tại
-  const { getToken } = useAuth(); // Sử dụng useAuth để lấy hàm getToken để lấy token JWT xác thực của người dùng hiện tại
-  const { pathname } = useLocation(); // Nó cho bạn biết URL hiện tại của app (ví dụ: /messages/123, /profile, …), pathname là chuỗi chứa đường dẫn đó.
-  const pathnameRef = useRef(pathname); // useRef tạo ra một “hộp” lưu giá trị mà không làm component re-render khi thay đổi.
-  const dispatch = useDispatch(); // Sử dụng useDispatch để lấy hàm dispatch từ Redux store
+  const { user, isLoaded } = useUser();
+  const { getToken } = useAuth();
+  const { pathname } = useLocation();
+  const pathnameRef = useRef(pathname);
+  const dispatch = useDispatch();
 
+  // 👇 Lấy user từ Redux store (để có _id chuẩn từ MongoDB)
+  const dbUser = useSelector((state) => state.user.value);
+  const currentUserId = dbUser?._id;
+
+  // 1. Fetch Data ban đầu
   useEffect(() => {
     const fetchData = async () => {
       if (user) {
-        const token = await getToken(); // Lấy token JWT của người dùng hiện tại
-        dispatch(fetchUser(token)); // Gọi action fetchUser với token để lấy dữ liệu người dùng từ server
-        dispatch(fetchConnections(token)); //
+        const token = await getToken();
+        dispatch(fetchUser(token));
+        dispatch(fetchConnections(token));
       }
     };
-    fetchData(); // Gọi hàm fetchData để thực hiện việc lấy dữ liệu người dùng khi component được render hoặc khi user thay đổi
-  }, [user, getToken, dispatch]); // Chạy useEffect mỗi khi user hoặc getToken thay đổi
+    if (isLoaded && user) {
+        fetchData();
+    }
+  }, [user, isLoaded, getToken, dispatch]);
 
   useEffect(() => {
-    pathnameRef.current = pathname; // Mỗi lần URL đổi (/messages, /profile, /discover...), thì pathnameRef.current được cập nhật theo.
+    pathnameRef.current = pathname;
   }, [pathname]);
 
-  const currentUserId = user?._id;
+  // 2. 🔥 QUẢN LÝ SOCKET TOÀN CỤC (FIX LỖI)
   useEffect(() => {
-    if (!currentUserId) return;
+    // Chỉ kết nối khi đã có currentUserId (tức là đã load xong user từ DB)
+    if (currentUserId) {
+      if (!socket.connected) {
+        socket.connect(); // 👈 Bắt buộc gọi vì autoConnect: false
+        console.log("🔌 App: Socket connecting...");
+      }
 
-    socket.emit("register_user", currentUserId);
+      // Đăng ký user với server
+      socket.emit("register_user", currentUserId);
 
-    return () => {
-      socket.disconnect();
-    };
+      // Lắng nghe sự kiện connect lại (phòng trường hợp rớt mạng)
+      const onConnect = () => {
+        console.log("✅ App: Socket connected:", socket.id);
+        socket.emit("register_user", currentUserId);
+      };
+
+      socket.on("connect", onConnect);
+
+      return () => {
+        socket.off("connect", onConnect);
+        // Không ngắt kết nối khi unmount useEffect này để tránh mất kết nối khi re-render
+        // Socket sẽ tự ngắt khi đóng tab hoặc logout (xử lý ở dưới)
+      };
+    }
   }, [currentUserId]);
+
+  // Ngắt kết nối khi logout (không còn user)
+  useEffect(() => {
+    if (!user && socket.connected) {
+        socket.disconnect();
+        console.log("🚫 App: Socket disconnected (Logout)");
+    }
+  }, [user]);
+
+  if (!isLoaded) return null;
 
   return (
     <>
-      {/* Route: dieu huong trang web  */}
-      {/* xd url hien thi component nao, Nó giúp ứng dụng chuyển trang mà không cần reload lại toàn bộ website. */}
-      <Toaster /> {/* Toaster: hien thi cac thong bao */}
+      <Toaster />
       <Routes>
         <Route path="/" element={!user ? <Login /> : <Layout />}>
           <Route index element={<Feed />} />
@@ -65,7 +97,7 @@ const App = () => {
           <Route path="discover" element={<Discover />} />
           <Route path="profile" element={<Profile />} />
           <Route path="profile/:profileId" element={<Profile />} />
-          <Route path="profile-user/:slug" element={<Profile />} />{" "}
+          <Route path="profile-user/:slug" element={<Profile />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="create-post" element={<CreatePost />} />
         </Route>

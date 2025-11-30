@@ -16,11 +16,15 @@ import {
 } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
+import { slugifyUser } from "../app/slugifyUser";
+import socket from "../sockethandler/socket"; // 👈 Đừng quên import socket
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
   const { getToken } = useAuth();
+  const navigate = useNavigate();
 
+  // 1. Lấy danh sách thông báo ban đầu
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
@@ -36,6 +40,23 @@ const Notifications = () => {
     };
 
     fetchNotifications();
+  }, [getToken]);
+
+  // 2. 🔥 LẮNG NGHE SOCKET ĐỂ CẬP NHẬT REALTIME
+  useEffect(() => {
+    const handleNewNotification = (newNoti) => {
+      // console.log("🔔 Nhận thông báo mới từ socket:", newNoti);
+      
+      // Thêm thông báo mới vào đầu danh sách
+      setNotifications((prev) => [newNoti, ...prev]);
+    };
+
+    socket.on("new_notification", handleNewNotification);
+
+    // Cleanup khi rời trang
+    return () => {
+      socket.off("new_notification", handleNewNotification);
+    };
   }, []);
 
   const handleDeleteNotification = async (id) => {
@@ -55,32 +76,19 @@ const Notifications = () => {
 
   const getIconForNotification = (type) => {
     switch (type) {
-      case "friend_request":
-        return <Users className="w-5 h-5 text-indigo-500" />;
-      case "friend_accept":
-        return <UserCheck className="w-5 h-5 text-green-500" />;
-      case "follow":
-        return <UserPlus className="w-5 h-5 text-blue-500" />;
-      case "like":
-        return <Heart className="w-5 h-5 text-red-500 fill-red-500" />;
-      case "comment":
-        return <MessageCircle className="w-5 h-5 text-blue-500" />;
-      case "reply":
-        return <Reply className="w-5 h-5 text-orange-500" />;
-      case "like_comment":
-        return <ThumbsUp className="w-5 h-5 text-yellow-500" />;
-      case "share":
-        return <Share2 className="w-5 h-5 text-purple-500" />;
-      case "report_post":
-        return <ShieldAlert className="w-5 h-5 text-rose-500" />;
-      case "admin_delete_post":
-        return <Trash2 className="w-5 h-5 text-gray-600" />;
-      default:
-        return null;
+      case "friend_request": return <Users className="w-5 h-5 text-indigo-500" />;
+      case "friend_accept": return <UserCheck className="w-5 h-5 text-green-500" />;
+      case "follow": return <UserPlus className="w-5 h-5 text-blue-500" />;
+      case "like": return <Heart className="w-5 h-5 text-red-500 fill-red-500" />;
+      case "comment": return <MessageCircle className="w-5 h-5 text-blue-500" />;
+      case "reply": return <Reply className="w-5 h-5 text-orange-500" />;
+      case "like_comment": return <ThumbsUp className="w-5 h-5 text-yellow-500" />;
+      case "share": return <Share2 className="w-5 h-5 text-purple-500" />;
+      case "report_post": return <ShieldAlert className="w-5 h-5 text-rose-500" />;
+      case "admin_delete_post": return <Trash2 className="w-5 h-5 text-gray-600" />;
+      default: return null;
     }
   };
-
-  const navigate = useNavigate();
 
   return (
     <div className="flex-1 p-6">
@@ -102,20 +110,21 @@ const Notifications = () => {
             <div className="flex items-start gap-4">
               <UserAvatar user={noti.sender}>
                 <img
-                  onClick={() => {
-                    navigate(`/profile-user/${slugifyUser(noti.sender)}`);
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if(noti.sender) navigate(`/profile-user/${slugifyUser(noti.sender)}`);
                   }}
                   src={noti.sender?.profile_picture || "/default-avatar.png"}
                   alt="avatar"
-                  className="w-10 h-10 rounded-full"
+                  className="w-10 h-10 rounded-full object-cover"
                 />
               </UserAvatar>
               <div>
                 <p className="text-sm font-medium">
-                  <span className="font-bold"></span> {noti.content}
+                  <span className="font-bold">{noti.sender?.full_name}</span> {noti.content}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {formatPostTime(noti.createdAt)} trước
+                  {formatPostTime(noti.createdAt)}
                 </p>
               </div>
             </div>
@@ -124,7 +133,7 @@ const Notifications = () => {
               <div>{getIconForNotification(noti.type)}</div>
               <button
                 onClick={(e) => {
-                  e.stopPropagation(); // tránh click vào container
+                  e.stopPropagation();
                   handleDeleteNotification(noti._id);
                 }}
                 className="text-gray-400 hover:text-red-500 transition-colors"

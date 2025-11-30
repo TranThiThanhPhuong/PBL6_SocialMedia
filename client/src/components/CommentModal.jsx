@@ -20,6 +20,7 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
   const [content, setContent] = useState("");
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
+  // status dùng để quản lý trạng thái thông báo kiểm duyệt (nếu có)
   const [status, setStatus] = useState({ type: "", message: "" });
 
   const violationMessages = {
@@ -94,10 +95,9 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
         setComments((prev) => [newComment, ...prev]);
         setContent("");
         setImages([]);
-        setStatus({ type: "success", message: "Trả lời thành công!" });
+        setStatus({ type: "success", message: "Bình luận thành công!" });
         toast.success("Bình luận thành công!");
 
-        // ✅ Gọi callback cập nhật tổng số comment ở PostCard
         if (typeof onCommentAdded === "function") {
           onCommentAdded();
         }
@@ -108,23 +108,17 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
       console.error("❌ Lỗi khi đăng:", error);
       if (error.response?.status === 400) {
         const { labels, message } = error.response.data;
-        let errorMsg = "Phản hồi chứa nội dung vi phạm!";
+        let errorMsg = "Bình luận chứa nội dung vi phạm!";
 
         if (labels?.length > 0) {
-          const mapped = labels
+          errorMsg = labels
             .map((l) => violationMessages[l] || `Nội dung vi phạm: ${l}`)
             .join("<br/>");
-          errorMsg = mapped;
         } else if (message) {
           errorMsg = message;
         }
         setStatus({ type: "violated", message: errorMsg });
-        toast.custom((t) => (
-          <div
-            className="bg-red-50 border border-red-300 text-red-700 rounded-md px-4 py-3 text-lag"
-            dangerouslySetInnerHTML={{ __html: errorMsg }}
-          ></div>
-        ));
+        toast.error("Nội dung vi phạm chính sách!");
       }
     } finally {
       setLoading(false);
@@ -180,7 +174,6 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
         setStatus({ type: "success", message: "Trả lời thành công!" });
         toast.success("Trả lời thành công!");
 
-        // ✅ Gọi callback cập nhật tổng số comment ở PostCard
         if (typeof onCommentAdded === "function") {
           onCommentAdded();
         }
@@ -194,15 +187,14 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
         let errorMsg = "Phản hồi chứa nội dung vi phạm!";
 
         if (labels?.length > 0) {
-          const mapped = labels
+          errorMsg = labels
             .map((l) => violationMessages[l] || `Nội dung vi phạm: ${l}`)
             .join("<br/>");
-          errorMsg = mapped;
         } else if (message) {
           errorMsg = message;
         }
 
-        toast.error("🚫 " + errorMsg.replace(/<br\/>/g, " "));
+        toast.error("Nội dung vi phạm chính sách!");
         setStatus({ type: "violated", message: errorMsg });
       }
     } finally {
@@ -223,10 +215,11 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
         const updated = data.comment;
         setComments((prev) =>
           prev.map((c) => {
+            // Nếu là comment cha
             if (c._id === updated._id) {
               return { ...c, likes_count: updated.likes_count };
             }
-            // check in replies
+            // Nếu là reply nằm trong comment cha
             if (c.replies?.some((r) => r._id === updated._id)) {
               const newReplies = c.replies.map((r) =>
                 r._id === updated._id ? updated : r
@@ -236,7 +229,6 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
             return c;
           })
         );
-        toast.success(data.message);
       } else {
         toast.error(data.message);
       }
@@ -257,7 +249,7 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
   return (
     <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50">
       <div className="bg-white w-full max-w-lg h-[80vh] rounded-2xl shadow-lg flex flex-col">
-        {/* Header - Căn giữa tiêu đề và làm mờ đường phân cách */}
+        {/* Header */}
         <div className="flex justify-between items-center px-5 py-3 border-b border-gray-100 relative">
           <h2 className="text-lg font-semibold flex-grow text-center">
             Bình luận
@@ -291,12 +283,6 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
                 />
               </Tippy>
 
-              <Tippy
-                content={<MiniProfile user={cmt.user} />}
-                placement="top"
-                interactive={true}
-                delay={[500, 200]}
-              ></Tippy>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <Tippy
@@ -354,19 +340,21 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
                 {/* Reply Form */}
                 {replyingTo === cmt._id && (
                   <div className="mt-2 flex items-center gap-2">
+                    {/* 👇 ĐÃ SỬA: Dùng currentUser thay vì reply.user */}
                     <Tippy
-                      content={<MiniProfile user={reply.user} />}
+                      content={<MiniProfile user={currentUser} />}
                       placement="top"
                       interactive={true}
                       delay={[500, 200]}
                     >
                       <img
-                        src={reply.user.profile_picture}
+                        src={currentUser.profile_picture}
                         alt="avatar"
                         className="w-10 h-10 rounded-full shadow cursor-pointer hover:opacity-80 transition"
-                        onClick={() => handleUserClick(reply.user)}
+                        onClick={() => handleUserClick(currentUser)}
                       />
                     </Tippy>
+                    
                     <input
                       type="text"
                       className="flex-1 border rounded-full px-3 py-1 text-sm outline-none"
@@ -381,7 +369,7 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
                       id="replyImage"
                       onChange={(e) => {
                         if (e.target.files[0]) {
-                          setReplyImages([e.target.files[0]]); // chỉ giữ 1 ảnh duy nhất
+                          setReplyImages([e.target.files[0]]);
                         }
                       }}
                     />
@@ -395,9 +383,8 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
                           alt="preview"
                           className="w-10 h-10 object-cover rounded-md border cursor-pointer"
                           onClick={(e) => {
-                            e.preventDefault(); // ngăn label trigger lại input
+                            e.preventDefault();
                             setReplyImages([]);
-                            []; // click ảnh sẽ xoá ảnh đã chọn
                           }}
                         />
                       ) : (
@@ -456,7 +443,6 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
                             {reply.content}
                           </p>
 
-                          {/* Ảnh trong reply */}
                           {reply.image_urls?.length > 0 && (
                             <img
                               src={reply.image_urls[0]}
@@ -465,7 +451,6 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
                             />
                           )}
 
-                          {/* Like button */}
                           <div className="flex items-center gap-2 mt-1">
                             <button
                               onClick={() => handleLike(reply._id)}
@@ -512,7 +497,7 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
             id="commentImage"
             onChange={(e) => {
               if (e.target.files[0]) {
-                setImages([e.target.files[0]]); // chỉ giữ 1 ảnh duy nhất
+                setImages([e.target.files[0]]);
               }
             }}
           />
@@ -526,8 +511,8 @@ const CommentModal = ({ post, onClose, onCommentAdded }) => {
                 alt="preview"
                 className="w-10 h-10 object-cover rounded-md border cursor-pointer"
                 onClick={(e) => {
-                  e.preventDefault(); // ngăn label trigger lại input
-                  setImages([]); // click ảnh sẽ xoá ảnh đã chọn
+                  e.preventDefault();
+                  setImages([]);
                 }}
               />
             ) : (

@@ -440,33 +440,31 @@ const PostCard = ({
               // Nếu là trang Profile: Chỉ hiện ảnh và tên bình thường (không bọc UserAvatar)
               <div className="flex items-center gap-3">
                 <img
-                  src={post.user.profile_picture}
+                  src={post.shared_from.user?.profile_picture}
                   className="w-10 h-10 rounded-full shadow object-cover"
                   alt="avatar"
                 />
                 <div className="flex items-center gap-1">
                   <span className="font-semibold text-gray-900">
-                    {post.user.full_name}
+                    {post.shared_from.user?.full_name}
                   </span>
                   <BadgeCheck className="w-4 h-4 text-blue-500" />
                 </div>
               </div>
             ) : (
-              // Nếu là Feed: Bọc cả Ảnh và Tên trong UserAvatar
-              <UserAvatar user={post.user}>
+              <UserAvatar user={post.shared_from.user}>
                 <div
                   className="flex items-center gap-3 cursor-pointer group"
-                  onClick={() => handleUserClick(post.user)}
+                  onClick={() => handleUserClick(post.shared_from.user)}
                 >
                   <img
-                    src={post.user.profile_picture}
+                    src={post.shared_from.user?.profile_picture}
                     className="w-10 h-10 rounded-full shadow object-cover"
                     alt="avatar"
                   />
                   <div className="flex items-center gap-1">
-                    {/* Thêm group-hover để khi rê vào ảnh, tên cũng đổi màu (tùy chọn) */}
                     <span className="font-semibold text-gray-900 group-hover:underline">
-                      {post.user.full_name}
+                      {post.shared_from.user?.full_name}
                     </span>
                     <BadgeCheck className="w-4 h-4 text-blue-500" />
                   </div>
@@ -475,7 +473,7 @@ const PostCard = ({
             )}
             <span className="text-gray-500 text-sm ml-2 flex items-center">
               <span className="mr-2">•</span>
-              {formatPostTime(post.createdAt)}
+              {formatPostTime(post.shared_from.createdAt)}
             </span>
           </div>
           {post.shared_from.content && (

@@ -20,7 +20,6 @@ import {
 import ChatOptionsMenu from "../components/dropdownmenu/ChatOptionsMenu";
 import socket from "../sockethandler/socket";
 
-
 const MiniChatBox = ({ targetUser, onClose }) => {
   const { getToken } = useAuth();
   const dispatch = useDispatch();
@@ -66,7 +65,8 @@ const MiniChatBox = ({ targetUser, onClose }) => {
 
   useEffect(() => {
     const handleReceiveMessage = (msg) => {
-      if (msg.from_user_id._id === userId) {
+      const senderId = msg.from_user_id?._id || msg.from_user_id;
+      if (senderId === userId) {
         setMessages((prev) => [...prev, msg]);
       }
     };
@@ -77,7 +77,6 @@ const MiniChatBox = ({ targetUser, onClose }) => {
   useEffect(() => {
     if (!userId) return;
 
-    // Lấy trạng thái ban đầu
     (async () => {
       try {
         const token = await getToken();
@@ -91,7 +90,6 @@ const MiniChatBox = ({ targetUser, onClose }) => {
       }
     })();
 
-    // Lắng nghe socket
     const handleUserOnline = (id) => {
       if (id === userId) {
         setIsOnline(true);
@@ -117,7 +115,7 @@ const MiniChatBox = ({ targetUser, onClose }) => {
 
   const sendMessage = async () => {
     try {
-      if (!text && !image) return;
+      if ((!text && !image) || isSending) return;
       setIsSending(true);
       
       const token = await getToken();
@@ -162,8 +160,7 @@ const MiniChatBox = ({ targetUser, onClose }) => {
 
   return (
     <div className="fixed bottom-0 right-16 bg-white shadow-2xl rounded-t-xl border border-gray-200 z-50 flex flex-col h-[450px] w-80 transition-all duration-300">
-      
-      {/* Header - Có trạng thái Online */}
+      {/* Header */}
       <div className="flex items-center justify-between p-3 bg-indigo-600 text-white rounded-t-xl shadow-sm">
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -172,7 +169,6 @@ const MiniChatBox = ({ targetUser, onClose }) => {
               alt=""
               className="w-9 h-9 rounded-full border border-white"
             />
-            {/* Chấm xanh ở avatar header */}
             {isOnline && (
               <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-indigo-600 rounded-full"></span>
             )}
@@ -181,7 +177,6 @@ const MiniChatBox = ({ targetUser, onClose }) => {
             <p className="font-semibold text-sm truncate max-w-[140px]">
               {targetUser.full_name}
             </p>
-            {/* Dòng trạng thái text */}
             <p className="text-[10px] text-indigo-100">
               {isOnline ? "Đang hoạt động" : `Hoạt động ${formatLastSeen(lastSeen)}`}
             </p>
@@ -214,7 +209,6 @@ const MiniChatBox = ({ targetUser, onClose }) => {
         </div>
       </div>
 
-      {/* Dropdown Menu */}
       {showMenu && (
         <div className="absolute top-12 right-2 z-50">
           <ChatOptionsMenu
@@ -232,28 +226,57 @@ const MiniChatBox = ({ targetUser, onClose }) => {
           {messages.map((msg, i) => {
             const senderId = msg.from_user_id?._id || msg.from_user_id;
             const isMe = senderId === currentUserId;
+
+            // --- 👇 START: LOGIC TÍNH TOÁN THỜI GIAN ---
+            const currentTime = new Date(msg.createdAt);
+            const prevTime = i > 0 ? new Date(messages[i - 1].createdAt) : null;
+            
+            // Hiện ngăn cách nếu là tin đầu tiên HOẶC cách nhau > 10 phút
+            const showTimeSeparator =
+              !prevTime || (currentTime - prevTime) / (1000 * 60) > 10;
+
+            const formattedTime = currentTime.toLocaleString("vi-VN", {
+              hour: "2-digit",
+              minute: "2-digit",
+              day: "2-digit",
+              month: "2-digit",
+              // year: "numeric", // Bỏ year cho gọn trong mini chat, tùy bạn
+            });
+            // --- 👆 END: LOGIC TÍNH TOÁN THỜI GIAN ---
+
             return (
-              <div
-                key={i}
-                className={`flex ${isMe ? "justify-end" : "justify-start"}`}
-              >
+              <React.Fragment key={i}>
+                {/* 👇 Hiển thị ngăn cách thời gian */}
+                {showTimeSeparator && (
+                  <div className="text-center my-3">
+                    <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full shadow-sm">
+                      {formattedTime}
+                    </span>
+                  </div>
+                )}
+
+                {/* Bong bóng tin nhắn */}
                 <div
-                  className={`max-w-[75%] px-3 py-2 rounded-lg text-sm break-words ${
-                    isMe
-                      ? "bg-indigo-500 text-white"
-                      : "bg-white border border-gray-200 text-gray-800"
-                  }`}
+                  className={`flex ${isMe ? "justify-end" : "justify-start"}`}
                 >
-                  {msg.message_type === "image" && (
-                    <img
-                      src={msg.media_url}
-                      className="rounded-md mb-1 max-h-32 object-cover"
-                      alt="sent"
-                    />
-                  )}
-                  {msg.text && <p>{msg.text}</p>}
+                  <div
+                    className={`max-w-[75%] px-3 py-2 rounded-lg text-sm break-words ${
+                      isMe
+                        ? "bg-indigo-500 text-white"
+                        : "bg-white border border-gray-200 text-gray-800"
+                    }`}
+                  >
+                    {msg.message_type === "image" && (
+                      <img
+                        src={msg.media_url}
+                        className="rounded-md mb-1 max-h-32 object-cover"
+                        alt="sent"
+                      />
+                    )}
+                    {msg.text && <p>{msg.text}</p>}
+                  </div>
                 </div>
-              </div>
+              </React.Fragment>
             );
           })}
           <div ref={messagesEndRef}></div>
@@ -286,6 +309,7 @@ const MiniChatBox = ({ targetUser, onClose }) => {
               hidden
               accept="image/*"
               onChange={(e) => setImage(e.target.files[0])}
+              disabled={isSending}
             />
           </label>
           <input
@@ -299,7 +323,7 @@ const MiniChatBox = ({ targetUser, onClose }) => {
           />
           <button
             onClick={sendMessage}
-            disabled={!text && !image}
+            disabled={(!text && !image) || isSending}
             className="text-indigo-600 hover:text-indigo-700 disabled:text-gray-400"
           >
             {isSending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={18} />}

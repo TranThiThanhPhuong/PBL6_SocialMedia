@@ -7,16 +7,16 @@ export const createNotification = async (req, res) => {
 
     const noti = await Notification.create({ receiver, sender, type, content });
 
+    const populatedNoti = await noti.populate("sender", "full_name username profile_picture").lean();
+
     const io = getIO();
     const onlineUsers = getOnlineUsers();
-
     const receiverSocket = onlineUsers.get(receiver);
-    if (receiverSocket) {
-      io.to(receiverSocket).emit("new_notification", { receiver, type, content });
-      console.log("📨 Sent real-time notification to:", receiver);
-    }
 
-    res.json({ success: true, noti });
+    if (receiverSocket) {
+      io.to(receiverSocket).emit("new_notification", populatedNoti);
+    }
+    res.json({ success: true, noti: populatedNoti });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: error.message });
