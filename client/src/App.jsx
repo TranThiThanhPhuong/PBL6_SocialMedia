@@ -26,11 +26,9 @@ const App = () => {
   const pathnameRef = useRef(pathname);
   const dispatch = useDispatch();
 
-  // 👇 Lấy user từ Redux store (để có _id chuẩn từ MongoDB)
   const dbUser = useSelector((state) => state.user.value);
   const currentUserId = dbUser?._id;
 
-  // 1. Fetch Data ban đầu
   useEffect(() => {
     const fetchData = async () => {
       if (user) {
@@ -48,21 +46,17 @@ const App = () => {
     pathnameRef.current = pathname;
   }, [pathname]);
 
-  // 2. 🔥 QUẢN LÝ SOCKET TOÀN CỤC (FIX LỖI)
   useEffect(() => {
-    // Chỉ kết nối khi đã có currentUserId (tức là đã load xong user từ DB)
     if (currentUserId) {
       if (!socket.connected) {
-        socket.connect(); // 👈 Bắt buộc gọi vì autoConnect: false
+        socket.connect();
         console.log("🔌 App: Socket connecting...");
       }
 
-      // Đăng ký user với server
       socket.emit("register_user", currentUserId);
 
-      // Lắng nghe sự kiện connect lại (phòng trường hợp rớt mạng)
       const onConnect = () => {
-        console.log("✅ App: Socket connected:", socket.id);
+        console.log("✅ App: Socket connected ID:", socket.id);
         socket.emit("register_user", currentUserId);
       };
 
@@ -70,19 +64,14 @@ const App = () => {
 
       return () => {
         socket.off("connect", onConnect);
-        // Không ngắt kết nối khi unmount useEffect này để tránh mất kết nối khi re-render
-        // Socket sẽ tự ngắt khi đóng tab hoặc logout (xử lý ở dưới)
       };
+    } else {
+        if(socket.connected) {
+            socket.disconnect();
+            console.log("🚫 App: Socket disconnected (No User)");
+        }
     }
   }, [currentUserId]);
-
-  // Ngắt kết nối khi logout (không còn user)
-  useEffect(() => {
-    if (!user && socket.connected) {
-        socket.disconnect();
-        console.log("🚫 App: Socket disconnected (Logout)");
-    }
-  }, [user]);
 
   if (!isLoaded) return null;
 

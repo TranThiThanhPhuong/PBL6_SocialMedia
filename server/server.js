@@ -24,6 +24,23 @@ import analyticsRoutes from "./routes/analyticsRoutes.js";
 
 const app = express();
 const server = http.createServer(app);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      "http://localhost:5173",
+      process.env.FRONTEND_URL,
+      process.env.ADMIN_URL
+    ];
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+}));
+
 initSocket(server);
 
 if (process.env.NODE_ENV !== "production") app.use(morgan("dev"));
@@ -47,18 +64,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS: cho phép truy cập vào BE từ FE và trang Admin 
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  process.env.ADMIN_URL
-];
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-  })
-);
-
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
@@ -69,7 +74,6 @@ app.use("/api", limiter);
 await connectDB();
 app.use(clerkMiddleware());
 
-// API routes
 app.get("/", (_, res) => res.send("Server OK ✅"));
 app.use("/api/user", userRouter);
 app.use("/api/post", postRouter);

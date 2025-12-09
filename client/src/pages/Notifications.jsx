@@ -17,14 +17,13 @@ import {
 import { useAuth } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import { slugifyUser } from "../app/slugifyUser";
-import socket from "../sockethandler/socket"; // 👈 Đừng quên import socket
+import socket from "../sockethandler/socket"; 
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
   const { getToken } = useAuth();
   const navigate = useNavigate();
 
-  // 1. Lấy danh sách thông báo ban đầu
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
@@ -42,18 +41,12 @@ const Notifications = () => {
     fetchNotifications();
   }, [getToken]);
 
-  // 2. 🔥 LẮNG NGHE SOCKET ĐỂ CẬP NHẬT REALTIME
   useEffect(() => {
     const handleNewNotification = (newNoti) => {
-      // console.log("🔔 Nhận thông báo mới từ socket:", newNoti);
-      
-      // Thêm thông báo mới vào đầu danh sách
+    console.log("🔔 Nhận thông báo mới từ socket:", newNoti);
       setNotifications((prev) => [newNoti, ...prev]);
     };
-
     socket.on("new_notification", handleNewNotification);
-
-    // Cleanup khi rời trang
     return () => {
       socket.off("new_notification", handleNewNotification);
     };

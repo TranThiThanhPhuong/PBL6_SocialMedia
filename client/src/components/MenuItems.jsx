@@ -7,42 +7,30 @@ import { useAuth } from "@clerk/clerk-react";
 import socket from "../sockethandler/socket";
 
 const MenuItems = ({ setSidebarOpen }) => {
-  // Lấy currentUser từ Redux để có _id chính xác (giống ChatBox)
   const currentUser = useSelector((state) => state.user.value);
   const userId = currentUser?._id;
-  
   const { getToken } = useAuth();
   const location = useLocation();
   const [hasUnread, setHasUnread] = useState(false);
 
-  // 1. Logic Socket: Tự đảm bảo đăng ký user và lắng nghe (Mô hình giống ChatBox)
   useEffect(() => {
     if (!userId) return;
-
-    // Đảm bảo socket kết nối nếu chưa
     if (!socket.connected) {
       socket.connect();
     }
-    
-    // Đăng ký user (Backup an toàn)
     socket.emit("register_user", userId);
-
     const handleNewNotification = (data) => {
       console.log("🔔 MenuItems received:", data);
-      // Chỉ hiện chấm đỏ nếu KHÔNG ở trang notifications
       if (location.pathname !== "/notifications") {
         setHasUnread(true);
       }
     };
-
     socket.on("new_notification", handleNewNotification);
-
     return () => {
       socket.off("new_notification", handleNewNotification);
     };
-  }, [userId, location.pathname]); // Re-run khi userId có hoặc đổi trang để cập nhật listener
+  }, [userId, location.pathname]); 
 
-  // 2. Fetch trạng thái ban đầu
   useEffect(() => {
     const fetchUnread = async () => {
       try {
@@ -66,7 +54,6 @@ const MenuItems = ({ setSidebarOpen }) => {
     }
   }, [getToken, userId]);
 
-  // 3. Mark read khi vào trang
   useEffect(() => {
     const markAllAsRead = async () => {
       if (location.pathname === "/notifications") {

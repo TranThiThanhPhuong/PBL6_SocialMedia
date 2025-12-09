@@ -2,7 +2,7 @@
 // update them xu li khi user bi khoa tai khoan hoac token het han
 import axios from "axios";
 import { toast } from "react-hot-toast"; 
-const API_URL = import.meta.env.VITE_BASEURL;
+const API_URL = import.meta.env.VITE_API_URL;
 
 const api = axios.create({
   baseURL: API_URL,
