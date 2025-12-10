@@ -5,6 +5,10 @@ import { analyzeContent } from "../utils/analyzeContent.js";
 import User from "../models/User.js";
 import Story from "../models/Story.js";
 import Notification from "../models/Notification.js";
+import {
+  getIO,
+  getOnlineUsers
+} from "../utils/socket.js";
 
 export const addUserStory = async (req, res) => {
   try {
@@ -104,7 +108,9 @@ export const getStories = async (req, res) => {
     const stories = await Story.find({
       user: { $in: userIds },
     })
-      .populate("user")
+      .populate("user", "full_name username profile_picture")
+      .populate("views_count", "full_name username profile_picture") // 🔥 QUAN TRỌNG: Lấy info người xem
+      .populate("likes_count", "full_name username profile_picture") // Lấy info người like
       .sort({ createdAt: -1 });
 
     res.json({ success: true, stories });
@@ -125,6 +131,98 @@ export const deleteStoryManual = async (req, res) => {
 
     res.json({ success: true, message: "Đã xóa story." });
   } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const viewStory = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    const { storyId } = req.params;
+
+    const story = await Story.findByIdAndUpdate(
+      storyId,
+      { $addToSet: { views_count: userId } },
+      { new: true }
+    ).populate("views_count", "full_name username profile_picture"); // Trả về list người xem mới nhất
+
+    if (!story) {
+      return res.status(404).json({ success: false, message: "Story không tồn tại" });
+    }
+
+    const io = getIO();
+    const onlineUsers = getOnlineUsers();
+    const ownerSocketId = onlineUsers.get(story.user.toString());
+
+    if (ownerSocketId) {
+      io.to(ownerSocketId).emit("story_stats_update", {
+        storyId: story._id,
+        views: story.views_count,
+        likes: story.likes_count,
+      });
+    }
+
+    res.json({ success: true, views: story.views_count });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const likeStory = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    const { storyId } = req.params;
+
+    const story = await Story.findById(storyId);
+    if (!story) return res.status(404).json({ success: false, message: "Story không tồn tại" });
+
+    const isLiked = story.likes_count.some(id => id.toString() === userId);
+
+    if (isLiked) {
+      await Story.findByIdAndUpdate(storyId, { $pull: { likes_count: userId } });
+      res.json({ success: true, message: "Unliked", liked: false });
+    } else {
+      await Story.findByIdAndUpdate(storyId, { $addToSet: { likes_count: userId } });
+      
+      if (story.user.toString() !== userId) {
+          const senderInfo = await User.findById(userId).select("full_name username profile_picture");
+          
+          const newNoti = await Notification.create({
+              receiver: story.user,
+              sender: userId,
+              type: "like", 
+              content: `đã thích tin của bạn.`,
+          });
+
+          const io = getIO();
+          const onlineUsers = getOnlineUsers();
+          const receiverSocketId = onlineUsers.get(story.user.toString());
+          
+          if (receiverSocketId) {
+              const populatedNoti = { ...newNoti.toObject(), sender: senderInfo };
+              io.to(receiverSocketId).emit("new_notification", populatedNoti);
+          }
+      }
+      res.json({ success: true, message: "Liked", liked: true });
+    }
+
+    if (updatedStory) {
+      const io = getIO();
+      const onlineUsers = getOnlineUsers();
+      const ownerSocketId = onlineUsers.get(story.user.toString());
+
+      if (ownerSocketId) {
+        io.to(ownerSocketId).emit("story_stats_update", {
+          storyId: updatedStory._id,
+          views: updatedStory.views_count, // Gửi lại cả views để đảm bảo đồng bộ
+          likes: updatedStory.likes_count, // Gửi list likes mới
+        });
+      }
+    }
+    
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -109,18 +109,29 @@ export const updateUserData = async (req, res) => {
 export const getUserProfiles = async (req, res) => {
   try {
     const { profileId, slug } = req.body;
-    let profile;
+    let query;
 
     if (profileId) {
-      profile = await User.findById(profileId).select("-blockedUsers");
+      query = User.findById(profileId);
     } else if (slug) {
-      profile = await User.findOne({
+      query = User.findOne({
         $or: [
           { username: slug },
           { full_name: new RegExp("^" + slug.replace(/-/g, " ") + "$", "i") },
         ],
-      }).select("-blockedUsers");
+      });
     }
+
+    if (!query) {
+      return res.status(400).json({ success: false, message: "Thiếu thông tin tra cứu" });
+    }
+
+    // 🔥 POPULATE ĐỂ LẤY INFO CHI TIẾT (Avatar, Tên) THAY VÌ CHỈ ID
+    const profile = await query
+      .select("-blockedUsers")
+      .populate("followers", "full_name username profile_picture")
+      .populate("following", "full_name username profile_picture")
+      .populate("connections", "full_name username profile_picture");
 
     if (!profile) {
       return res.status(404).json({
@@ -132,11 +143,11 @@ export const getUserProfiles = async (req, res) => {
     const posts = await Post.find({ user: profile._id, deleted: { $ne: true } })
       .populate("user", "full_name username profile_picture")
       .populate({
-          path: 'shared_from',
-          populate: { 
-              path: 'user',
-              select: 'full_name username profile_picture'
-          }
+        path: 'shared_from',
+        populate: { 
+            path: 'user',
+            select: 'full_name username profile_picture'
+        }
       })
       .sort({ createdAt: -1 });
 
@@ -146,6 +157,32 @@ export const getUserProfiles = async (req, res) => {
     res.status(500).json({ success: false, message: "Lỗi máy chủ nội bộ" });
   }
 };
+
+export const getUserList = async (req, res) => {
+    try {
+        const { id, type } = req.params;
+        
+        // Validate type để tránh query linh tinh
+        const validTypes = ["followers", "following", "connections"];
+        if (!validTypes.includes(type)) {
+            return res.status(400).json({ success: false, message: "Loại danh sách không hợp lệ" });
+        }
+
+        const user = await User.findById(id)
+            .populate(type, "full_name username profile_picture bio") // Lấy thêm bio nếu cần
+            .select(type);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        // Trả về mảng user tương ứng với type
+        res.json({ success: true, users: user[type] });
+    } catch (error) {
+        console.error("getUserList error:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+}
 
 const escapeRegex = (string) => {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

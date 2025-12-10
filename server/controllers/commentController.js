@@ -5,6 +5,7 @@ import Post from "../models/Post.js";
 import User from "../models/User.js";
 import Notification from "../models/Notification.js";
 import { analyzeContent } from "../utils/analyzeContent.js";
+import { getIO, getOnlineUsers } from "../utils/socket.js";
 
 export const addComment = async (req, res) => {
   try {
@@ -119,6 +120,9 @@ export const addComment = async (req, res) => {
       parentComment: parentComment || null,
     });
 
+    const io = getIO();
+    const onlineUsers = getOnlineUsers();
+
     // 🔔 Thông báo cho chủ bài viết khi có người bình luận
     const post = await Post.findById(postId).populate("user", "full_name");
 
@@ -132,6 +136,12 @@ export const addComment = async (req, res) => {
         post: postId,
         content: `${sender.full_name} đã bình luận bài viết của bạn.`,
       });
+
+      const receiverSocketId = onlineUsers.get(post.user._id.toString());
+      if (receiverSocketId) {
+        const populatedNoti = { ...newNoti.toObject(), sender };
+        io.to(receiverSocketId).emit("new_notification", populatedNoti);
+      }
     }
 
     // tăng tổng số comment của bài (bao gồm reply)
@@ -155,6 +165,12 @@ export const addComment = async (req, res) => {
           comment: parentComment,
           content: `${sender.full_name} đã trả lời bình luận của bạn.`,
         });
+
+        const receiverSocketId = onlineUsers.get(parent.user._id.toString());
+        if (receiverSocketId) {
+          const populatedNoti = { ...newNoti.toObject(), sender };
+          io.to(receiverSocketId).emit("new_notification", populatedNoti);
+        }
       }
       await Comment.findByIdAndUpdate(parentComment, {
         $inc: { reply_count: 1 },
@@ -177,14 +193,20 @@ export const getComments = async (req, res) => {
     const { postId } = req.params;
 
     const parents = await Comment.find({ post: postId, parentComment: null })
-      .populate("user", "full_name profile_picture connections followers following")
+      .populate(
+        "user",
+        "full_name profile_picture connections followers following"
+      )
       .sort({ createdAt: -1 })
       .lean();
 
     const result = await Promise.all(
       parents.map(async (p) => {
         const replies = await Comment.find({ parentComment: p._id })
-          .populate("user", "full_name profile_picture connections followers following")
+          .populate(
+            "user",
+            "full_name profile_picture connections followers following"
+          )
           .sort({ createdAt: 1 })
           .lean();
 
@@ -219,18 +241,6 @@ export const likeComment = async (req, res) => {
         { new: true }
       ).populate("user", "full_name profile_picture");
 
-// 🔔 Thông báo cho chủ comment
-  if (comment.user.toString() !== userId.toString()) {
-    const sender = await User.findById(userId);
-    await Notification.create({
-      receiver: comment.user,
-      sender: userId,
-      type: "like_comment",
-      comment: commentId,
-      content: `${sender.full_name} đã thích bình luận của bạn.`,
-    });
-  }
-
       return res.json({
         success: true,
         message: "Đã bỏ thích bình luận",
@@ -242,6 +252,28 @@ export const likeComment = async (req, res) => {
         { $push: { likes_count: userId } },
         { new: true }
       ).populate("user", "full_name profile_picture");
+      if (comment.user.toString() !== userId) {
+        const sender = await User.findById(userId).select(
+          "full_name username profile_picture"
+        );
+
+        const newNoti = await Notification.create({
+          receiver: comment.user,
+          sender: userId,
+          type: "like_comment",
+          comment: commentId,
+          content: `${sender.full_name} đã thích bình luận của bạn.`,
+        });
+
+        const io = getIO();
+        const onlineUsers = getOnlineUsers();
+        const receiverSocketId = onlineUsers.get(comment.user.toString());
+
+        if (receiverSocketId) {
+          const populatedNoti = { ...newNoti.toObject(), sender };
+          io.to(receiverSocketId).emit("new_notification", populatedNoti);
+        }
+      }
       return res.json({
         success: true,
         message: "Đã thích bình luận",

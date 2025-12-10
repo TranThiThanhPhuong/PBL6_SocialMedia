@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import Connection from "../models/Connection.js";
 import Notification from "../models/Notification.js";
+import { getIO, getOnlineUsers } from "../utils/socket.js";
 
 const getIdFromReq = (req) => {
   // Hỗ trợ cả :id (params) và { id } (body)
@@ -47,6 +48,39 @@ export const getUserConnections = async (req, res) => {
   } catch (error) {
     console.error("❌ getUserConnections error:", error);
     res.status(500).json({ success: false, message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
+export const getConnectionStatus = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    const { id } = req.params; // ID của profile đang xem
+
+    const connection = await Connection.findOne({
+      $or: [
+        { from_user_id: userId, to_user_id: id },
+        { from_user_id: id, to_user_id: userId },
+      ],
+    });
+
+    if (!connection) {
+        return res.json({ success: true, status: "none" });
+    }
+
+    if (connection.status === "accepted") {
+        return res.json({ success: true, status: "friend" });
+    }
+
+    if (connection.status === "pending") {
+        // Kiểm tra ai là người gửi để trả về status "sent" (đã gửi) hay "received" (được mời)
+        const status = connection.from_user_id.toString() === userId ? "sent" : "received";
+        return res.json({ success: true, status });
+    }
+
+    return res.json({ success: true, status: "none" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -108,12 +142,25 @@ export const followUser = async (req, res) => {
     });
 
     if (!existingNoti) {
-      await Notification.create({
+      const newNoti = await Notification.create({
         sender: userId,
         receiver: id,
         type: "follow",
         content: `${user.full_name} đã theo dõi bạn.`,
       });
+
+      // 🔥 Socket Realtime
+      const io = getIO();
+      const onlineUsers = getOnlineUsers();
+      const receiverSocketId = onlineUsers.get(id);
+
+      if (receiverSocketId) {
+        const populatedNoti = {
+          ...newNoti.toObject(),
+          sender: user, // Gửi kèm thông tin user để hiện avatar ngay
+        };
+        io.to(receiverSocketId).emit("new_notification", populatedNoti);
+      }
     }
 
     res.json({ success: true, message: "Đã theo dõi người dùng." });
@@ -233,18 +280,29 @@ export const sendConnectionRequest = async (req, res) => {
             User.updateOne({ _id: id }, { $addToSet: { connections: userId } }),
           ]);
 
-          // Tạo thông báo chấp nhận
-          await Notification.create({
+          const newNoti = await Notification.create({
             sender: userId,
             receiver: id,
-            type: "friend_request_accepted",
+            type: "friend_accept", // Sửa từ friend_request_accepted -> friend_accept
             content: `${user.full_name} đã chấp nhận lời mời kết nối của bạn.`,
           });
 
+          // 🔥 Bắn socket báo cho người kia biết
+          const io = getIO();
+          const onlineUsers = getOnlineUsers();
+          const receiverSocketId = onlineUsers.get(id);
+
+          if (receiverSocketId) {
+            const populatedNoti = {
+              ...newNoti.toObject(),
+              sender: user,
+            };
+            io.to(receiverSocketId).emit("new_notification", populatedNoti);
+          }
+
           return res.json({
             success: true,
-            message:
-              "Lời mời của bên kia đã được chấp nhận — hai bạn đã trở thành bạn bè.",
+            message: "Hai bạn đã trở thành bạn bè.",
             connection: existing,
           });
         }
@@ -262,7 +320,6 @@ export const sendConnectionRequest = async (req, res) => {
         await Connection.deleteOne({ _id: existing._id });
         // tiếp tục bên dưới tạo mới
       } else {
-        // fallback - không mong muốn
         return res.status(400).json({
           success: false,
           message: "Không thể xử lý yêu cầu hiện tại.",
@@ -276,12 +333,25 @@ export const sendConnectionRequest = async (req, res) => {
       status: "pending",
     });
 
-    await Notification.create({
+    const newNoti = await Notification.create({
       sender: userId,
       receiver: id,
       type: "friend_request",
       content: `${user.full_name} đã gửi lời mời kết nối.`,
     });
+
+    // 🔥 Socket Realtime
+    const io = getIO();
+    const onlineUsers = getOnlineUsers();
+    const receiverSocketId = onlineUsers.get(id);
+
+    if (receiverSocketId) {
+      const populatedNoti = {
+        ...newNoti.toObject(),
+        sender: user,
+      };
+      io.to(receiverSocketId).emit("new_notification", populatedNoti);
+    }
 
     res.json({
       success: true,
@@ -349,7 +419,9 @@ export const acceptConnectionRequest = async (req, res) => {
     const id = getIdFromReq(req);
 
     if (!id)
-      return res.status(400).json({ success: false, message: "Thiếu ID mục tiêu." });
+      return res
+        .status(400)
+        .json({ success: false, message: "Thiếu ID mục tiêu." });
     if (userId === id)
       return res.status(400).json({ success: false, message: "Không hợp lệ." });
 
@@ -360,7 +432,9 @@ export const acceptConnectionRequest = async (req, res) => {
     ]);
 
     if (!user || !target)
-      return res.status(404).json({ success: false, message: "Người dùng không tồn tại." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Người dùng không tồn tại." });
 
     // Kiểm tra block
     if (
@@ -369,7 +443,8 @@ export const acceptConnectionRequest = async (req, res) => {
     ) {
       return res.json({
         success: false,
-        message: "Không thể chấp nhận kết nối vì một trong hai bên đã chặn nhau.",
+        message:
+          "Không thể chấp nhận kết nối vì một trong hai bên đã chặn nhau.",
       });
     }
 
@@ -380,13 +455,19 @@ export const acceptConnectionRequest = async (req, res) => {
     });
 
     if (!connection)
-      return res.json({ success: false, message: "Không tìm thấy yêu cầu kết nối." });
+      return res.json({
+        success: false,
+        message: "Không tìm thấy yêu cầu kết nối.",
+      });
 
     if (connection.status === "accepted")
       return res.json({ success: false, message: "Hai bạn đã là bạn bè." });
 
     if (connection.status !== "pending")
-      return res.json({ success: false, message: "Không thể chấp nhận kết nối trong trạng thái hiện tại." });
+      return res.json({
+        success: false,
+        message: "Không thể chấp nhận kết nối trong trạng thái hiện tại.",
+      });
 
     // Cập nhật sang accepted
     connection.status = "accepted";
@@ -399,12 +480,25 @@ export const acceptConnectionRequest = async (req, res) => {
     ]);
 
     // Gửi thông báo
-    await Notification.create({
+    const newNoti = await Notification.create({
       sender: userId,
       receiver: id,
       type: "friend_accept",
       content: `${user.full_name} đã chấp nhận lời mời kết nối của bạn.`,
     });
+
+    // 🔥 Socket Realtime
+    const io = getIO();
+    const onlineUsers = getOnlineUsers();
+    const receiverSocketId = onlineUsers.get(id); // Gửi cho người kia
+
+    if (receiverSocketId) {
+      const populatedNoti = {
+        ...newNoti.toObject(),
+        sender: user,
+      };
+      io.to(receiverSocketId).emit("new_notification", populatedNoti);
+    }
 
     res.json({ success: true, message: "Đã chấp nhận kết nối." });
   } catch (error) {

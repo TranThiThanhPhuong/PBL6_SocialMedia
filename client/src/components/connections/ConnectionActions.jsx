@@ -13,7 +13,11 @@ const ConnectionActions = ({ tab, user, handlers, currentUser, navigate }) => {
         <>
           {isFollowing ? (
             <button
-              onClick={() => handlers.unfollow(user._id)}
+              onClick={() =>
+              window.confirm("Bạn chắc chắn muốn bỏ theo dõi người này?")
+                ? handlers.unfollow(user._id)
+                : null
+            }
               className="w-full py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm font-medium transition"
             >
               Bỏ theo dõi

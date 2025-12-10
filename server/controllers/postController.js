@@ -4,6 +4,7 @@ import imagekit from "../configs/imageKit.js";
 import User from "../models/User.js";
 import Notification from "../models/Notification.js";
 import { analyzeContent } from "../utils/analyzeContent.js";
+import { getIO, getOnlineUsers } from "../utils/socket.js";
 
 export const addPost = async (req, res) => {
   try {
@@ -287,15 +288,30 @@ export const likePosts = async (req, res) => {
 
       // ✅ Gửi thông báo nếu không phải chính chủ bài viết
       if (post.user.toString() !== userId) {
-        const sender = await User.findById(userId);
+        const sender = await User.findById(userId).select(
+          "full_name username profile_picture"
+        );
 
-        await Notification.create({
+        const newNoti = await Notification.create({
           receiver: post.user,
           sender: userId,
           type: "like",
           post: postId,
           content: `${sender.full_name} đã thích bài viết của bạn.`,
         });
+
+        // 🔥 SOCKET REALTIME
+        const io = getIO();
+        const onlineUsers = getOnlineUsers();
+        const receiverSocketId = onlineUsers.get(post.user.toString());
+
+        if (receiverSocketId) {
+          const populatedNoti = {
+            ...newNoti.toObject(),
+            sender: sender, // Gửi kèm info người like để hiện avatar
+          };
+          io.to(receiverSocketId).emit("new_notification", populatedNoti);
+        }
       }
 
       res.json({ success: true, message: "Đã thích bài viết" });
@@ -339,14 +355,30 @@ export const sharePost = async (req, res) => {
     await originalPost.save();
 
     if (originalPost.user.toString() !== userId) {
-      const sender = await User.findById(userId);
-      await Notification.create({
+      const sender = await User.findById(userId).select(
+        "full_name username profile_picture"
+      );
+
+      const newNoti = await Notification.create({
         receiver: originalPost.user,
         sender: userId,
         type: "share",
         post: postId,
         content: `${sender.full_name} đã chia sẻ bài viết của bạn.`,
       });
+
+      // 🔥 SOCKET REALTIME
+      const io = getIO();
+      const onlineUsers = getOnlineUsers();
+      const receiverSocketId = onlineUsers.get(originalPost.user.toString());
+
+      if (receiverSocketId) {
+        const populatedNoti = {
+          ...newNoti.toObject(),
+          sender: sender,
+        };
+        io.to(receiverSocketId).emit("new_notification", populatedNoti);
+      }
     }
 
     res.json({

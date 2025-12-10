@@ -5,8 +5,10 @@ import Connection from "../models/Connection.js";
 import sendEmail  from "../configs/nodeMailer.js";
 import Message from "../models/Message.js";
 
-// tao 1 client để gửi và nhận sự kiện
-export const inngest = new Inngest({ id: "safepost-app" });
+export const inngest = new Inngest({ 
+  id: "safepost-app",
+  eventKey: process.env.INNGEST_EVENT_KEY // Đảm bảo dòng này (hoặc để mặc định SDK tự tìm)
+});
 
 // syncUserCreation sẽ được sử dụng để đồng bộ hóa việc tạo người dùng
 const syncUserCreation = inngest.createFunction(

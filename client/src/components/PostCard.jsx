@@ -221,7 +221,8 @@ const PostCard = ({
           {/* --- PHẦN 1: AVATAR + TÊN (Được bọc UserAvatar) --- */}
           {isProfileView ? (
             // Nếu là trang Profile: Chỉ hiện ảnh và tên bình thường (không bọc UserAvatar)
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 cursor-pointer group"
+            onClick={() => handleUserClick(post.user)}>
               <img
                 src={post.user.profile_picture}
                 className="w-10 h-10 rounded-full shadow object-cover"
@@ -438,7 +439,8 @@ const PostCard = ({
           <div className="flex items-center gap-2 mb-2">
             {isProfileView ? (
               // Nếu là trang Profile: Chỉ hiện ảnh và tên bình thường (không bọc UserAvatar)
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 cursor-pointer group "
+              onClick={() => handleUserClick(post.shared_from.user)}>
                 <img
                   src={post.shared_from.user?.profile_picture}
                   className="w-10 h-10 rounded-full shadow object-cover"

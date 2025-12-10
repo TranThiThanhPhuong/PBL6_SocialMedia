@@ -12,7 +12,7 @@ import {
 export const sendMessage = async (req, res) => {
   try {
     const { userId } = req.auth();
-    const { to_user_id, text } = req.body;
+    const { to_user_id, text, storyId } = req.body;
     const image = req.file;
 
     if (!to_user_id)
@@ -75,7 +75,7 @@ export const sendMessage = async (req, res) => {
       fs.unlinkSync(image.path);
     }
 
-    const message = await Message.create({
+    const messageData = await Message.create({
       from_user_id: userId,
       to_user_id,
       text,
@@ -83,13 +83,16 @@ export const sendMessage = async (req, res) => {
       media_url,
     });
 
-    await User.findByIdAndUpdate(userId, {
-      $pull: { pendingMessages: to_user_id },
-    });
+    if (storyId) {
+      messageData.reply_to_story = storyId;
+    }
+
+    const message = await Message.create(messageData);
 
     const populatedMsg = await Message.findById(message._id)
       .populate("from_user_id", "full_name username profile_picture")
       .populate("to_user_id", "full_name username profile_picture")
+      .populate("reply_to_story")
       .lean();
 
     const io = getIO();

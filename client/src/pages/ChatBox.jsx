@@ -12,17 +12,19 @@ import {
 } from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
 import { useAuth } from "@clerk/clerk-react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   fetchMessages,
   resetMessages,
 } from "../features/messages/messagesSlice";
+import { slugifyUser } from "../app/slugifyUser";
 import ChatOptionsMenu from "../components/dropdownmenu/ChatOptionsMenu";
 import socket from "../sockethandler/socket";
 
 const ChatBox = () => {
   const location = useLocation();
   const realUserId = location.state?.userId;
+  const navigate = useNavigate();
   // Giả sử bạn có logic lấy slug nếu refresh trang, tạm thời dùng realUserId
   const userId = realUserId; 
   
@@ -153,9 +155,6 @@ const ChatBox = () => {
   // 8. Nhận tin nhắn Socket
   useEffect(() => {
     const handleReceiveMessage = (msg) => {
-      // 👇 SỬA LỖI QUAN TRỌNG: Chỉ nhận tin nhắn TỪ NGƯỜI KIA gửi tới mình
-      // Tin mình gửi đi (từ tab này) đã được hàm sendMessage xử lý rồi.
-      // Cần check kỹ senderId (vì có thể là object hoặc string)
       const senderId = msg.from_user_id?._id || msg.from_user_id;
       
       if (senderId === userId) {
@@ -189,7 +188,7 @@ const ChatBox = () => {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 p-4 bg-white border-b border-gray-200 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="relative">
+          <div className="relative" onClick={() => navigate(`/profile-user/${slugifyUser(user)}`)}>
             <img src={user.profile_picture} alt="" className="w-11 h-11 rounded-full ring-2 ring-indigo-100" />
             <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${isOnline ? "bg-green-500" : "bg-gray-400"}`}></div>
           </div>
@@ -219,8 +218,6 @@ const ChatBox = () => {
           {messages
             .toSorted((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
             .map((msg, i) => {
-              // 👇 LOGIC QUAN TRỌNG: Xác định ai là người gửi (Để chỉnh màu xanh/trắng)
-              // Cần lấy ID chuẩn (dù backend trả về object user hay string ID)
               const senderId = msg.from_user_id?._id || msg.from_user_id;
               const isMe = senderId === currentUserId; // So sánh string với string
               const isReceived = !isMe;
@@ -256,6 +253,46 @@ const ChatBox = () => {
                     )}
 
                     <div className={`flex flex-col ${isReceived ? "items-start" : "items-end"}`}>
+                      {msg.reply_to_story && (
+                        <div className={`mb-1 p-2 rounded-lg flex items-center gap-3 border-l-4 cursor-pointer hover:opacity-90 transition max-w-[250px] ${
+                            isReceived ? "bg-gray-100 border-indigo-400" : "bg-indigo-500/10 border-indigo-600"
+                        }`}>
+                            {/* Check xem story có tồn tại không (có _id không) */}
+                            {msg.reply_to_story._id ? (
+                                <>
+                                    {/* Ảnh Thumbnail */}
+                                    {msg.reply_to_story.image_urls?.[0] ? (
+                                        <img 
+                                            src={msg.reply_to_story.image_urls[0]} 
+                                            className="w-10 h-14 object-cover rounded-md bg-gray-200 border border-gray-300" 
+                                            alt="Story" 
+                                        />
+                                    ) : (
+                                        <div className="w-10 h-14 bg-gray-200 rounded-md flex items-center justify-center p-1 text-center border border-gray-300">
+                                            <span className="text-[8px] text-gray-600 line-clamp-3">{msg.reply_to_story.content}</span>
+                                        </div>
+                                    )}
+                                    
+                                    <div className="flex flex-col overflow-hidden">
+                                        <span className="text-xs font-semibold text-gray-500 truncate">
+                                            {isMe ? "Bạn đã phản hồi tin của họ" : "Đã phản hồi tin của bạn"}
+                                        </span>
+                                        <span className="text-xs text-gray-400 italic line-clamp-1">
+                                            {msg.reply_to_story.content ? `"${msg.reply_to_story.content}"` : "Hình ảnh"}
+                                        </span>
+                                    </div>
+                                </>
+                            ) : (
+                                // Trường hợp Story đã bị xóa hoặc hết hạn 24h
+                                <div className="flex items-center gap-2 p-1">
+                                    <div className="w-10 h-14 bg-gray-200 rounded-md flex items-center justify-center">
+                                        <X size={16} className="text-gray-400"/>
+                                    </div>
+                                    <span className="text-xs text-gray-400 italic">Tin này không còn tồn tại</span>
+                                </div>
+                            )}
+                        </div>
+                      )}
                       <div
                         className={`px-4 py-2.5 rounded-2xl max-w-md transition-all hover:shadow-md ${
                           isReceived
