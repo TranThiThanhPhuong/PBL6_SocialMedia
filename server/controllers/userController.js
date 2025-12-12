@@ -344,67 +344,6 @@ export const unlockUser = async (req, res) => {
     });
   } 
 };
-
-// -------------------- BLOCK USER --------------------
-export const blockUser = async (req, res) => {
-  try {
-    const { userId } = req.auth();
-    const id = getIdFromReq(req);
-
-    console.log("blockUser:", { by: userId, target: id });
-
-    if (!id) return res.status(400).json({ success: false, message: "Thiếu ID người dùng cần chặn." });
-    if (userId === id) return res.json({ success: false, message: "Không thể tự chặn chính mình." });
-
-    await Promise.all([
-      User.findByIdAndUpdate(userId, {
-        $pull: { following: id, followers: id, connections: id },
-        $addToSet: { blockedUsers: id },
-      }),
-      User.findByIdAndUpdate(id, {
-        $pull: { following: userId, followers: userId, connections: userId },
-      }),
-      Connection.deleteMany({
-        $or: [
-          { from_user_id: userId, to_user_id: id },
-          { from_user_id: id, to_user_id: userId },
-        ],
-      }),
-    ]);
-
-    res.json({ success: true, message: "Đã chặn người dùng." });
-  } catch (error) {
-    console.error("blockUser error:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// -------------------- UNBLOCK USER --------------------
-export const unblockUser = async (req, res) => {
-  try {
-    const { userId } = req.auth();
-    const id = getIdFromReq(req);
-
-    console.log("unblockUser:", { by: userId, target: id });
-
-    if (!id) return res.status(400).json({ success: false, message: "Thiếu ID người dùng cần bỏ chặn." });
-
-    const user = await User.findById(userId);
-    if (!user) return res.json({ success: false, message: "Không tìm thấy người dùng." });
-
-    if (!user.blockedUsers.some((uid) => uid.toString() === id)) {
-      return res.json({ success: false, message: "Người này chưa bị chặn." });
-    }
-
-    await User.findByIdAndUpdate(userId, { $pull: { blockedUsers: id } });
-
-    res.json({ success: true, message: "Đã bỏ chặn người dùng." });
-  } catch (error) {
-    console.error("unblockUser error:", error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
   
 //--------------- CÁC HÀM CHO ADMIN --------------------
 // Hàm tạo JWT token

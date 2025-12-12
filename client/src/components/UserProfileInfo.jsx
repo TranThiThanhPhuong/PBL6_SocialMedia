@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import api from "../api/axios";
+import api from "../api/axios.js";
 import {
   UserPlus,
   UserX,
   MessageSquare,
+  ChevronDown,
   PenBox,
   MapPin,
   Calendar,
@@ -11,7 +12,7 @@ import {
   UserCheck,
   X,
   Check,
-  MoreHorizontal,
+  MoreVertical,
   Flag,
   Ban,
   Unlock,
@@ -22,8 +23,13 @@ import {
   handleAcceptConnection,
   handleRejectConnection,
   handleRemoveConnection,
+  handleCancelConnection,
+  handleBlock,
+  handleUnblock,
+  handleReport,
   createConnectionHandlers,
 } from "../service/connectionService";
+import MiniChatBox from "../components/MiniChatBox";
 import { fetchConnections } from "../features/connections/connectionsSlice";
 import { slugifyUser } from "../app/slugifyUser";
 import { formatPostTime } from "../app/formatDate";
@@ -38,23 +44,24 @@ const UserProfileInfo = ({ user, posts, setShowEdit }) => {
   const { getToken } = useAuth();
 
   const [showOptions, setShowOptions] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState("loading"); // 'none', 'friend', 'sent', 'received', 'loading'
+  const [showSentOptions, setShowSentOptions] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const sentOptionsRef = useRef(null);
+  const optionsRef = useRef(null);
+
   const [showListModal, setShowListModal] = useState(false);
   const [listType, setListType] = useState(""); // 'followers', 'following', 'connections'
   const [listData, setListData] = useState([]);
   const [loadingList, setLoadingList] = useState(false);
   const [loadingAction, setLoadingAction] = useState(false);
-  const [loadingFollow, setLoadingFollow] = useState(false); 
-  const optionsRef = useRef(null);
+  const [loadingFollow, setLoadingFollow] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState("loading"); // 'none', 'friend', 'sent', 'received', 'loading'
 
-    // === KIỂM TRA TRẠNG THÁI LIÊN HỆ ===
+  // === KIỂM TRA TRẠNG THÁI LIÊN HỆ ===
   const isFollowing = currentUser.following?.includes(user._id);
   const isFollower = currentUser.followers?.includes(user._id);
-  const isFriend = currentUser.connections?.includes(user._id);
-  const isPending = currentUser.pendingConnections?.includes(user._id);
-  const hasRequested = user.pendingConnections?.includes(currentUser._id);
   const isBlocked = currentUser.blockedUsers?.includes(user._id);
-  
+
   useEffect(() => {
     const fetchStatus = async () => {
       if (!user || !currentUser || user._id === currentUser._id) return;
@@ -82,18 +89,23 @@ const UserProfileInfo = ({ user, posts, setShowEdit }) => {
     getToken().then((token) => dispatch(fetchConnections(token)));
   }, [dispatch, getToken]);
 
-  // 2. Xử lý Click Outside để đóng menu 3 chấm
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (optionsRef.current && !optionsRef.current.contains(event.target)) {
         setShowOptions(false);
+      }
+      if (
+        sentOptionsRef.current &&
+        !sentOptionsRef.current.contains(event.target)
+      ) {
+        setShowSentOptions(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [optionsRef]);
+  }, [optionsRef, sentOptionsRef]);
 
   if (!currentUser || !user) return null;
 
@@ -112,7 +124,6 @@ const UserProfileInfo = ({ user, posts, setShowEdit }) => {
       } else {
         await handlers.follow(user._id);
       }
-      // Lưu ý: State Redux sẽ tự cập nhật sau khi thunk chạy xong
     } catch (error) {
       console.error("Follow error:", error);
     } finally {
@@ -130,76 +141,6 @@ const UserProfileInfo = ({ user, posts, setShowEdit }) => {
     "Theo dõi"
   );
 
-  const handleReportUser = async () => {
-    try {
-      setLoadingAction(true);
-      const token = await getToken();
-      const { data } = await api.post(
-        "/api/report/user", // Endpoint báo cáo user (cần tạo BE tương ứng)
-        { reportedUserId: user._id, reason: "Spam hoặc quấy rối" },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (data.success) toast.success("Đã gửi báo cáo đến admin.");
-      else toast.error(data.message);
-      setShowOptions(false);
-    } catch (error) {
-      toast.error("Lỗi khi gửi báo cáo.");
-    } finally {
-      setLoadingAction(false);
-    }
-  };
-
-  const handleBlockUser = async () => {
-    if (!window.confirm(`Bạn có chắc muốn chặn ${user.full_name}?`)) return;
-    try {
-      setLoadingAction(true);
-      const token = await getToken();
-      const { data } = await api.post(
-        "/api/user/block",
-        { id: user._id },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (data.success) {
-        toast.success(`Đã chặn ${user.full_name}`);
-        window.location.reload();
-      } else {
-        toast.error(data.message);
-      }
-      setShowOptions(false);
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setLoadingAction(false);
-    }
-  };
-
-  const handleUnblockUser = async () => {
-    if (!window.confirm(`Bỏ chặn ${user.full_name}?`)) return;
-    try {
-      setLoadingAction(true);
-      const token = await getToken();
-      const { data } = await api.post(
-        "/api/user/unblock",
-        { id: user._id },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (data.success) {
-        toast.success(`Đã bỏ chặn ${user.full_name}`);
-        window.location.reload();
-      } else {
-        toast.error(data.message);
-      }
-      setShowOptions(false);
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setLoadingAction(false);
-    }
-  };
-
-  // --- Handlers cho Danh sách Users (Modal) ---
   const handleOpenList = async (type) => {
     setListType(type);
     setShowListModal(true);
@@ -212,17 +153,30 @@ const UserProfileInfo = ({ user, posts, setShowEdit }) => {
       if (data.success) setListData(data.users);
     } catch (error) {
       // Fallback data có sẵn nếu API chưa implement
-      if (type === "followers" && user.followers[0]?._id) setListData(user.followers);
-      else if (type === "following" && user.following[0]?._id) setListData(user.following);
-      else if (type === "connections" && user.connections[0]?._id) setListData(user.connections);
+      if (type === "followers" && user.followers[0]?._id)
+        setListData(user.followers);
+      else if (type === "following" && user.following[0]?._id)
+        setListData(user.following);
+      else if (type === "connections" && user.connections[0]?._id)
+        setListData(user.connections);
     } finally {
       setLoadingList(false);
     }
   };
 
   const onConnect = async () => {
-    await handleConnectionRequest(user._id, getToken, dispatch);
-    setConnectionStatus("sent");
+    const success = await handleConnectionRequest(
+      user._id, 
+      getToken, 
+      dispatch, 
+      currentUser, 
+      navigate
+    );
+    if (success) {
+      setConnectionStatus("sent");
+    } else {
+      setConnectionStatus("none");
+    }
   };
 
   const onAccept = async () => {
@@ -236,14 +190,51 @@ const UserProfileInfo = ({ user, posts, setShowEdit }) => {
   };
 
   const onRemove = async () => {
-    await handleRemoveConnection(user._id, getToken, dispatch);
-    setConnectionStatus("none");
+    const success = await handleRemoveConnection(user._id, getToken, dispatch);
+    if (success) {
+        setConnectionStatus("none");
+    }
   };
 
-  const followAction = isFollowing
-    ? () => handlers.unfollow(user._id)
-    : () => handlers.follow(user._id);
+  const onCancel = async () => {
+    const success = await handleCancelConnection(user._id, getToken, dispatch);
+    if (success) {
+      setConnectionStatus("none");
+    }
+  };
 
+  const onBlockUser = async () => {
+    setLoadingAction(true);
+    const success = await handleBlock(user._id, getToken, dispatch);
+    setLoadingAction(false);
+
+    if (success) {
+      setShowOptions(false);
+      window.location.reload();
+    }
+  };
+
+  const onUnblockUser = async () => {
+    setLoadingAction(true);
+    const success = await handleUnblock(user._id, getToken, dispatch);
+    setLoadingAction(false);
+
+    if (success) {
+      setShowOptions(false);
+      window.location.reload();
+    }
+  };
+
+  const onReportUser = async () => {
+    setLoadingAction(true);
+    const success = await handleReport(
+      user._id,
+      "Spam hoặc quấy rối",
+      getToken
+    );
+    setLoadingAction(false);
+    if (success) setShowOptions(false);
+  };
   const followBtnClass = isFollowing
     ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
     : "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white";
@@ -306,16 +297,28 @@ const UserProfileInfo = ({ user, posts, setShowEdit }) => {
                 )}
 
                 {connectionStatus === "sent" && (
-                  // Đã sửa: Nút này giờ cho phép Click để Hủy lời mời
-                  <button
-                    onClick={onRemove}
-                    className="px-5 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm font-medium flex items-center gap-1 transition-colors group"
-                  >
-                    <UserCheck className="w-4 h-4 group-hover:hidden" />
-                    <X className="w-4 h-4 hidden group-hover:block" />
-                    <span className="group-hover:hidden">Đã gửi lời mời</span>
-                    <span className="hidden group-hover:inline">Hủy lời mời</span>
-                  </button>
+                  <div className="relative" ref={sentOptionsRef}>
+                    <button
+                      onClick={() => setShowSentOptions(!showSentOptions)}
+                      className="px-5 py-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 text-sm font-medium flex items-center gap-1 transition-colors"
+                    >
+                      <UserCheck className="w-4 h-4" />
+                      <span>Đã gửi lời mời</span>
+                      <ChevronDown className="w-3 h-3 ml-1" />
+                    </button>
+
+                    {/* Menu Hủy lời mời */}
+                    {showSentOptions && (
+                      <div className="absolute left-0 top-full mt-2 w-40 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                        <button
+                          onClick={onCancel}
+                          className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                        >
+                          <X className="w-4 h-4" /> Hủy lời mời
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {connectionStatus === "received" && (
@@ -349,15 +352,18 @@ const UserProfileInfo = ({ user, posts, setShowEdit }) => {
                 {/* 3. Nút Nhắn tin */}
                 {(connectionStatus === "friend" || isFollowing) && (
                   <button
-                    onClick={() =>
-                      navigate(`/messages/${slugifyUser(user)}`, {
-                        state: { userId: user._id },
-                      })
-                    }
+                    onClick={() => setShowChat(true)} // Mở ChatBox
                     className="px-5 py-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 text-sm font-medium flex items-center justify-center gap-2 transition"
                   >
-                    <MessageSquare className="w-4 h-4" /> Nhắn tin
+                    <MessageSquare className="w-4 h-4" />
+                    Nhắn tin
                   </button>
+                )}
+                {showChat && (
+                  <MiniChatBox
+                    targetUser={user}
+                    onClose={() => setShowChat(false)}
+                  />
                 )}
 
                 {/* MENU 3 CHẤM (Đã thêm Ref để click outside) */}
@@ -366,7 +372,7 @@ const UserProfileInfo = ({ user, posts, setShowEdit }) => {
                     onClick={() => setShowOptions(!showOptions)}
                     className="p-2 rounded-full hover:bg-gray-100 transition"
                   >
-                    <MoreHorizontal className="w-5 h-5 text-gray-600" />
+                    <MoreVertical className="w-5 h-5 text-gray-600" />
                   </button>
                   {showOptions && (
                     <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
@@ -385,7 +391,7 @@ const UserProfileInfo = ({ user, posts, setShowEdit }) => {
 
                       {isBlocked ? (
                         <button
-                          onClick={handleUnblockUser}
+                          onClick={onUnblockUser}
                           disabled={loadingAction}
                           className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                         >
@@ -393,7 +399,7 @@ const UserProfileInfo = ({ user, posts, setShowEdit }) => {
                         </button>
                       ) : (
                         <button
-                          onClick={handleBlockUser}
+                          onClick={onBlockUser}
                           disabled={loadingAction}
                           className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                         >
@@ -401,7 +407,7 @@ const UserProfileInfo = ({ user, posts, setShowEdit }) => {
                         </button>
                       )}
                       <button
-                        onClick={handleReportUser}
+                        onClick={onReportUser}
                         disabled={loadingAction}
                         className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 border-t border-gray-100"
                       >
@@ -510,12 +516,15 @@ const UserProfileInfo = ({ user, posts, setShowEdit }) => {
                     <div
                       key={u._id}
                       className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition cursor-pointer"
-                      onClick={() => {
-                        navigate(`/profile-user/${slugifyUser(u)}`);
-                        setShowListModal(false);
-                      }}
+                      
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3"
+                      onClick={() => {
+                        setShowListModal(false);
+                        navigate(`/profile-user/${slugifyUser(u)}`);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                        setConnectionStatus("loading");
+                      }}>
                         <img
                           src={u.profile_picture}
                           alt=""
@@ -525,9 +534,7 @@ const UserProfileInfo = ({ user, posts, setShowEdit }) => {
                           <p className="font-semibold text-gray-900 text-sm">
                             {u.full_name}
                           </p>
-                          <p className="text-xs text-gray-500">
-                            @{u.username}
-                          </p>
+                          <p className="text-xs text-gray-500">@{u.username}</p>
                         </div>
                       </div>
                     </div>

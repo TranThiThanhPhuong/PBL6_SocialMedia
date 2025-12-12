@@ -1,8 +1,8 @@
 import React, { useRef, useEffect } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { useUser, useAuth } from "@clerk/clerk-react";
-import { useDispatch, useSelector } from "react-redux"; // 👈 Import useSelector
-import toast, { Toaster } from "react-hot-toast";
+import { useDispatch, useSelector } from "react-redux"; 
+import { Toaster } from "react-hot-toast";
 
 import Login from "./pages/Login";
 import Feed from "./pages/Feed";
@@ -38,7 +38,7 @@ const App = () => {
       }
     };
     if (isLoaded && user) {
-        fetchData();
+      fetchData();
     }
   }, [user, isLoaded, getToken, dispatch]);
 
@@ -66,10 +66,10 @@ const App = () => {
         socket.off("connect", onConnect);
       };
     } else {
-        if(socket.connected) {
-            socket.disconnect();
-            console.log("🚫 App: Socket disconnected (No User)");
-        }
+      if (socket.connected) {
+        socket.disconnect();
+        console.log("🚫 App: Socket disconnected (No User)");
+      }
     }
   }, [currentUserId]);
 
@@ -86,7 +86,10 @@ const App = () => {
           <Route path="discover" element={<Discover />} />
           <Route path="profile" element={<Profile />} />
           <Route path="profile/:profileId" element={<Profile />} />
-          <Route path="profile-user/:slug" element={<Profile />} />
+          <Route
+            path="profile-user/:slug"
+            element={<Profile key={window.location.pathname} />}
+          />
           <Route path="notifications" element={<Notifications />} />
           <Route path="create-post" element={<CreatePost />} />
         </Route>

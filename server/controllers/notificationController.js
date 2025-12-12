@@ -7,7 +7,9 @@ export const createNotification = async (req, res) => {
 
     const noti = await Notification.create({ receiver, sender, type, content });
 
-    const populatedNoti = await noti.populate("sender", "full_name username profile_picture").lean();
+    const populatedNoti = await noti
+      .populate("sender", "full_name username profile_picture")
+      .lean();
 
     const io = getIO();
     const onlineUsers = getOnlineUsers();
@@ -23,13 +25,18 @@ export const createNotification = async (req, res) => {
   }
 };
 
-// 📨 Lấy tất cả thông báo của người dùng hiện tại
 export const getNotifications = async (req, res) => {
   try {
     const { userId } = req.auth();
 
-    const notifications = await Notification.find({ receiver: userId })
-      .populate("sender", "full_name profile_picture connections followers following")
+    const notifications = await Notification.find({
+      receiver: userId,
+      type: { $nin: ["follow_hidden", "friend_request_hidden"] },
+    })
+      .populate(
+        "sender",
+        "full_name profile_picture connections followers following"
+      )
       .sort({ createdAt: -1 });
 
     res.json({
@@ -42,20 +49,24 @@ export const getNotifications = async (req, res) => {
   }
 };
 
-// ✅ Đánh dấu tất cả thông báo đã đọc
 export const markAllAsRead = async (req, res) => {
   try {
     const { userId } = req.auth();
 
-    await Notification.updateMany({ receiver: userId, isRead: false }, { isRead: true });
+    await Notification.updateMany(
+      { receiver: userId, isRead: false },
+      { isRead: true }
+    );
 
-    res.json({ success: true, message: "Đã đánh dấu tất cả thông báo là đã đọc." });
+    res.json({
+      success: true,
+      message: "Đã đánh dấu tất cả thông báo là đã đọc.",
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ❌ Xóa thông báo
 export const deleteNotification = async (req, res) => {
   try {
     const { id } = req.params;
