@@ -15,6 +15,10 @@ router.use(adminAuth);
 router.get("/stats-cards", getStatsCards);
 // API cho biểu đồ đăng ký user
 router.get("/user-chart", getUserRegistrationChart);
-// (Thêm các route cho biểu đồ khác ở đây)
+// Route lấy số liệu thống kê (yêu cầu Admin)
+router.get("/stats-cards", adminAuth, getStatsCards);
+
+// Route lấy dữ liệu biểu đồ (yêu cầu Admin)
+router.get("/user-chart", adminAuth, getUserRegistrationChart);
 
 export default router;

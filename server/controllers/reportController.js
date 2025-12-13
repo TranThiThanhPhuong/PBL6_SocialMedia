@@ -158,7 +158,7 @@ export const updateReport = async (req, res) => {
       await Notification.create({
         receiver: report.reporter,
         type: "report",
-        content: "Chúng tôi đã xem xét báo cáo của bạn về bài viết và nhận thấy nội dung này không vi phạm Tiêu chuẩn cộng đồng. Cảm ơn sự đóng góp của bạn.",
+        content: "Chúng tôi đã xem xét báo cáo của bạn về bài viết và nhận thấy bài viết không vi phạm Tiêu chuẩn cộng đồng. Cảm ơn sự đóng góp của bạn.",
         post: report.post, // Đính kèm link bài viết (vì chưa bị xóa)
         isRead: false
       });

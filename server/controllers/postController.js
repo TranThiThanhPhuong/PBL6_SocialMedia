@@ -399,3 +399,35 @@ export const sharePost = async (req, res) => {
       .json({ success: false, message: "Lỗi máy chủ: " + error.message });
   }
 };
+
+
+// 🟢 [ADMIN] Lấy tất cả bài viết
+export const getAllPosts = async (req, res) => {
+  try {
+    const posts = await Post.find({ deleted: { $ne: true } })
+      .populate("user", "full_name username profile_picture")
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, posts });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 🔴 [ADMIN] Xóa bài viết (Bỏ qua kiểm tra chính chủ)
+export const adminDeletePost = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const post = await Post.findById(id);
+
+    if (!post) return res.status(404).json({ success: false, message: "Không tìm thấy bài viết." });
+
+    // Soft delete
+    post.deleted = true;
+    await post.save();
+
+    res.json({ success: true, message: "Đã xóa bài viết (Admin)." });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
