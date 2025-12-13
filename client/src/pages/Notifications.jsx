@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import api from "../api/axios";
 import UserAvatar from "../components/dropdownmenu/UserAvatar";
 import { formatPostTime } from "../app/formatDate";
+import defaultAvatar from "../assets/sample_profile.jpg";
 import {
   Heart,
   MessageCircle,
@@ -17,7 +18,7 @@ import {
 import { useAuth } from "@clerk/clerk-react";
 import { useNavigate } from "react-router-dom";
 import { slugifyUser } from "../app/slugifyUser";
-import socket from "../sockethandler/socket"; 
+import socket from "../sockethandler/socket";
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
@@ -43,7 +44,7 @@ const Notifications = () => {
 
   useEffect(() => {
     const handleNewNotification = (newNoti) => {
-    console.log("🔔 Nhận thông báo mới từ socket:", newNoti);
+      console.log("🔔 Nhận thông báo mới từ socket:", newNoti);
       setNotifications((prev) => [newNoti, ...prev]);
     };
     socket.on("new_notification", handleNewNotification);
@@ -96,18 +97,17 @@ const Notifications = () => {
         {notifications.map((noti) => (
           <div
             key={noti._id}
-            className={`flex items-start justify-between gap-4 p-3 rounded-lg cursor-pointer transition-colors ${
-              !noti.isRead ? "bg-blue-50" : "hover:bg-gray-50"
-            }`}
+            className={`flex items-start justify-between gap-4 p-3 rounded-lg cursor-pointer transition-colors ${!noti.isRead ? "bg-blue-50" : "hover:bg-gray-50"
+              }`}
           >
             <div className="flex items-start gap-4">
               <UserAvatar user={noti.sender}>
                 <img
                   onClick={(e) => {
                     e.stopPropagation();
-                    if(noti.sender) navigate(`/profile-user/${slugifyUser(noti.sender)}`);
+                    if (noti.sender) navigate(`/profile-user/${slugifyUser(noti.sender)}`);
                   }}
-                  src={noti.sender?.profile_picture || "/default-avatar.png"}
+                  src={noti.sender?.profile_picture || defaultAvatar}
                   alt="avatar"
                   className="w-10 h-10 rounded-full object-cover"
                 />

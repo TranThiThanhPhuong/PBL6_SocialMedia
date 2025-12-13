@@ -98,69 +98,84 @@ export const getAllReports = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-  // 🟠 Admin xử lý báo cáo (review hoặc dismiss)
+
+// 🟠 Admin xử lý báo cáo (review hoặc dismiss)
 export const updateReport = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body; // 'reviewed' (Xử lí) hoặc 'dismissed' (Bỏ qua)
-
-    // Lấy admin user từ middleware 'adminAuth'
-    const adminUser = req.user; 
+    const { status } = req.body; // 'reviewed' (Xử lí/Xóa) hoặc 'dismissed' (Bỏ qua)
 
     if (!["reviewed", "dismissed"].includes(status)) {
       return res.status(400).json({ success: false, message: "Trạng thái không hợp lệ." });
     }
 
+    // Tìm báo cáo
     const report = await Report.findById(id);
     if (!report) {
       return res.status(404).json({ success: false, message: "Không tìm thấy báo cáo." });
     }
 
-    // --- LOGIC XỬ LÍ (SẠCH SẼ HƠN) ---
+    // --- LOGIC XỬ LÝ ---
+    
+    // TRƯỜNG HỢP 1: ADMIN CHẤP NHẬN BÁO CÁO (XÓA BÀI)
     if (status === 'reviewed') {
+      // Xử lý nếu là báo cáo Bài viết (Post)
+      if (report.post) { 
+        const postToDelete = await Post.findById(report.post);
 
-      // 1. XÓA BÀI VIẾT (NẾU LÀ BÁO CÁO POST)
-      if (report.type === 'post' && report.post) {
-        try {
-          const reportedPost = await Post.findById(report.post);
+        if (postToDelete) {
+          const violatorId = postToDelete.user; // ID người vi phạm
 
-          if (reportedPost) {
-            const violatorId = reportedPost.user; // ID người vi phạm
+          // 1. Xóa bài viết khỏi Database
+          await Post.findByIdAndDelete(report.post);
 
-            // --- GỌI TRỰC TIẾP HÀM SERVICE (SẠCH SẼ) ---
-            await deletePostService(report.post, adminUser); // Truyền postId và adminUser
+          // 2. Gửi thông báo cho Người báo cáo (Reporter)
+          await Notification.create({
+            receiver: report.reporter,
+            type: "report", // Dùng type có sẵn trong enum
+            content: "Cảm ơn bạn đã báo cáo. Chúng tôi đã xem xét và gỡ bỏ bài viết vi phạm tiêu chuẩn cộng đồng.",
+            isRead: false
+          });
 
-            // 2. GỬI THÔNG BÁO
-            await createNotification({
-              user: report.reporter,
-              type: "report_approved",
-              content: `Báo cáo của bạn về một bài viết đã được xử lý. Cảm ơn bạn đã đóng góp.`,
-              link: `/profile` 
-            });
-            await createNotification({
-              user: violatorId,
-              type: "post_deleted",
-              content: "Một bài viết của bạn đã bị gỡ bỏ do vi phạm chính sách cộng đồng (bị báo cáo).",
-            });
-          }
-        } catch (deleteError) {
-          console.error("Lỗi khi gọi deletePostService hoặc createNotification:", deleteError.message);
+          // 3. Gửi thông báo cho Người vi phạm (Violator)
+          await Notification.create({
+            receiver: violatorId,
+            type: "admin_delete_post", // Dùng type có sẵn trong enum
+            content: "Bài viết của bạn đã bị xóa do vi phạm Tiêu chuẩn cộng đồng.",
+            isRead: false
+          });
+        } else {
+          // Bài viết có thể đã bị xóa trước đó
+          console.log("Bài viết không tồn tại hoặc đã bị xóa.");
         }
-      } 
-      // (Bạn có thể thêm logic xóa 'story' tương tự ở đây)
+      }
+      
+    } 
+    
+    // TRƯỜNG HỢP 2: ADMIN BỎ QUA BÁO CÁO (GIỮ BÀI)
+    else if (status === 'dismissed') {
+      // Chỉ gửi thông báo cho Người báo cáo là báo cáo đã bị từ chối/không vi phạm
+      await Notification.create({
+        receiver: report.reporter,
+        type: "report",
+        content: "Chúng tôi đã xem xét báo cáo của bạn về bài viết và nhận thấy nội dung này không vi phạm Tiêu chuẩn cộng đồng. Cảm ơn sự đóng góp của bạn.",
+        post: report.post, // Đính kèm link bài viết (vì chưa bị xóa)
+        isRead: false
+      });
     }
 
-    // 3. CẬP NHẬT TRẠNG THÁI BÁO CÁO
+    // 4. CẬP NHẬT TRẠNG THÁI BÁO CÁO
     report.status = status;
     await report.save();
 
     res.json({ 
       success: true, 
-      message: `Đã ${status === 'reviewed' ? 'xử lý' : 'bỏ qua'} báo cáo.`, 
+      message: `Đã ${status === 'reviewed' ? 'xử lý (xóa bài)' : 'bỏ qua'} báo cáo.`, 
       report 
     });
 
   } catch (error) {
+    console.error("Lỗi updateReport:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
