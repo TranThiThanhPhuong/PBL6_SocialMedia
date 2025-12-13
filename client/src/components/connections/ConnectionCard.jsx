@@ -20,7 +20,7 @@ const ConnectionCard = ({
         className="flex items-center gap-3 cursor-pointer group"
       >
         <img
-          src={user.profile_picture || "/default-avatar.png"}
+          src={user.profile_picture}
           alt=""
           className="rounded-full w-14 h-14 object-cover border-2 border-indigo-100 group-hover:scale-105 transition-transform"
         />

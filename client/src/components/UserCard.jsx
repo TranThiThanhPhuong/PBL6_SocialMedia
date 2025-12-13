@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { createConnectionHandlers } from "../service/connectionService";
 import { fetchConnections } from "../features/connections/connectionsSlice";
 import { slugifyUser } from "../app/slugifyUser";
+import defaultAvatar from "../assets/sample_profile.jpg";
 
 const UserCard = ({ user }) => {
   const currentUser = useSelector((state) => state.user.value);
@@ -32,8 +33,8 @@ const UserCard = ({ user }) => {
   const followLabel = isFollowing
     ? "Bỏ theo dõi"
     : isFollower
-    ? "Theo dõi lại"
-    : "Theo dõi";
+      ? "Theo dõi lại"
+      : "Theo dõi";
 
   const followAction = isFollowing
     ? () => handlers.unfollow(user._id)
@@ -63,7 +64,7 @@ const UserCard = ({ user }) => {
         }}
       >
         <img
-          src={user.profile_picture || "/default-avatar.png"}
+          src={user.profile_picture || defaultAvatar}
           alt={user.full_name}
           className="rounded-full w-16 shadow-md mx-auto"
         />
