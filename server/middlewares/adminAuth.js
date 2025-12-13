@@ -44,3 +44,22 @@ export const adminAuth = async (req, res, next) => {
     return res.status(401).json({ success: false, message: "Không có token xác thực. Vui lòng đăng nhập Admin." });
   }
 };
+
+export const checkUserStatus = async (req, res, next) => {
+  try {
+    const { userId } = req.auth();
+    const user = await User.findById(userId).select('status');
+
+    if (user && user.status === 'locked') {
+        return res.status(403).json({ 
+            success: false, 
+            message: "ACCOUNT_LOCKED", 
+            reason: "Tài khoản của bạn đã bị khóa bởi quản trị viên." 
+        });
+    }
+    
+    next();
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi server" });
+  }
+};

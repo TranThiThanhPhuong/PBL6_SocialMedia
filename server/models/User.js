@@ -26,8 +26,12 @@ const userSchema = new mongoose.Schema(
     isAdmin: { type: Boolean, default: false },
     status: { type: String, enum: ['active', 'locked'], default: 'active' },
   },
-  { timestamps: true, minimize: false }
+  { timestamps: true, minimize: false, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
+
+userSchema.virtual('locked').get(function () {
+  return this.status === 'locked';
+});
 
 // Middleware Mongoose: Hashing mật khẩu trước khi lưu (Pre-save hook)
 userSchema.pre("save", async function (next) {

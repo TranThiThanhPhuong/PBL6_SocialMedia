@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { BadgeCheck, X, Eye, SendHorizontal, Heart } from "lucide-react";
 import { useSelector } from "react-redux";
 import { useAuth } from "@clerk/clerk-react";
+import { useNavigate } from "react-router-dom";
+import { slugifyUser } from "../app/slugifyUser";
 import api from "../api/axios";
 import toast from "react-hot-toast";
 import socket from "../sockethandler/socket";
@@ -19,6 +21,7 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
 
   const currentUser = useSelector((state) => state.user.value);
   const { getToken } = useAuth();
+  const navigate = useNavigate();
 
   const isMyStory = viewStory?.user?._id === currentUser?._id;
 
@@ -207,7 +210,8 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
       </div>
 
       {/* Header Info */}
-      <div className="absolute top-4 left-4 flex items-center space-x-3 p-2 px-4 backdrop-blur-md rounded-full bg-black/20 z-20">
+      <div className="absolute cursor-pointer group top-4 left-4 flex items-center space-x-3 p-2 px-4 backdrop-blur-md rounded-full bg-black/20 z-20"
+        onClick={() => navigate(`/profile-user/${slugifyUser(viewStory.user)}`)}>
         <img
           src={viewStory.user?.profile_picture}
           alt=""

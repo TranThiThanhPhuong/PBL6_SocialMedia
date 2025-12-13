@@ -8,6 +8,7 @@ import {
   MoreVertical,
   Maximize2,
   Loader2,
+  Ban,
 } from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
 import { useAuth } from "@clerk/clerk-react";
@@ -40,6 +41,10 @@ const MiniChatBox = ({ targetUser, onClose }) => {
   const [image, setImage] = useState(null);
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef(null);
+
+  const isBlockedByMe = currentUser?.blockedUsers?.includes(userId);
+  const isBlockedByTarget = targetUser?.blockedUsers?.includes(currentUserId);
+  const isBlocked = isBlockedByMe || isBlockedByTarget;
 
   useEffect(() => {
     if (!userId) return;
@@ -161,9 +166,10 @@ const MiniChatBox = ({ targetUser, onClose }) => {
   return (
     <div className="fixed bottom-0 right-16 bg-white shadow-2xl rounded-t-xl border border-gray-200 z-50 flex flex-col h-[450px] w-80 transition-all duration-300">
       {/* Header */}
-      <div className="flex items-center justify-between p-3 bg-indigo-600 text-white rounded-t-xl shadow-sm">
+      <div className="flex items-center justify-between p-3 bg-indigo-600 text-white rounded-t-xl shadow-sm cursor-pointer group">
         <div className="flex items-center gap-2">
-          <div className="relative">
+          <div className="relative"
+            onClick={() => navigate(`/profile-user/${slugifyUser(targetUser)}`)}>
             <img
               src={targetUser.profile_picture}
               alt=""
@@ -210,9 +216,10 @@ const MiniChatBox = ({ targetUser, onClose }) => {
       </div>
 
       {showMenu && (
-        <div className="absolute top-12 right-2 z-50">
+        <div className="absolute -top-8 right-11 z-50">
           <ChatOptionsMenu
             userId={userId}
+            user={targetUser}
             onClose={() => setShowMenu(false)}
             getToken={getToken}
             dispatch={dispatch}
@@ -284,7 +291,7 @@ const MiniChatBox = ({ targetUser, onClose }) => {
       </div>
 
       {/* Image Preview */}
-      {image && (
+      {!isBlocked && image && (
         <div className="px-3 py-1 bg-gray-100 border-t flex justify-between items-center">
           <span className="text-xs text-gray-500 truncate max-w-[150px]">
             {image.name}
@@ -295,41 +302,54 @@ const MiniChatBox = ({ targetUser, onClose }) => {
         </div>
       )}
 
-      {/* Input Area */}
-      <div className="p-2 bg-white border-t border-gray-200">
-        <div className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1.5">
-          <label
-            htmlFor="mini-chat-img"
-            className="cursor-pointer text-gray-500 hover:text-indigo-600"
-          >
-            <ImageIcon size={18} />
-            <input
-              type="file"
-              id="mini-chat-img"
-              hidden
-              accept="image/*"
-              onChange={(e) => setImage(e.target.files[0])}
-              disabled={isSending}
-            />
-          </label>
-          <input
-            type="text"
-            placeholder="Nhập tin nhắn..."
-            className="flex-1 bg-transparent text-sm outline-none text-gray-800"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !isSending && sendMessage()} 
-            disabled={isSending}
-          />
-          <button
-            onClick={sendMessage}
-            disabled={(!text && !image) || isSending}
-            className="text-indigo-600 hover:text-indigo-700 disabled:text-gray-400"
-          >
-            {isSending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={18} />}
-          </button>
+      {/* Input Area HOẶC Block Message */}
+      {isBlocked ? (
+        // 👇 HIỂN THỊ KHI BỊ CHẶN
+        <div className="p-4 bg-gray-50 border-t border-gray-200 flex flex-col items-center justify-center text-center gap-2">
+            <Ban className="w-6 h-6 text-gray-400" />
+            <p className="text-xs text-gray-500 font-medium italic">
+                {isBlockedByMe 
+                    ? "Bạn đã chặn người dùng này." 
+                    : "Bạn không thể nhắn tin cho người dùng này."}
+            </p>
         </div>
-      </div>
+      ) : (
+        // 👇 HIỂN THỊ INPUT BÌNH THƯỜNG
+        <div className="p-2 bg-white border-t border-gray-200">
+            <div className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1.5">
+            <label
+                htmlFor="mini-chat-img"
+                className="cursor-pointer text-gray-500 hover:text-indigo-600"
+            >
+                <ImageIcon size={18} />
+                <input
+                type="file"
+                id="mini-chat-img"
+                hidden
+                accept="image/*"
+                onChange={(e) => setImage(e.target.files[0])}
+                disabled={isSending}
+                />
+            </label>
+            <input
+                type="text"
+                placeholder="Nhập tin nhắn..."
+                className="flex-1 bg-transparent text-sm outline-none text-gray-800"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !isSending && sendMessage()} 
+                disabled={isSending}
+            />
+            <button
+                onClick={sendMessage}
+                disabled={(!text && !image) || isSending}
+                className="text-indigo-600 hover:text-indigo-700 disabled:text-gray-400"
+            >
+                {isSending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={18} />}
+            </button>
+            </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -18,6 +18,8 @@ const notificationSchema = new mongoose.Schema({
       "share",
       "report_post",
       "admin_delete_post",
+      "follow_hidden",         
+      "friend_request_hidden",
     ],
     required: true,
   },

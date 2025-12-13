@@ -8,6 +8,8 @@ import api from "../api/axios";
 import ChatBox from "./ChatBox";
 import socket from "../sockethandler/socket";
 
+const DEFAULT_AVATAR = "https://via.placeholder.com/150?text=User";
+
 const Messages = () => {
   const navigate = useNavigate();
   const { user } = useUser();
@@ -88,8 +90,9 @@ const Messages = () => {
 
   const filtered = conversations.filter((msg) => {
     const u = msg.otherUser;
-    const name = u?.full_name || "";
-    const username = u?.username || "";
+    const name = u?.locked ? "Người dùng Instagram" : (u?.full_name || "");
+    const username = u?.locked ? "" : (u?.username || "");
+    
     return (
       name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       username.toLowerCase().includes(searchTerm.toLowerCase())
@@ -133,36 +136,45 @@ const Messages = () => {
               {filtered.map((msg) => {
                 const u = msg.otherUser;
                 const isActive = window.location.pathname.includes(u?._id);
-                
                 const senderId = msg.from_user_id?._id || msg.from_user_id;
                 const isMe = senderId === user.id;
-                
                 const isUnread = !isMe && !msg.seen;
+
+                const isLocked = u?.locked;
+                const displayName = isLocked ? "Người dùng Instagram" : (u?.full_name || "Người dùng");
+                const displayAvatar = isLocked ? DEFAULT_AVATAR : (u?.profile_picture || DEFAULT_AVATAR);
 
                 return (
                   <div
                     key={msg._id}
-                    onClick={() => navigate(`/messages/${slugifyUser(u)}`, { state: { userId: u._id } })}
+                    onClick={() => {
+                        if(u?._id) {
+                            navigate(`/messages/${slugifyUser(u)}`, { state: { userId: u._id } });
+                        }
+                    }}
                     className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all mb-1 ${
                       isActive ? "bg-indigo-50 border border-indigo-200" : "hover:bg-gray-50"
                     }`}
                   >
                     <div className="relative flex-shrink-0">
-                      <img src={u?.profile_picture} alt={u?.full_name} className="w-14 h-14 rounded-full object-cover ring-2 ring-gray-100" />
+                      <img 
+                        src={displayAvatar} 
+                        alt={displayName} 
+                        className="w-14 h-14 rounded-full object-cover ring-2 ring-gray-100" 
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline mb-0.5">
                         <p className={`truncate text-gray-900 ${isUnread ? "font-bold" : "font-semibold"}`}>
-                          {u?.full_name}
+                          {displayName}
                         </p>
                         <p className={`text-xs ${isUnread ? "text-indigo-600 font-bold" : "text-gray-500"}`}>
                           {formatPostTime(msg.createdAt)}
                         </p>
                       </div>
                       
-                      {/* 👇 HIỂN THỊ NỘI DUNG TIN NHẮN */}
                       <p className={`text-sm truncate pr-2 ${isUnread ? "text-gray-900 font-bold" : "text-gray-600"}`}>
-                        {isMe && "Bạn: "} {/* Hiện chữ "Bạn:" nếu mình gửi */}
+                        {isMe && "Bạn: "}
                         {msg.message_type === "image" ? "📷 Đã gửi một hình ảnh" : msg.text}
                       </p>
                     </div>

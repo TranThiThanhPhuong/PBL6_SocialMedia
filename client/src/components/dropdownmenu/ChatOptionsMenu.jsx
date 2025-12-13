@@ -1,5 +1,15 @@
-import React, { useState } from "react";
-import { Trash2, Flag, UserX, UserCheck, Inbox } from "lucide-react";
+import React, { use, useState } from "react";
+import {
+  Trash2,
+  Flag,
+  UserX,
+  UserCheck,
+  Inbox,
+  X,
+  UserCircle,
+} from "lucide-react";
+import { slugifyUser } from "../../app/slugifyUser";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import api from "../../api/axios";
 import { fetchConnections } from "../../features/connections/connectionsSlice";
@@ -12,8 +22,9 @@ const postWithToken = async (url, body, getToken) => {
   return { data, token };
 };
 
-const ChatOptionsMenu = ({ userId, onClose, getToken, dispatch }) => {
+const ChatOptionsMenu = ({ userId, user, onClose, getToken, dispatch }) => {
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleDeleteChat = async () => {
     try {
@@ -63,7 +74,11 @@ const ChatOptionsMenu = ({ userId, onClose, getToken, dispatch }) => {
 
   const handleBlockUser = async () => {
     try {
-      if (!window.confirm("Bạn có chắc muốn chặn người này không? Họ sẽ không thể nhắn tin hoặc xem bạn."))
+      if (
+        !window.confirm(
+          "Bạn có chắc muốn chặn người này không? Họ sẽ không thể nhắn tin hoặc xem bạn."
+        )
+      )
         return;
 
       setLoading(true);
@@ -89,8 +104,7 @@ const ChatOptionsMenu = ({ userId, onClose, getToken, dispatch }) => {
 
   const handleUnblockUser = async () => {
     try {
-      if (!window.confirm("Bạn có chắc muốn bỏ chặn người này không?"))
-        return;
+      if (!window.confirm("Bạn có chắc muốn bỏ chặn người này không?")) return;
 
       setLoading(true);
 
@@ -137,19 +151,52 @@ const ChatOptionsMenu = ({ userId, onClose, getToken, dispatch }) => {
 
   return (
     <div className="absolute top-17 right-2 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-      <button onClick={handleDeleteChat} disabled={loading} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left">
+      <button
+        onClick={onClose}
+        className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left"
+      >
+        <X size={16} />
+      </button>
+      <button
+        onClick={() => navigate(`/profile-user/${slugifyUser(user)}`)}
+        disabled={loading}
+        className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left"
+      >
+        <UserCircle size={16} /> Trang cá nhân
+      </button>
+      <button
+        onClick={handleDeleteChat}
+        disabled={loading}
+        className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left"
+      >
         <Trash2 size={16} /> Xóa chat
       </button>
-      <button onClick={handleReportUser} disabled={loading} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left">
+      <button
+        onClick={handleReportUser}
+        disabled={loading}
+        className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left"
+      >
         <Flag size={16} /> Báo cáo
       </button>
-      <button onClick={handleBlockUser} disabled={loading} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left">
+      <button
+        onClick={handleBlockUser}
+        disabled={loading}
+        className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left"
+      >
         <UserX size={16} /> Chặn người này
       </button>
-      <button onClick={handleUnblockUser} disabled={loading} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left">
+      <button
+        onClick={handleUnblockUser}
+        disabled={loading}
+        className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left"
+      >
         <UserCheck size={16} /> Bỏ chặn
       </button>
-      <button onClick={handleMoveToPending} disabled={loading} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left">
+      <button
+        onClick={handleMoveToPending}
+        disabled={loading}
+        className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left"
+      >
         <Inbox size={16} /> Chuyển tin nhắn chờ
       </button>
     </div>

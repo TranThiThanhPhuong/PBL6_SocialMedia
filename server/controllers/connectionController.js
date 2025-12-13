@@ -54,8 +54,7 @@ export const getUserConnections = async (req, res) => {
 export const getConnectionStatus = async (req, res) => {
   try {
     const { userId } = req.auth();
-    const { id } = req.params; // ID của profile đang xem
-
+    const id = getIdFromReq(req);
     const connection = await Connection.findOne({
       $or: [
         { from_user_id: userId, to_user_id: id },
@@ -64,17 +63,17 @@ export const getConnectionStatus = async (req, res) => {
     });
 
     if (!connection) {
-        return res.json({ success: true, status: "none" });
+      return res.json({ success: true, status: "none" });
     }
 
     if (connection.status === "accepted") {
-        return res.json({ success: true, status: "friend" });
+      return res.json({ success: true, status: "friend" });
     }
 
     if (connection.status === "pending") {
-        // Kiểm tra ai là người gửi để trả về status "sent" (đã gửi) hay "received" (được mời)
-        const status = connection.from_user_id.toString() === userId ? "sent" : "received";
-        return res.json({ success: true, status });
+      const status =
+        connection.from_user_id.toString() === userId ? "sent" : "received";
+      return res.json({ success: true, status });
     }
 
     return res.json({ success: true, status: "none" });
@@ -90,12 +89,11 @@ export const followUser = async (req, res) => {
     const { userId } = req.auth();
     const id = getIdFromReq(req);
 
-    console.log("followUser:", { by: userId, target: id });
-
     if (!id)
       return res
         .status(400)
         .json({ success: false, message: "Thiếu ID mục tiêu." });
+
     if (userId === id)
       return res.json({
         success: false,
@@ -103,25 +101,25 @@ export const followUser = async (req, res) => {
       });
 
     const [user, target] = await Promise.all([
-      User.findById(userId),
+      User.findById(userId).select(
+        "full_name username profile_picture following blockedUsers"
+      ),
       User.findById(id),
     ]);
 
     if (!user || !target)
       return res.json({ success: false, message: "Người dùng không tồn tại." });
 
-    // Kiểm tra bị chặn
     if (
       target.blockedUsers?.some((uid) => uid.toString() === userId) ||
       user.blockedUsers?.some((uid) => uid.toString() === id)
     ) {
       return res.json({
         success: false,
-        message: "Không thể thực hiện hành động này.",
+        message: "Bạn không thể theo dõi người dùng này.",
       });
     }
 
-    // Kiểm tra đã follow chưa
     if (user.following.some((uid) => uid.toString() === id)) {
       return res.json({
         success: false,
@@ -134,33 +132,59 @@ export const followUser = async (req, res) => {
       User.findByIdAndUpdate(id, { $addToSet: { followers: userId } }),
     ]);
 
-    // Gửi thông báo follow nếu chưa có
-    const existingNoti = await Notification.findOne({
+    let noti = await Notification.findOne({
       sender: userId,
       receiver: id,
-      type: "follow",
+      type: { $in: ["follow", "follow_hidden"] },
     });
 
-    if (!existingNoti) {
-      const newNoti = await Notification.create({
+    const THRESHOLD = 7000;
+    const now = Date.now();
+
+    if (noti) {
+      if (now - new Date(noti.createdAt).getTime() < THRESHOLD) {
+        if (noti.type === "follow_hidden") {
+          noti.type = "follow";
+          noti.isRead = false;
+          await noti.save();
+        }
+        return res.json({
+          success: true,
+          message: "Đã theo dõi (No spam socket).",
+        });
+      }
+
+      // Nếu đã quá 7s: Cập nhật lại thời gian và bắn socket như mới
+      noti.type = "follow"; // Đảm bảo type đúng
+      noti.createdAt = now;
+      noti.isRead = false;
+      await noti.save();
+    } else {
+      // Tạo mới hoàn toàn
+      noti = await Notification.create({
         sender: userId,
         receiver: id,
         type: "follow",
         content: `${user.full_name} đã theo dõi bạn.`,
       });
+    }
 
-      // 🔥 Socket Realtime
-      const io = getIO();
-      const onlineUsers = getOnlineUsers();
-      const receiverSocketId = onlineUsers.get(id);
+    // --- BẮN SOCKET (Chỉ chạy khi tạo mới hoặc > 7s) ---
+    const io = getIO();
+    const onlineUsers = getOnlineUsers();
+    const receiverSocketId = onlineUsers.get(id);
 
-      if (receiverSocketId) {
-        const populatedNoti = {
-          ...newNoti.toObject(),
-          sender: user, // Gửi kèm thông tin user để hiện avatar ngay
-        };
-        io.to(receiverSocketId).emit("new_notification", populatedNoti);
-      }
+    if (receiverSocketId) {
+      const populatedNoti = {
+        ...noti.toObject(),
+        sender: {
+          _id: user._id,
+          full_name: user.full_name,
+          username: user.username,
+          profile_picture: user.profile_picture,
+        },
+      };
+      io.to(receiverSocketId).emit("new_notification", populatedNoti);
     }
 
     res.json({ success: true, message: "Đã theo dõi người dùng." });
@@ -176,8 +200,6 @@ export const unfollowUser = async (req, res) => {
     const { userId } = req.auth();
     const id = getIdFromReq(req);
 
-    console.log("unfollowUser:", { by: userId, target: id });
-
     if (!id)
       return res
         .status(400)
@@ -191,7 +213,6 @@ export const unfollowUser = async (req, res) => {
     if (!user || !target)
       return res.json({ success: false, message: "Người dùng không tồn tại." });
 
-    // Kiểm tra có đang follow không
     if (!user.following.some((uid) => uid.toString() === id)) {
       return res.json({
         success: false,
@@ -203,6 +224,22 @@ export const unfollowUser = async (req, res) => {
       User.findByIdAndUpdate(userId, { $pull: { following: id } }),
       User.findByIdAndUpdate(id, { $pull: { followers: userId } }),
     ]);
+
+    const noti = await Notification.findOne({
+      sender: userId,
+      receiver: id,
+      type: "follow",
+    });
+
+    if (noti) {
+      const THRESHOLD = 7000;
+      if (Date.now() - new Date(noti.createdAt).getTime() < THRESHOLD) {
+        noti.type = "follow_hidden";
+        await noti.save();
+      } else {
+        await Notification.deleteOne({ _id: noti._id });
+      }
+    }
 
     res.json({ success: true, message: "Đã bỏ theo dõi." });
   } catch (error) {
@@ -216,8 +253,6 @@ export const sendConnectionRequest = async (req, res) => {
   try {
     const { userId } = req.auth();
     const id = getIdFromReq(req);
-
-    console.log("sendConnectionRequest:", { from: userId, to: id });
 
     if (!id)
       return res
@@ -237,15 +272,14 @@ export const sendConnectionRequest = async (req, res) => {
     if (!user || !target)
       return res.json({ success: false, message: "Người dùng không tồn tại." });
 
-    // Kiểm tra block
-    if (
-      (Array.isArray(user.blockedUsers) && user.blockedUsers.includes(id)) ||
-      (Array.isArray(target.blockedUsers) &&
-        target.blockedUsers.includes(userId))
-    ) {
-      return res.status(403).json({
+    const isBlocked = 
+        user.blockedUsers?.includes(id) || 
+        target.blockedUsers?.includes(userId);
+
+    if (isBlocked) {
+      return res.json({
         success: false,
-        message: "Không thể gửi kết nối cho người này (bị chặn).",
+        message: "Bạn không thể thực hiện hành động này (đã bị chặn hoặc chặn).", 
       });
     }
 
@@ -258,9 +292,7 @@ export const sendConnectionRequest = async (req, res) => {
     });
 
     if (existing) {
-      // Nếu đang chờ (pending)
       if (existing.status === "pending") {
-        // Trường hợp người gửi đã gửi trước -> báo đã gửi rồi
         if (existing.from_user_id === userId && existing.to_user_id === id) {
           return res.status(400).json({
             success: false,
@@ -268,13 +300,9 @@ export const sendConnectionRequest = async (req, res) => {
           });
         }
 
-        // Trường hợp bên kia đã gửi trước (ngược chiều pending)
         if (existing.from_user_id === id && existing.to_user_id === userId) {
-          // Quyết định: tự động chấp nhận kết nối (nếu bạn muốn khác, đổi logic ở đây)
           existing.status = "accepted";
           await existing.save();
-
-          // Cập nhật danh sách connections của cả hai (tránh trùng)
           await Promise.all([
             User.updateOne({ _id: userId }, { $addToSet: { connections: id } }),
             User.updateOne({ _id: id }, { $addToSet: { connections: userId } }),
@@ -283,11 +311,10 @@ export const sendConnectionRequest = async (req, res) => {
           const newNoti = await Notification.create({
             sender: userId,
             receiver: id,
-            type: "friend_accept", // Sửa từ friend_request_accepted -> friend_accept
+            type: "friend_accept", 
             content: `${user.full_name} đã chấp nhận lời mời kết nối của bạn.`,
           });
 
-          // 🔥 Bắn socket báo cho người kia biết
           const io = getIO();
           const onlineUsers = getOnlineUsers();
           const receiverSocketId = onlineUsers.get(id);
@@ -308,17 +335,14 @@ export const sendConnectionRequest = async (req, res) => {
         }
       }
 
-      // Nếu đã accepted
       if (existing.status === "accepted") {
         return res
           .status(400)
           .json({ success: false, message: "Hai bạn đã là bạn bè." });
       }
 
-      // Nếu đã bị từ chối hoặc removed => cho phép gửi lại: xóa bản cũ rồi tạo mới
       if (existing.status === "rejected" || existing.status === "removed") {
         await Connection.deleteOne({ _id: existing._id });
-        // tiếp tục bên dưới tạo mới
       } else {
         return res.status(400).json({
           success: false,
@@ -333,24 +357,42 @@ export const sendConnectionRequest = async (req, res) => {
       status: "pending",
     });
 
-    const newNoti = await Notification.create({
+    let newNoti = await Notification.findOne({
       sender: userId,
       receiver: id,
-      type: "friend_request",
-      content: `${user.full_name} đã gửi lời mời kết nối.`,
+      type: { $in: ["friend_request", "friend_request_hidden"] },
     });
 
-    // 🔥 Socket Realtime
-    const io = getIO();
-    const onlineUsers = getOnlineUsers();
-    const receiverSocketId = onlineUsers.get(id);
+    const THRESHOLD = 7000;
+    const now = Date.now();
+    let shouldEmitSocket = true;
 
-    if (receiverSocketId) {
-      const populatedNoti = {
-        ...newNoti.toObject(),
-        sender: user,
-      };
-      io.to(receiverSocketId).emit("new_notification", populatedNoti);
+    if (newNoti) {
+      if (now - new Date(newNoti.createdAt).getTime() < THRESHOLD) {
+        shouldEmitSocket = false;
+      }
+
+      newNoti.type = "friend_request";
+      newNoti.createdAt = now;
+      newNoti.isRead = false;
+      await newNoti.save();
+    } else {
+      newNoti = await Notification.create({
+        sender: userId,
+        receiver: id,
+        type: "friend_request",
+        content: `${user.full_name} đã gửi lời mời kết nối.`,
+      });
+    }
+
+    if (shouldEmitSocket) {
+      const io = getIO();
+      const onlineUsers = getOnlineUsers();
+      const receiverSocketId = onlineUsers.get(id);
+      if (receiverSocketId) {
+        const populatedNoti = { ...newNoti.toObject(), sender: user };
+        io.to(receiverSocketId).emit("new_notification", populatedNoti);
+      }
     }
 
     res.json({
@@ -367,15 +409,14 @@ export const sendConnectionRequest = async (req, res) => {
 // ---------------- HỦY LỜI MỜI KẾT BẠN ----------------
 export const cancelConnectionRequest = async (req, res) => {
   try {
-    const { userId } = req.auth(); // người đang hủy
-    const id = getIdFromReq(req); // id mục tiêu
-
-    console.log("cancelConnectionRequest:", { from: userId, to: id });
+    const { userId } = req.auth();
+    const id = getIdFromReq(req);
 
     if (!id)
       return res
         .status(400)
         .json({ success: false, message: "Thiếu ID mục tiêu." });
+
     if (userId === id)
       return res.status(400).json({ success: false, message: "Không hợp lệ." });
 
@@ -394,13 +435,20 @@ export const cancelConnectionRequest = async (req, res) => {
 
     await Connection.deleteOne({ _id: connection._id });
 
-    // Tạo thông báo cho người bị hủy (không bắt buộc, có thể bỏ)
-    await Notification.create({
+    const noti = await Notification.findOne({
       sender: userId,
       receiver: id,
-      type: "friend_request_cancelled",
-      content: `${userId} đã hủy lời mời kết nối.`,
+      type: "friend_request",
     });
+    if (noti) {
+      const THRESHOLD = 7000;
+      if (Date.now() - new Date(noti.createdAt).getTime() < THRESHOLD) {
+        noti.type = "friend_request_hidden";
+        await noti.save();
+      } else {
+        await Notification.deleteOne({ _id: noti._id });
+      }
+    }
 
     return res.json({
       success: true,
@@ -636,5 +684,41 @@ export const unblockUser = async (req, res) => {
   } catch (error) {
     console.error("unblockUser error:", error);
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getUserById = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const user = await User.findById(userId).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Người dùng không tồn tại",
+        locked: true
+      });
+    }
+
+    if (user.status === 'locked') {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Tài khoản đã bị khóa",
+        locked: true 
+      });
+    }
+    res.status(200).json({
+      success: true,
+      user: user, 
+    });
+
+  } catch (error) {
+    console.error("Lỗi lấy thông tin user:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Lỗi máy chủ",
+      locked: error.name === 'CastError' 
+    });
   }
 };
