@@ -651,6 +651,17 @@ export const blockUser = async (req, res) => {
       ),
     ]);
 
+    const io = getIO();
+    const onlineUsers = getOnlineUsers();
+    const targetSocketId = onlineUsers.get(id); // Tìm socket của người bị chặn
+
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("relationship_update", {
+        type: "block",
+        fromUserId: userId, // Ai là người thực hiện chặn
+      });
+    }
+
     res.json({ success: true, message: "Đã chặn người dùng." });
   } catch (error) {
     console.error("blockUser error:", error);
@@ -680,6 +691,18 @@ export const unblockUser = async (req, res) => {
       return res.json({ success: false, message: "Người này chưa bị chặn." });
 
     await User.findByIdAndUpdate(userId, { $pull: { blockedUsers: id } });
+
+    const io = getIO();
+    const onlineUsers = getOnlineUsers();
+    const targetSocketId = onlineUsers.get(id);
+
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("relationship_update", {
+        type: "unblock",
+        fromUserId: userId,
+      });
+    }
+    
     res.json({ success: true, message: "Đã bỏ chặn người dùng." });
   } catch (error) {
     console.error("unblockUser error:", error);
@@ -689,28 +712,49 @@ export const unblockUser = async (req, res) => {
 
 export const getUserById = async (req, res) => {
   try {
-    const { userId } = req.params;
-    
-    const user = await User.findById(userId).select('-password');
+    const myId = req.auth().userId; 
+    const targetUserId = req.params.userId; 
 
-    if (!user) {
+    if (!targetUserId) {
+        return res.status(400).json({ success: false, message: "Thiếu ID người dùng" });
+    }
+
+    // Tìm user, không lấy password
+    const targetUser = await User.findById(targetUserId).select('-password');
+
+    // 1. User không tồn tại
+    if (!targetUser) {
       return res.status(404).json({ 
         success: false, 
         message: "Người dùng không tồn tại",
-        locked: true
-      });
-    }
-
-    if (user.status === 'locked') {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Tài khoản đã bị khóa",
         locked: true 
       });
     }
+
+    // 2. User bị Admin khóa
+    if (targetUser.status === 'locked') {
+      return res.status(200).json({
+        success: true, 
+        message: "Tài khoản đã bị khóa",
+        user: { 
+            _id: targetUserId, 
+            locked: true, 
+            full_name: "Người dùng Instagram", 
+            profile_picture: "" 
+        }
+      });
+    }
+
+    // 3. Check xem HỌ có chặn MÌNH không?
+    // Convert sang String để so sánh cho chắc chắn
+    const isBlockedByTarget = targetUser.blockedUsers.some(id => String(id) === String(myId));
+
     res.status(200).json({
       success: true,
-      user: user, 
+      user: {
+        ...targetUser.toObject(),
+        isBlockedByTarget: isBlockedByTarget // Trả về cờ này cho Frontend
+      }, 
     });
 
   } catch (error) {

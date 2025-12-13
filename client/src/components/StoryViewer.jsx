@@ -40,12 +40,10 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
   }, [viewStory, currentUser]);
 
   useEffect(() => {
-    if (!isMyStory || !viewStory) return; // Chỉ chủ story mới cần nghe event này
+    if (!isMyStory || !viewStory) return;
 
     const handleStoryUpdate = (data) => {
-      // data = { storyId, views, likes } từ Backend gửi về
       if (data.storyId === viewStory._id) {
-        // Cập nhật danh sách ngay lập tức
         setCurrentViewers(data.views);
         setCurrentLikes(data.likes);
       }
@@ -115,7 +113,6 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
 
   // 4. Handle Like
   const handleLike = async () => {
-    // Optimistic UI: Đổi màu ngay lập tức
     setIsLiked((prev) => !prev);
 
     try {
@@ -210,8 +207,10 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
       </div>
 
       {/* Header Info */}
-      <div className="absolute cursor-pointer group top-4 left-4 flex items-center space-x-3 p-2 px-4 backdrop-blur-md rounded-full bg-black/20 z-20"
-        onClick={() => navigate(`/profile-user/${slugifyUser(viewStory.user)}`)}>
+      <div
+        className="absolute cursor-pointer group top-4 left-4 flex items-center space-x-3 p-2 px-4 backdrop-blur-md rounded-full bg-black/20 z-20"
+        onClick={() => navigate(`/profile-user/${slugifyUser(viewStory.user)}`)}
+      >
         <img
           src={viewStory.user?.profile_picture}
           alt=""
@@ -317,11 +316,8 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
               </div>
             ) : (
               currentViewers.map((viewer, index) => {
-                // 👇 LOGIC CHECK LIKE TRONG DANH SÁCH VIEW
-                // viewStory.likes_count là danh sách những người đã like (từ BE gửi về)
-                // Ta check xem ID của viewer có nằm trong danh sách likes không
                 const viewerLiked = viewStory.likes_count?.some((liker) => {
-                  const likerId = liker._id || liker; // Handle populate or string ID
+                  const likerId = liker._id || liker;
                   return likerId === viewer._id;
                 });
 
@@ -330,7 +326,12 @@ const StoryViewer = ({ viewStory, setViewStory }) => {
                     key={index}
                     className="flex items-center justify-between hover:bg-gray-50 p-2 rounded-lg transition"
                   >
-                    <div className="flex items-center gap-3">
+                    <div
+                      className="flex items-center gap-3"
+                      onClick={() =>
+                        navigate(`/profile-user/${slugifyUser(viewer)}`)
+                      }
+                    >
                       <img
                         src={viewer.profile_picture}
                         className="w-10 h-10 rounded-full object-cover border"

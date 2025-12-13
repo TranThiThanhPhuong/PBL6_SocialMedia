@@ -27,14 +27,33 @@ export const sendMessage = async (req, res) => {
       ),
     ]);
 
-    if (!sender || !receiver)
-      return res.json({ success: false, message: "Người dùng không tồn tại." });
+    const isBlockedByMe = sender.blockedUsers?.some(id => id.toString() === to_user_id.toString());
+    const isBlockedByTarget = receiver.blockedUsers?.some(id => id.toString() === userId.toString());
+
+    if (isBlockedByMe) {
+      return res.json({ 
+        success: false, 
+        message: "Bạn đã chặn người dùng này, hãy bỏ chặn để nhắn tin." 
+      });
+    }
+
+    if (isBlockedByTarget) {
+      return res.json({ 
+        success: false, 
+        message: "Bạn không thể gửi tin nhắn. Người dùng này đã chặn bạn." 
+      });
+    }
+
+    if (receiver.status === 'locked') {
+        return res.json({ success: false, message: "Tài khoản người nhận đã bị khóa." });
+    }
+    // ------------------------------------------
 
     const canMessage =
       (sender.connections.includes(to_user_id) &&
-        receiver.connections.includes(userId)) || // là bạn bè
-      sender.following.includes(to_user_id) || // bạn theo dõi người kia
-      receiver.following.includes(userId); // người kia theo dõi bạn
+        receiver.connections.includes(userId)) || 
+      sender.following.includes(to_user_id) || 
+      receiver.following.includes(userId);
 
     if (!canMessage) {
       return res.json({
@@ -43,16 +62,20 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    const senderFollowsReceiver =
-      Array.isArray(sender.following) && sender.following.includes(to_user_id);
+    // Logic pending messages
     const priorMsgExists = await Message.exists({
-      from_user_id: userId,
-      to_user_id,
-    }); // trước khi tạo -> kiểm tra có lịch sử gửi từ sender->receiver
-    if (senderFollowsReceiver && !priorMsgExists) {
-      await User.findByIdAndUpdate(to_user_id, {
-        $addToSet: { pendingMessages: userId },
-      });
+      $or: [
+        { from_user_id: userId, to_user_id },
+        { from_user_id: to_user_id, to_user_id: userId }
+      ]
+    });
+    
+    if (!priorMsgExists) {
+        // Nếu chưa từng chat, kiểm tra xem có cần đẩy vào pending không
+        // Logic tùy chỉnh của bạn, ở đây giữ nguyên logic cũ hoặc đơn giản hóa
+        await User.findByIdAndUpdate(to_user_id, {
+            $addToSet: { pendingMessages: userId },
+        });
     }
 
     let message_type = image ? "image" : "text";
@@ -75,19 +98,16 @@ export const sendMessage = async (req, res) => {
       fs.unlinkSync(image.path);
     }
 
-    const messageData = await Message.create({
+    const messagePayload = {
       from_user_id: userId,
       to_user_id,
       text,
       message_type,
       media_url,
-    });
+      reply_to_story: storyId,
+    };
 
-    if (storyId) {
-      messageData.reply_to_story = storyId;
-    }
-
-    const message = await Message.create(messageData);
+    const message = await Message.create(messagePayload);
 
     const populatedMsg = await Message.findById(message._id)
       .populate("from_user_id", "full_name username profile_picture")
@@ -95,17 +115,23 @@ export const sendMessage = async (req, res) => {
       .populate("reply_to_story")
       .lean();
 
+    // --- SOCKET EMIT ---
     const io = getIO();
     const onlineUsers = getOnlineUsers();
+    
+    // Gửi cho người nhận (để hiện tin nhắn mới)
     const receiverSocketId = onlineUsers.get(to_user_id);
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("receive_message", populatedMsg);
     }
 
+    // Gửi cho chính người gửi (để cập nhật Sidebar Messages bên trái)
+    // Frontend ChatBox phải lọc tin nhắn này để không bị nhân đôi
     const senderSocketId = onlineUsers.get(userId);
     if (senderSocketId) {
       io.to(senderSocketId).emit("receive_message", populatedMsg);
     }
+
     return res.json({ success: true, message: populatedMsg });
   } catch (error) {
     console.error("sendMessage error:", error);

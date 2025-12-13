@@ -21,11 +21,14 @@ import {
 import ChatOptionsMenu from "../components/dropdownmenu/ChatOptionsMenu";
 import socket from "../sockethandler/socket";
 
+const DEFAULT_AVATAR = "https://via.placeholder.com/150?text=User";
+
 const MiniChatBox = ({ targetUser, onClose }) => {
   const { getToken } = useAuth();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const userId = targetUser?._id;
+  const isLocked = targetUser?.locked;
 
   const currentUser = useSelector((state) => state.user.value);
   const currentUserId = currentUser?._id;
@@ -33,7 +36,7 @@ const MiniChatBox = ({ targetUser, onClose }) => {
   const reduxMessages = useSelector((state) => state.messages.messages);
   const [messages, setMessages] = useState([]);
   const [showMenu, setShowMenu] = useState(false);
-  
+
   const [isOnline, setIsOnline] = useState(false);
   const [lastSeen, setLastSeen] = useState(null);
 
@@ -42,9 +45,55 @@ const MiniChatBox = ({ targetUser, onClose }) => {
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef(null);
 
-  const isBlockedByMe = currentUser?.blockedUsers?.includes(userId);
-  const isBlockedByTarget = targetUser?.blockedUsers?.includes(currentUserId);
+  const [isBlockedByTarget, setIsBlockedByTarget] = useState(false);
+
+  const [tempBlockStatus, setTempBlockStatus] = useState(null);
+  const isBlockedByMe =
+    tempBlockStatus !== null
+      ? tempBlockStatus
+      : currentUser?.blockedUsers?.includes(userId);
   const isBlocked = isBlockedByMe || isBlockedByTarget;
+
+  const displayName = isLocked ? "Người dùng" : targetUser?.full_name;
+  const displayAvatar = isLocked ? DEFAULT_AVATAR : targetUser?.profile_picture;
+
+  const handleBlockSuccess = () => {
+    setTempBlockStatus(true); // Ghi đè ngay lập tức thành "Đã chặn"
+  };
+
+  const handleUnblockSuccess = () => {
+    setTempBlockStatus(false); // Ghi đè ngay lập tức thành "Bỏ chặn"
+  };
+
+  const handleDeleteChatSuccess = () => {
+    setMessages([]); // Xóa tin nhắn trên màn hình ngay
+  };
+
+  const handleMovePendingSuccess = () => {
+    toast.success("Đã chuyển sang tin nhắn chờ");
+    onClose(); // Đóng mini chat
+  };
+
+  useEffect(() => {
+    if (!targetUser || !currentUserId) return;
+
+    setIsBlockedByTarget(targetUser?.blockedUsers?.includes(currentUserId));
+  }, [targetUser, currentUserId]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const handleBlockStatusChanged = ({ fromUserId, blocked }) => {
+      if (fromUserId !== userId) return;
+
+      // Người kia vừa chặn / bỏ chặn mình
+      setIsBlockedByTarget(blocked);
+    };
+
+    socket.on("block_status_changed", handleBlockStatusChanged);
+
+    return () => socket.off("block_status_changed", handleBlockStatusChanged);
+  }, [userId]);
 
   useEffect(() => {
     if (!userId) return;
@@ -69,18 +118,25 @@ const MiniChatBox = ({ targetUser, onClose }) => {
   }, [messages]);
 
   useEffect(() => {
+    if (!userId || isBlocked || isLocked) return;
+
     const handleReceiveMessage = (msg) => {
       const senderId = msg.from_user_id?._id || msg.from_user_id;
       if (senderId === userId) {
         setMessages((prev) => [...prev, msg]);
       }
     };
+
     socket.on("receive_message", handleReceiveMessage);
     return () => socket.off("receive_message", handleReceiveMessage);
-  }, [userId]);
+  }, [userId, isBlocked, isLocked]);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || isBlocked || isLocked) {
+      setIsOnline(false);
+      setLastSeen(null);
+      return;
+    }
 
     (async () => {
       try {
@@ -116,13 +172,14 @@ const MiniChatBox = ({ targetUser, onClose }) => {
       socket.off("user_online", handleUserOnline);
       socket.off("user_offline", handleUserOffline);
     };
-  }, [userId, getToken]);
+  }, [userId, getToken, isBlocked]);
 
   const sendMessage = async () => {
+    if (isBlocked) return;
     try {
       if ((!text && !image) || isSending) return;
       setIsSending(true);
-      
+
       const token = await getToken();
       const formData = new FormData();
       formData.append("to_user_id", userId);
@@ -139,7 +196,12 @@ const MiniChatBox = ({ targetUser, onClose }) => {
         setImage(null);
       } else toast.error(data.message);
     } catch (error) {
-      toast.error(error.message);
+      if (error.response?.data?.message?.includes("block")) {
+        setTempBlockStatus(true);
+        toast.error("Không thể gửi tin nhắn.");
+      } else {
+        toast.error(error.message);
+      }
     } finally {
       setIsSending(false);
     }
@@ -158,9 +220,9 @@ const MiniChatBox = ({ targetUser, onClose }) => {
 
   const handleOpenFullChat = () => {
     navigate(`/messages/${slugifyUser(targetUser)}`, {
-      state: { userId: targetUser._id }, 
+      state: { userId: targetUser._id },
     });
-    onClose(); 
+    onClose();
   };
 
   return (
@@ -168,29 +230,48 @@ const MiniChatBox = ({ targetUser, onClose }) => {
       {/* Header */}
       <div className="flex items-center justify-between p-3 bg-indigo-600 text-white rounded-t-xl shadow-sm cursor-pointer group">
         <div className="flex items-center gap-2">
-          <div className="relative"
-            onClick={() => navigate(`/profile-user/${slugifyUser(targetUser)}`)}>
+          <div
+            className="relative cursor-pointer"
+            onClick={() => {
+              if (!isLocked)
+                navigate(`/profile-user/${slugifyUser(targetUser)}`);
+            }}
+          >
             <img
-              src={targetUser.profile_picture}
+              src={displayAvatar}
               alt=""
-              className="w-9 h-9 rounded-full border border-white"
+              className="w-9 h-9 rounded-full border border-white object-cover"
             />
-            {isOnline && (
+
+            {/* Online CHỈ HIỆN khi KHÔNG lock & KHÔNG block */}
+            {!isLocked && !isBlocked && isOnline && (
               <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-indigo-600 rounded-full"></span>
             )}
           </div>
+
           <div>
             <p className="font-semibold text-sm truncate max-w-[140px]">
-              {targetUser.full_name}
+              {displayName}
             </p>
-            <p className="text-[10px] text-indigo-100">
-              {isOnline ? "Đang hoạt động" : `Hoạt động ${formatLastSeen(lastSeen)}`}
-            </p>
+
+            {isLocked ? (
+              <p className="text-[10px] text-indigo-100">
+                Người dùng không tồn tại
+              </p>
+            ) : isBlocked ? (
+              <p className="text-[10px] text-indigo-100">Không thể nhắn tin</p>
+            ) : isOnline ? (
+              <p className="text-[10px] text-indigo-100">Đang hoạt động</p>
+            ) : (
+              <p className="text-[10px] text-indigo-100">
+                Hoạt động {formatLastSeen(lastSeen)}
+              </p>
+            )}
           </div>
         </div>
 
         <div className="flex items-center gap-1">
-            <button
+          <button
             onClick={handleOpenFullChat}
             className="p-1 hover:bg-indigo-500 rounded-full"
             title="Mở trong trang tin nhắn"
@@ -204,7 +285,7 @@ const MiniChatBox = ({ targetUser, onClose }) => {
           >
             <MoreVertical size={18} />
           </button>
-          
+
           <button
             onClick={onClose}
             className="p-1 hover:bg-red-500 rounded-full ml-1"
@@ -223,6 +304,11 @@ const MiniChatBox = ({ targetUser, onClose }) => {
             onClose={() => setShowMenu(false)}
             getToken={getToken}
             dispatch={dispatch}
+            isBlocked={isBlockedByMe}
+            onBlockSuccess={handleBlockSuccess}
+            onUnblockSuccess={handleUnblockSuccess}
+            onDeleteChatSuccess={handleDeleteChatSuccess}
+            onMovePendingSuccess={handleMovePendingSuccess}
           />
         </div>
       )}
@@ -237,7 +323,7 @@ const MiniChatBox = ({ targetUser, onClose }) => {
             // --- 👇 START: LOGIC TÍNH TOÁN THỜI GIAN ---
             const currentTime = new Date(msg.createdAt);
             const prevTime = i > 0 ? new Date(messages[i - 1].createdAt) : null;
-            
+
             // Hiện ngăn cách nếu là tin đầu tiên HOẶC cách nhau > 10 phút
             const showTimeSeparator =
               !prevTime || (currentTime - prevTime) / (1000 * 60) > 10;
@@ -306,48 +392,54 @@ const MiniChatBox = ({ targetUser, onClose }) => {
       {isBlocked ? (
         // 👇 HIỂN THỊ KHI BỊ CHẶN
         <div className="p-4 bg-gray-50 border-t border-gray-200 flex flex-col items-center justify-center text-center gap-2">
-            <Ban className="w-6 h-6 text-gray-400" />
-            <p className="text-xs text-gray-500 font-medium italic">
-                {isBlockedByMe 
-                    ? "Bạn đã chặn người dùng này." 
-                    : "Bạn không thể nhắn tin cho người dùng này."}
-            </p>
+          <Ban className="w-6 h-6 text-gray-400" />
+          <p className="text-xs text-gray-500 font-medium italic">
+            {isBlockedByMe
+              ? "Bạn đã chặn người dùng này."
+              : "Bạn không thể nhắn tin cho người dùng này."}
+          </p>
         </div>
       ) : (
         // 👇 HIỂN THỊ INPUT BÌNH THƯỜNG
         <div className="p-2 bg-white border-t border-gray-200">
-            <div className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1.5">
+          <div className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1.5">
             <label
-                htmlFor="mini-chat-img"
-                className="cursor-pointer text-gray-500 hover:text-indigo-600"
+              htmlFor="mini-chat-img"
+              className="cursor-pointer text-gray-500 hover:text-indigo-600"
             >
-                <ImageIcon size={18} />
-                <input
+              <ImageIcon size={18} />
+              <input
                 type="file"
                 id="mini-chat-img"
                 hidden
                 accept="image/*"
                 onChange={(e) => setImage(e.target.files[0])}
                 disabled={isSending}
-                />
+              />
             </label>
             <input
-                type="text"
-                placeholder="Nhập tin nhắn..."
-                className="flex-1 bg-transparent text-sm outline-none text-gray-800"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !isSending && sendMessage()} 
-                disabled={isSending}
+              type="text"
+              placeholder="Nhập tin nhắn..."
+              className="flex-1 bg-transparent text-sm outline-none text-gray-800"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) =>
+                e.key === "Enter" && !isSending && sendMessage()
+              }
+              disabled={isSending}
             />
             <button
-                onClick={sendMessage}
-                disabled={(!text && !image) || isSending}
-                className="text-indigo-600 hover:text-indigo-700 disabled:text-gray-400"
+              onClick={sendMessage}
+              disabled={(!text && !image) || isSending}
+              className="text-indigo-600 hover:text-indigo-700 disabled:text-gray-400"
             >
-                {isSending ? <Loader2 size={18} className="animate-spin" /> : <SendHorizontal size={18} />}
+              {isSending ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <SendHorizontal size={18} />
+              )}
             </button>
-            </div>
+          </div>
         </div>
       )}
     </div>

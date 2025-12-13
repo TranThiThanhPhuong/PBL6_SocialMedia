@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Search, MessageSquare, MoreHorizontal } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { formatPostTime } from "../app/formatDate";
 import { slugifyUser } from "../app/slugifyUser";
@@ -12,6 +12,7 @@ const DEFAULT_AVATAR = "https://via.placeholder.com/150?text=User";
 
 const Messages = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useUser();
   const { getToken } = useAuth();
   const [conversations, setConversations] = useState([]);
@@ -88,9 +89,21 @@ const Messages = () => {
     return () => socket.off("receive_message", handleReceiveMessage);
   }, [user]);
 
+useEffect(() => {
+    if (!user) return;
+    const handleReceiveMessage = (newMessage) => {
+      setConversations((prev) => {
+        const updatedList = [newMessage, ...prev];
+        return processConversations(updatedList, user.id);
+      });
+    };
+    socket.on("receive_message", handleReceiveMessage);
+    return () => socket.off("receive_message", handleReceiveMessage);
+  }, [user]);
+
   const filtered = conversations.filter((msg) => {
     const u = msg.otherUser;
-    const name = u?.locked ? "Người dùng Instagram" : (u?.full_name || "");
+    const name = u?.locked ? "Người dùng" : (u?.full_name || "");
     const username = u?.locked ? "" : (u?.username || "");
     
     return (
@@ -135,21 +148,32 @@ const Messages = () => {
             <div className="px-2 pb-2">
               {filtered.map((msg) => {
                 const u = msg.otherUser;
-                const isActive = window.location.pathname.includes(u?._id);
                 const senderId = msg.from_user_id?._id || msg.from_user_id;
                 const isMe = senderId === user.id;
                 const isUnread = !isMe && !msg.seen;
 
-                const isLocked = u?.locked;
-                const displayName = isLocked ? "Người dùng Instagram" : (u?.full_name || "Người dùng");
+                const isLocked = u?.locked || u?.status === 'locked';
+
+                // 2. Tên hiển thị
+                // Nếu Locked -> "Người dùng"
+                // Nếu Block (dù ai block ai) -> Vẫn hiện tên thật (u.full_name) do code không can thiệp
+                const displayName = isLocked ? "Người dùng" : (u?.full_name || "Người dùng");
+
+                // 3. Avatar hiển thị
+                // Nếu Locked -> Default Avatar
+                // Nếu Block -> Vẫn hiện Avatar thật
                 const displayAvatar = isLocked ? DEFAULT_AVATAR : (u?.profile_picture || DEFAULT_AVATAR);
+
+                // Highlight item đang chọn
+                const isActive = location.pathname.includes(u?._id) || location.pathname.includes(slugifyUser(u));
 
                 return (
                   <div
                     key={msg._id}
                     onClick={() => {
                         if(u?._id) {
-                            navigate(`/messages/${slugifyUser(u)}`, { state: { userId: u._id } });
+                            const slug = isLocked ? 'locked-user' : slugifyUser(u);
+                            navigate(`/messages/${slug}`, { state: { userId: u._id } });
                         }
                     }}
                     className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all mb-1 ${
