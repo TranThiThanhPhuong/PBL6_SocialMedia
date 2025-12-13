@@ -5,13 +5,18 @@ import { fetchUser } from "../features/user/userSlice";
 
 let isProcessing = false;
 
-// === FOLLOW / UNFOLLOW ===
 const postWithToken = async (url, body, getToken) => {
   const token = await getToken();
   const { data } = await api.post(url, body, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return { data, token };
+};
+
+const handleError = (error, defaultMessage) => {
+  const msg = error.response?.data?.message || error.message || defaultMessage;
+  toast.error(msg);
+  return false;
 };
 
 export const handleFollow = async (userId, getToken, dispatch) => {
@@ -178,7 +183,6 @@ export const handleCancelConnection = async (userId, getToken, dispatch) => {
 
 export const handleBlock = async (userId, getToken, dispatch) => {
   try {
-    // Logic confirm nên để ở Component thì linh hoạt hơn, nhưng để đây cũng được nếu muốn tái sử dụng nhanh
     if (
       !window.confirm(
         "Bạn có chắc muốn chặn người này? Họ sẽ không thể tìm thấy hoặc liên hệ với bạn."
@@ -195,8 +199,8 @@ export const handleBlock = async (userId, getToken, dispatch) => {
 
     if (data.success) {
       toast.success(data.message || "Đã chặn người dùng.");
-      dispatch(fetchConnections(token)); // Cập nhật lại list friend
-      return true; // Trả về true để component biết mà xử lý tiếp (ví dụ: reload)
+      if (dispatch) await dispatch(fetchConnections(token));
+      return true;
     } else {
       toast.error(data.message || "Lỗi khi chặn.");
       return false;
@@ -220,7 +224,7 @@ export const handleUnblock = async (userId, getToken, dispatch) => {
 
     if (data.success) {
       toast.success(data.message || "Đã bỏ chặn.");
-      dispatch(fetchConnections(token));
+      if (dispatch) await dispatch(fetchConnections(token));
       return true;
     } else {
       toast.error(data.message);
@@ -232,26 +236,67 @@ export const handleUnblock = async (userId, getToken, dispatch) => {
   }
 };
 
-// === BÁO CÁO ===
-export const handleReport = async (userId, reason, getToken) => {
+export const handleReport = async (userId, getToken) => {
+  if (!window.confirm("Bạn muốn báo cáo người dùng này vì hành vi vi phạm?"))
+    return false;
+
   try {
-    // Lưu ý: Endpoint phải khớp với Router BE (/api/user/report-user)
     const { data } = await postWithToken(
       "/api/user/report-user",
-      { reportedUserId: userId, reason: reason || "Spam" }, // Body khớp với Controller
+      { id: userId },
       getToken
     );
 
     if (data.success) {
       toast.success("Đã gửi báo cáo đến quản trị viên.");
       return true;
-    } else {
-      toast.error(data.message);
-      return false;
     }
+    return handleError({ message: data.message }, "Lỗi khi gửi báo cáo.");
+  } catch (err) {
+    return handleError(err, "Không thể gửi báo cáo.");
+  }
+};
+
+// === 5. CHUYỂN VÀO TIN NHẮN CHỜ ===
+export const handleMoveToPending = async (userId, getToken) => {
+  try {
+    const { data } = await postWithToken(
+      "/api/message/move-to-pending",
+      { userId },
+      getToken
+    );
+
+    if (data.success) {
+      toast.success("Đã chuyển cuộc trò chuyện sang tin nhắn chờ.");
+      return true;
+    }
+    return handleError({ message: data.message }, "Lỗi khi chuyển tin nhắn.");
+  } catch (err) {
+    return handleError(err, "Không thể chuyển sang tin nhắn chờ.");
+  }
+};
+
+export const handleDeleteChat = async (userId, getToken) => {
+  try {
+    if (!window.confirm("Bạn có chắc muốn xóa toàn bộ cuộc trò chuyện này?"))
+      return;
+
+    setLoading(true);
+    const token = await getToken();
+    const { data } = await api.post(
+      "/api/message/delete-chat",
+      { id: userId },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (data.success) toast.success("Đã xóa cuộc trò chuyện.");
+    else toast.error(data.message);
+
+    onClose();
   } catch (error) {
-    toast.error("Lỗi khi gửi báo cáo.");
-    return false;
+    toast.error(error.response?.data?.message || error.message);
+  } finally {
+    setLoading(false);
   }
 };
 

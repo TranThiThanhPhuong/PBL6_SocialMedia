@@ -25,8 +25,8 @@ userRouter.post('/cancel-request', protect, cancelConnectionRequest);
 userRouter.post('/remove-friend', protect, removeConnectionRequest);
 userRouter.post('/reject', protect, rejectConnectionRequest);
 userRouter.post("/report-user", protect, reportUser);
-userRouter.get('/all',adminAuth, getAllUsers);// dùng middleware của admin để get all users
-userRouter.patch('/:userId/lock',adminAuth, lockUser);     
+userRouter.get('/all', adminAuth, getAllUsers);
+userRouter.patch('/:userId/lock', adminAuth, lockUser);     
 userRouter.patch('/:userId/unlock', adminAuth, unlockUser);
 userRouter.post("/block", protect, blockUser);
 userRouter.post("/unblock", protect, unblockUser);
