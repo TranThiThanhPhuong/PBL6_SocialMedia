@@ -203,12 +203,41 @@ export const getUserRecentMessages2 = async (req, res) => {
 export const getUserRecentMessages = async (req, res) => {
   try {
     const { userId } = req.auth();
+    
+    const currentUser = await User.findById(userId).select(
+      "blockedUsers connections following followers"
+    );
+
+    if (!currentUser) {
+      return res.json({ success: false, message: "Không tìm thấy user." });
+    }
+
+    // 2. Tạo danh sách whitelist (Bạn bè + Đang theo dõi)
+    let validSenders = [
+      ...currentUser.connections,
+      ...currentUser.following
+    ];
+
+    let validSenderIds = new Set(validSenders.map((id) => id.toString()));
+
+    if (currentUser.blockedUsers && currentUser.blockedUsers.length > 0) {
+      currentUser.blockedUsers.forEach((blockedId) => {
+        validSenderIds.delete(blockedId.toString());
+      });
+    }
+
+    const allowedSenderIdsArray = Array.from(validSenderIds);
+
     const messages = await Message.find({
       to_user_id: userId,
       deletedBy: { $ne: userId },
+      from_user_id: { $in: allowedSenderIdsArray }, 
     })
-      .populate("from_user_id to_user_id")
-      .sort({ createdAt: -1 }); // lay tat ca tin nhan gui den minh va sap xep theo thoi gian giam dan
+      .populate({
+        path: "from_user_id",
+        select: "full_name username profile_picture status", 
+      })
+      .sort({ createdAt: -1 });
 
     res.json({ success: true, messages });
   } catch (error) {

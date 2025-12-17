@@ -2,7 +2,7 @@ import express from "express"
 import { protect } from "../middlewares/auth.js" // middleware de kiem tra user da dang nhap chua
 import { upload } from "../configs/multer.js" // middleware de xu ly upload file
 import { getUserRecentMessages } from "../controllers/messageController.js"
-import { followUser, unfollowUser, sendConnectionRequest, removeConnectionRequest, cancelConnectionRequest, acceptConnectionRequest, rejectConnectionRequest, blockUser, unblockUser, getUserConnections, getConnectionStatus, getUserById } from "../controllers/connectionController.js"
+import { followUser, unfollowUser, sendConnectionRequest, removeConnectionRequest, cancelConnectionRequest, acceptConnectionRequest, rejectConnectionRequest, blockUser, unblockUser, getUserConnections, getConnectionStatus, getUserById, getSuggestedUsers } from "../controllers/connectionController.js"
 import { discoverUser, getUserData, updateUserData, getUserProfiles, getUserList , reportUser, getAllUsers, lockUser, unlockUser, loginAdmin} from "../controllers/userController.js"
 import { adminAuth, checkUserStatus } from '../middlewares/adminAuth.js';
 
@@ -25,6 +25,7 @@ userRouter.post('/cancel-request', protect, cancelConnectionRequest);
 userRouter.post('/remove-friend', protect, removeConnectionRequest);
 userRouter.post('/reject', protect, rejectConnectionRequest);
 userRouter.post("/report-user", protect, reportUser);
+userRouter.get('/suggestions', protect, getSuggestedUsers);
 userRouter.get('/all', adminAuth, getAllUsers);
 userRouter.patch('/:userId/lock', adminAuth, lockUser);     
 userRouter.patch('/:userId/unlock', adminAuth, unlockUser);

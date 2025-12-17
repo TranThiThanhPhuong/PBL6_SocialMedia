@@ -279,9 +279,8 @@ export const handleMoveToPending = async (userId, getToken) => {
 export const handleDeleteChat = async (userId, getToken) => {
   try {
     if (!window.confirm("Bạn có chắc muốn xóa toàn bộ cuộc trò chuyện này?"))
-      return;
+      return false;
 
-    setLoading(true);
     const token = await getToken();
     const { data } = await api.post(
       "/api/message/delete-chat",
@@ -289,14 +288,16 @@ export const handleDeleteChat = async (userId, getToken) => {
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    if (data.success) toast.success("Đã xóa cuộc trò chuyện.");
-    else toast.error(data.message);
-
-    onClose();
+    if (data.success) {
+      toast.success("Đã xóa cuộc trò chuyện.");
+      return true;
+    } else {
+      toast.error(data.message);
+      return false;
+    }
   } catch (error) {
     toast.error(error.response?.data?.message || error.message);
-  } finally {
-    setLoading(false);
+    return false;
   }
 };
 

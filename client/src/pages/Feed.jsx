@@ -8,6 +8,7 @@ import StoriesBar from "../components/StoriesBar";
 import PostCard from "../components/PostCard";
 import RecentMessages from "../components/RecentMessages";
 import MiniChatBox from "../components/MiniChatBox";
+import SuggestedUsers from "../components/SuggestedUsers";
 
 const Feed = () => {
   const [feeds, setFeeds] = useState([]);
@@ -75,8 +76,8 @@ const Feed = () => {
       </div>
 
       {/* Right Sidebar */}
-      <div className="max-xl:hidden sticky top-0">
-        <div className="max-w-xs bg-white text-xs p-4 rounded-md inline-flex flex-col gap-2 shadow">
+      <div className="max-xl:hidden sticky w-80 space-y-6">
+        {/* <div className="max-w-xs bg-white text-xs p-4 rounded-md inline-flex flex-col gap-2 shadow">
           <h3 className="text-slate-800 font-semibold">Được tài trợ</h3>
           <img
             src={assets.sponsored_img}
@@ -88,7 +89,8 @@ const Feed = () => {
             Tăng cường hiệu quả tiếp thị của bạn với một nền tảng mạnh mẽ, dễ sử
             dụng và được xây dựng để mang lại kết quả.
           </p>
-        </div>
+        </div> */}
+        <SuggestedUsers />
 
         <RecentMessages onUserSelect={(user) => setActiveChatUser(user)} />
       </div>

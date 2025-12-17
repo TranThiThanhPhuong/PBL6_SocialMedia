@@ -48,20 +48,19 @@ const ChatOptionsMenu = ({
   }, [onClose]);
 
   const executeAction = async (actionFn, callbackSuccess, socketEvent, ...args) => {
-  setLoading(true);
-  const success = await actionFn(...args);
-  setLoading(false);
+    setLoading(true);
+    const success = await actionFn(...args); // args được truyền chính xác vào hàm service
+    setLoading(false);
 
-  if (success) {
-    if (socketEvent) {
-      socket.emit(socketEvent, { userId });
+    if (success) {
+      if (socketEvent) {
+        socket.emit(socketEvent, { userId });
+      }
+
+      if (callbackSuccess) callbackSuccess();
+      onClose(); 
     }
-
-    if (callbackSuccess) callbackSuccess();
-    onClose();
-  }
-};
-
+  };
 
   return (
     <div
@@ -82,14 +81,14 @@ const ChatOptionsMenu = ({
         <UserCircle size={16} /> Trang cá nhân
       </button>
       <button
-        onClick={() => executeAction(handleDeleteChat, onDeleteChatSuccess, userId, getToken)}
+        onClick={() => executeAction(handleDeleteChat, onDeleteChatSuccess, null, userId, getToken)}
         disabled={loading}
         className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left"
       >
         <Trash2 size={16} /> Xóa chat
       </button>
       <button
-        onClick={() => executeAction(handleReport, null, userId, null, getToken)}
+        onClick={() => executeAction(handleReport, null, null, userId, getToken)}
         disabled={loading}
         className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left"
       >
@@ -114,7 +113,7 @@ const ChatOptionsMenu = ({
       )}
       {!isBlocked && (
         <button
-          onClick={() => executeAction(handleMoveToPending, onMovePendingSuccess, userId, getToken)}
+          onClick={() => executeAction(handleMoveToPending, onMovePendingSuccess, null, userId, getToken)}
           disabled={loading}
           className="flex items-center gap-2 px-4 py-3 hover:bg-gray-100 w-full text-left text-gray-700 text-sm"
         >

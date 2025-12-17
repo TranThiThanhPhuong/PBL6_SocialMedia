@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import User from "../models/User.js";
 import Connection from "../models/Connection.js";
 import Notification from "../models/Notification.js";
@@ -272,14 +273,14 @@ export const sendConnectionRequest = async (req, res) => {
     if (!user || !target)
       return res.json({ success: false, message: "Người dùng không tồn tại." });
 
-    const isBlocked = 
-        user.blockedUsers?.includes(id) || 
-        target.blockedUsers?.includes(userId);
+    const isBlocked =
+      user.blockedUsers?.includes(id) || target.blockedUsers?.includes(userId);
 
     if (isBlocked) {
       return res.json({
         success: false,
-        message: "Bạn không thể thực hiện hành động này (đã bị chặn hoặc chặn).", 
+        message:
+          "Bạn không thể thực hiện hành động này (đã bị chặn hoặc chặn).",
       });
     }
 
@@ -311,7 +312,7 @@ export const sendConnectionRequest = async (req, res) => {
           const newNoti = await Notification.create({
             sender: userId,
             receiver: id,
-            type: "friend_accept", 
+            type: "friend_accept",
             content: `${user.full_name} đã chấp nhận lời mời kết nối của bạn.`,
           });
 
@@ -702,7 +703,7 @@ export const unblockUser = async (req, res) => {
         fromUserId: userId,
       });
     }
-    
+
     res.json({ success: true, message: "Đã bỏ chặn người dùng." });
   } catch (error) {
     console.error("unblockUser error:", error);
@@ -712,57 +713,170 @@ export const unblockUser = async (req, res) => {
 
 export const getUserById = async (req, res) => {
   try {
-    const myId = req.auth().userId; 
-    const targetUserId = req.params.userId; 
+    const myId = req.auth().userId;
+    const targetUserId = req.params.userId;
 
     if (!targetUserId) {
-        return res.status(400).json({ success: false, message: "Thiếu ID người dùng" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Thiếu ID người dùng" });
     }
 
     // Tìm user, không lấy password
-    const targetUser = await User.findById(targetUserId).select('-password');
+    const targetUser = await User.findById(targetUserId).select("-password");
 
     // 1. User không tồn tại
     if (!targetUser) {
-      return res.status(404).json({ 
-        success: false, 
+      return res.status(404).json({
+        success: false,
         message: "Người dùng không tồn tại",
-        locked: true 
+        locked: true,
       });
     }
 
     // 2. User bị Admin khóa
-    if (targetUser.status === 'locked') {
+    if (targetUser.status === "locked") {
       return res.status(200).json({
-        success: true, 
+        success: true,
         message: "Tài khoản đã bị khóa",
-        user: { 
-            _id: targetUserId, 
-            locked: true, 
-            full_name: "Người dùng Instagram", 
-            profile_picture: "" 
-        }
+        user: {
+          _id: targetUserId,
+          locked: true,
+          full_name: "Người dùng Instagram",
+          profile_picture: "",
+        },
       });
     }
 
     // 3. Check xem HỌ có chặn MÌNH không?
     // Convert sang String để so sánh cho chắc chắn
-    const isBlockedByTarget = targetUser.blockedUsers.some(id => String(id) === String(myId));
+    const isBlockedByTarget = targetUser.blockedUsers.some(
+      (id) => String(id) === String(myId)
+    );
 
     res.status(200).json({
       success: true,
       user: {
         ...targetUser.toObject(),
-        isBlockedByTarget: isBlockedByTarget // Trả về cờ này cho Frontend
-      }, 
+        isBlockedByTarget: isBlockedByTarget, // Trả về cờ này cho Frontend
+      },
     });
-
   } catch (error) {
     console.error("Lỗi lấy thông tin user:", error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       message: "Lỗi máy chủ",
-      locked: error.name === 'CastError' 
+      locked: error.name === "CastError",
     });
+  }
+};
+
+export const getSuggestedUsers = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+
+    const currentUser = await User.findById(userId).select(
+      "following connections blockedUsers"
+    );
+
+    if (!currentUser) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    // Tạo danh sách những ID cần loại trừ (đã follow, đã connect, đã block, chính mình)
+    const myNetworkIds = [...currentUser.following, ...currentUser.connections];
+
+    const blockedIds = currentUser.blockedUsers || [];
+
+    const excludeIds = new Set([userId, ...myNetworkIds, ...blockedIds]);
+
+    // 2. Tìm người trung gian (những người bạn đang follow/connect)
+    const intermediaries = await User.find({
+      _id: { $in: myNetworkIds },
+    })
+      .select("following connections full_name")
+      .limit(20)
+      .lean();
+
+    // 3. Tìm ứng viên (Bạn của bạn)
+    const candidatesMap = new Map();
+
+    for (const intermediary of intermediaries) {
+      const theirNetwork = [
+        ...(intermediary.following || []),
+        ...(intermediary.connections || []),
+      ];
+
+      for (const candidateId of theirNetwork) {
+        if (!excludeIds.has(candidateId)) {
+          if (!candidatesMap.has(candidateId)) {
+            candidatesMap.set(candidateId, {
+              _id: candidateId,
+              suggestedBy: intermediary.full_name,
+              score: 1,
+            });
+          } else {
+            const existing = candidatesMap.get(candidateId);
+            existing.score += 1;
+          }
+        }
+      }
+    }
+
+    const sortedCandidates = Array.from(candidatesMap.values())
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4);
+
+    const candidateIds = sortedCandidates.map((c) => c._id);
+
+    let finalSuggestions = [];
+
+    if (candidateIds.length > 0) {
+      const usersInfo = await User.find({ _id: { $in: candidateIds } })
+        .select("full_name username profile_picture bio")
+        .lean();
+
+      finalSuggestions = usersInfo.map((user) => {
+        const suggestionData = sortedCandidates.find((c) => c._id === user._id);
+        return {
+          ...user,
+          suggestedBy: suggestionData ? suggestionData.suggestedBy : null,
+          mutualCount: suggestionData ? suggestionData.score : 0,
+        };
+      });
+    }
+
+    // 5. FALLBACK: Nếu chưa đủ 4 người, lấy ngẫu nhiên user khác trong hệ thống
+    if (finalSuggestions.length < 4) {
+      const currentExcludedIds = [...excludeIds, ...candidateIds];
+
+      const randomUsers = await User.aggregate([
+        {
+          $match: {
+            _id: { $nin: currentExcludedIds },
+            status: "active",
+          },
+        },
+        { $sample: { size: 4 - finalSuggestions.length } },
+        {
+          $project: {
+            full_name: 1,
+            username: 1,
+            profile_picture: 1,
+            bio: 1,
+            _id: 1,
+          },
+        },
+      ]);
+
+      finalSuggestions.push(...randomUsers);
+    }
+
+    res.json({ success: true, users: finalSuggestions });
+  } catch (error) {
+    console.error("getSuggestedUsers error:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import api from "../api/axios";
-import toast from "react-hot-toast";
 import { formatPostTime } from "../app/formatDate";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import socket from "../sockethandler/socket";
@@ -56,7 +55,7 @@ const RecentMessages = ({ onUserSelect }) => {
 
         const sortedMessages = Object.values(groupedMessages)
           .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-          .slice(0, 2);
+          .slice(0, 3);
 
         setMessages(sortedMessages);
         
