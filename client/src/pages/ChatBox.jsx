@@ -51,12 +51,16 @@ const ChatBox = () => {
 
   const [isBlockedByMe, setIsBlockedByMe] = useState(false);
   const [isBlockedByTarget, setIsBlockedByTarget] = useState(false);
-  // const isBlockedByTarget = user?.blockedUsers?.includes(currentUserId);
   const isBlocked = isBlockedByMe || isBlockedByTarget;
+  const isPendingConversation = location.state?.isPending || false;
 
   const isLocked = user?.locked === true;
 
-  // Cập nhật trạng thái BlockByMe khi currentUser thay đổi
+  const handleToggleStatusSuccess = () => {
+    const targetTab = isPendingConversation ? "inbox" : "pending";
+    navigate("/messages", { state: { forceTab: targetTab } });
+  };
+
   useEffect(() => {
     if (currentUser?.blockedUsers && userId) {
       const blocked = currentUser.blockedUsers.some(
@@ -76,10 +80,12 @@ const ChatBox = () => {
 
   const handleDeleteChatSuccess = () => {
     setMessages([]);
-  };
-
-  const handleMovePendingSuccess = () => {
-    navigate("/messages");
+    navigate("/messages", {
+      state: {
+        deletedUserId: userId, // ID người vừa bị xóa
+        forceTab: isPendingConversation ? "pending" : "inbox", // Giữ nguyên tab hiện tại
+      },
+    });
   };
 
   // tải tin nhắn khi vào trang
@@ -256,7 +262,7 @@ const ChatBox = () => {
     if (!userId || isBlocked || isLocked) return;
     const handleReceiveMessage = (msg) => {
       const senderId = msg.from_user_id?._id || msg.from_user_id;
-      if (senderId === userId) { 
+      if (senderId === userId) {
         setMessages((prev) => [...prev, msg]);
       }
     };
@@ -351,11 +357,12 @@ const ChatBox = () => {
                   onClose={() => setShowMenu(false)}
                   getToken={getToken}
                   dispatch={dispatch}
-                  isBlocked={isBlockedByMe} // Truyền state cục bộ vào
+                  isBlocked={isBlockedByMe}
+                  isPending={isPendingConversation}
                   onBlockSuccess={handleBlockSuccess}
                   onUnblockSuccess={handleUnblockSuccess}
                   onDeleteChatSuccess={handleDeleteChatSuccess}
-                  onMovePendingSuccess={handleMovePendingSuccess}
+                  onToggleStatusSuccess={handleToggleStatusSuccess}
                 />
               )}
             </div>

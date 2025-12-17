@@ -7,13 +7,14 @@ import {
   Inbox,
   X,
   UserCircle,
+  UserPlus,
 } from "lucide-react";
 import {
   handleBlock,
   handleUnblock,
   handleReport,
   handleDeleteChat,
-  handleMoveToPending,
+  handleToggleConversation,
 } from "../../service/connectionService";
 import { slugifyUser } from "../../app/slugifyUser";
 import { useNavigate } from "react-router-dom";
@@ -26,10 +27,11 @@ const ChatOptionsMenu = ({
   getToken,
   dispatch,
   isBlocked,
+  isPending,
   onBlockSuccess,
   onUnblockSuccess,
   onDeleteChatSuccess,
-  onMovePendingSuccess,
+  onToggleStatusSuccess,
 }) => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -47,9 +49,14 @@ const ChatOptionsMenu = ({
     };
   }, [onClose]);
 
-  const executeAction = async (actionFn, callbackSuccess, socketEvent, ...args) => {
+  const executeAction = async (
+    actionFn,
+    callbackSuccess,
+    socketEvent,
+    ...args
+  ) => {
     setLoading(true);
-    const success = await actionFn(...args); // args được truyền chính xác vào hàm service
+    const success = await actionFn(...args);
     setLoading(false);
 
     if (success) {
@@ -58,7 +65,7 @@ const ChatOptionsMenu = ({
       }
 
       if (callbackSuccess) callbackSuccess();
-      onClose(); 
+      onClose();
     }
   };
 
@@ -81,14 +88,24 @@ const ChatOptionsMenu = ({
         <UserCircle size={16} /> Trang cá nhân
       </button>
       <button
-        onClick={() => executeAction(handleDeleteChat, onDeleteChatSuccess, null, userId, getToken)}
+        onClick={() =>
+          executeAction(
+            handleDeleteChat,
+            onDeleteChatSuccess,
+            null,
+            userId,
+            getToken
+          )
+        }
         disabled={loading}
         className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left"
       >
         <Trash2 size={16} /> Xóa chat
       </button>
       <button
-        onClick={() => executeAction(handleReport, null, null, userId, getToken)}
+        onClick={() =>
+          executeAction(handleReport, null, null, userId, getToken)
+        }
         disabled={loading}
         className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full text-left"
       >
@@ -96,28 +113,66 @@ const ChatOptionsMenu = ({
       </button>
       {isBlocked ? (
         <button
-          onClick={() => executeAction(handleUnblock, onUnblockSuccess, "unblock_user", userId, getToken, dispatch)}
+          onClick={() =>
+            executeAction(
+              handleUnblock,
+              onUnblockSuccess,
+              "unblock_user",
+              userId,
+              getToken,
+              dispatch
+            )
+          }
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-3 hover:bg-gray-100 w-full text-left text-gray-700 text-sm font-medium"
+          className="flex items-center gap-2 px-4 py-3 hover:bg-gray-50 w-full text-left text-green-600 text-sm font-medium"
         >
-          <UserCheck size={16} className="text-green-600" /> Bỏ chặn
+          <UserCheck size={16} /> Bỏ chặn
         </button>
       ) : (
         <button
-          onClick={() => executeAction(handleBlock, onBlockSuccess, "block_user", userId, getToken, dispatch)}
+          onClick={() =>
+            executeAction(
+              handleBlock,
+              onBlockSuccess,
+              "block_user",
+              userId,
+              getToken,
+              dispatch
+            )
+          }
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-3 hover:bg-gray-100 w-full text-left text-sm font-medium text-red-600"
+          className="flex items-center gap-2 px-4 py-3 hover:bg-gray-50 w-full text-left text-red-600 text-sm font-medium"
         >
           <UserX size={16} /> Chặn người này
         </button>
       )}
+      <div className="border-t border-gray-100 my-1"></div>
       {!isBlocked && (
         <button
-          onClick={() => executeAction(handleMoveToPending, onMovePendingSuccess, null, userId, getToken)}
+          onClick={() => {
+            // Xác định hành động dựa trên trạng thái hiện tại
+            const action = isPending ? "move_to_inbox" : "move_to_pending";
+            executeAction(
+              handleToggleConversation,
+              onToggleStatusSuccess,
+              null,
+              userId,
+              action,
+              getToken
+            );
+          }}
           disabled={loading}
           className="flex items-center gap-2 px-4 py-3 hover:bg-gray-100 w-full text-left text-gray-700 text-sm"
         >
-          <Inbox size={16} /> Chuyển tin nhắn chờ
+          {isPending ? (
+            <>
+              <Inbox size={16} /> Chuyển sang Hộp thư chính
+            </>
+          ) : (
+            <>
+              <UserPlus size={16} /> Chuyển sang Tin nhắn chờ
+            </>
+          )}
         </button>
       )}
     </div>

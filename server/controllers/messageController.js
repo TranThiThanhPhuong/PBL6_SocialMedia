@@ -20,62 +20,70 @@ export const sendMessage = async (req, res) => {
 
     const [sender, receiver] = await Promise.all([
       User.findById(userId).select(
-        "connections following followers blockedUsers pendingMessages"
+        "connections following followers blockedUsers pendingConversations"
       ),
       User.findById(to_user_id).select(
-        "connections following followers blockedUsers pendingMessages"
+        "connections following followers blockedUsers pendingConversations"
       ),
     ]);
 
-    const isBlockedByMe = sender.blockedUsers?.some(id => id.toString() === to_user_id.toString());
-    const isBlockedByTarget = receiver.blockedUsers?.some(id => id.toString() === userId.toString());
+    if (!receiver)
+      return res.json({ success: false, message: "Người dùng không tồn tại." });
+
+    const isBlockedByMe = sender.blockedUsers?.some(
+      (id) => id.toString() === to_user_id.toString()
+    );
+    const isBlockedByTarget = receiver.blockedUsers?.some(
+      (id) => id.toString() === userId.toString()
+    );
 
     if (isBlockedByMe) {
-      return res.json({ 
-        success: false, 
-        message: "Bạn đã chặn người dùng này, hãy bỏ chặn để nhắn tin." 
+      return res.json({
+        success: false,
+        message: "Bạn đã chặn người dùng này, hãy bỏ chặn để nhắn tin.",
       });
     }
 
     if (isBlockedByTarget) {
-      return res.json({ 
-        success: false, 
-        message: "Bạn không thể gửi tin nhắn. Người dùng này đã chặn bạn." 
+      return res.json({
+        success: false,
+        message: "Bạn không thể gửi tin nhắn. Người dùng này đã chặn bạn.",
       });
     }
 
-    if (receiver.status === 'locked') {
-        return res.json({ success: false, message: "Tài khoản người nhận đã bị khóa." });
+    if (receiver.status === "locked") {
+      return res.json({
+        success: false,
+        message: "Tài khoản người nhận đã bị khóa.",
+      });
     }
-    // ------------------------------------------
 
-    const canMessage =
-      (sender.connections.includes(to_user_id) &&
-        receiver.connections.includes(userId)) || 
-      sender.following.includes(to_user_id) || 
-      receiver.following.includes(userId);
+    const isFriend = sender.connections.includes(to_user_id);
+    const isSenderFollowing = sender.following.includes(to_user_id);
+    const isReceiverFollowing = receiver.following.includes(userId);
+
+    const canMessage = isFriend || isSenderFollowing || isReceiverFollowing;
 
     if (!canMessage) {
       return res.json({
         success: false,
-        message: "Chỉ có thể nhắn tin khi đã kết bạn hoặc theo dõi nhau.",
+        message: "Chỉ có thể nhắn tin khi đã kết bạn hoặc có theo dõi.",
       });
     }
 
-    // Logic pending messages
-    const priorMsgExists = await Message.exists({
-      $or: [
-        { from_user_id: userId, to_user_id },
-        { from_user_id: to_user_id, to_user_id: userId }
-      ]
-    });
-    
-    if (!priorMsgExists) {
-        // Nếu chưa từng chat, kiểm tra xem có cần đẩy vào pending không
-        // Logic tùy chỉnh của bạn, ở đây giữ nguyên logic cũ hoặc đơn giản hóa
-        await User.findByIdAndUpdate(to_user_id, {
-            $addToSet: { pendingMessages: userId },
-        });
+    if (sender.pendingConversations.includes(to_user_id)) {
+      await User.findByIdAndUpdate(userId, {
+        $pull: { pendingConversations: to_user_id },
+      });
+    }
+
+    const shouldBePending =
+      !isFriend && !isReceiverFollowing && isSenderFollowing;
+
+    if (shouldBePending) {
+      await User.findByIdAndUpdate(to_user_id, {
+        $addToSet: { pendingConversations: userId },
+      });
     }
 
     let message_type = image ? "image" : "text";
@@ -98,16 +106,14 @@ export const sendMessage = async (req, res) => {
       fs.unlinkSync(image.path);
     }
 
-    const messagePayload = {
+    const message = await Message.create({
       from_user_id: userId,
       to_user_id,
       text,
       message_type,
       media_url,
       reply_to_story: storyId,
-    };
-
-    const message = await Message.create(messagePayload);
+    });
 
     const populatedMsg = await Message.findById(message._id)
       .populate("from_user_id", "full_name username profile_picture")
@@ -115,18 +121,18 @@ export const sendMessage = async (req, res) => {
       .populate("reply_to_story")
       .lean();
 
-    // --- SOCKET EMIT ---
     const io = getIO();
     const onlineUsers = getOnlineUsers();
-    
-    // Gửi cho người nhận (để hiện tin nhắn mới)
+
     const receiverSocketId = onlineUsers.get(to_user_id);
     if (receiverSocketId) {
-      io.to(receiverSocketId).emit("receive_message", populatedMsg);
+      io.to(receiverSocketId).emit("receive_message", {
+        ...populatedMsg,
+        isPending:
+          shouldBePending && !receiver.pendingConversations?.includes(userId), 
+      });
     }
 
-    // Gửi cho chính người gửi (để cập nhật Sidebar Messages bên trái)
-    // Frontend ChatBox phải lọc tin nhắn này để không bị nhân đôi
     const senderSocketId = onlineUsers.get(userId);
     if (senderSocketId) {
       io.to(senderSocketId).emit("receive_message", populatedMsg);
@@ -135,6 +141,154 @@ export const sendMessage = async (req, res) => {
     return res.json({ success: true, message: populatedMsg });
   } catch (error) {
     console.error("sendMessage error:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+export const getInboxMessages = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+
+    const currentUser = await User.findById(userId).select(
+      "blockedUsers pendingConversations"
+    );
+
+    const ignoredIds = [
+      ...(currentUser.blockedUsers || []),
+      ...(currentUser.pendingConversations || []),
+    ];
+
+    const messages = await Message.aggregate([
+      {
+        $match: {
+          $or: [{ from_user_id: userId }, { to_user_id: userId }],
+          deletedBy: { $ne: userId },
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: {
+            $cond: [
+              { $eq: ["$from_user_id", userId] },
+              "$to_user_id",
+              "$from_user_id",
+            ],
+          },
+          lastMessage: { $first: "$$ROOT" },
+        },
+      },
+      // Lọc bỏ những người bị chặn hoặc đang chờ
+      {
+        $match: {
+          _id: { $nin: ignoredIds },
+        },
+      },
+      { $replaceRoot: { newRoot: "$lastMessage" } }, // Quay lại format message object
+      { $sort: { createdAt: -1 } },
+    ]);
+
+    // Populate thông tin user sau khi aggregate
+    await Message.populate(messages, {
+      path: "from_user_id to_user_id",
+      select: "full_name username profile_picture",
+    });
+
+    res.json({ success: true, messages });
+  } catch (error) {
+    console.error(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+export const getPendingMessages = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    const currentUser = await User.findById(userId).select(
+      "pendingConversations blockedUsers"
+    );
+
+    if (
+      !currentUser.pendingConversations ||
+      currentUser.pendingConversations.length === 0
+    ) {
+      return res.json({ success: true, messages: [] });
+    }
+
+    // Lọc bỏ blockedUsers nếu lỡ có
+    const pendingIds = currentUser.pendingConversations.filter(
+      (id) => !currentUser.blockedUsers.includes(id)
+    );
+
+    // Lấy tin nhắn cuối cùng của những người trong danh sách chờ
+    const messages = await Message.aggregate([
+      {
+        $match: {
+          $or: [
+            { from_user_id: { $in: pendingIds }, to_user_id: userId },
+            { from_user_id: userId, to_user_id: { $in: pendingIds } },
+          ],
+          deletedBy: { $ne: userId },
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: {
+            $cond: [
+              { $eq: ["$from_user_id", userId] },
+              "$to_user_id",
+              "$from_user_id",
+            ],
+          },
+          lastMessage: { $first: "$$ROOT" },
+        },
+      },
+      { $replaceRoot: { newRoot: "$lastMessage" } },
+      { $sort: { createdAt: -1 } },
+    ]);
+
+    await Message.populate(messages, {
+      path: "from_user_id to_user_id",
+      select: "full_name username profile_picture",
+    });
+
+    res.json({ success: true, messages });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
+
+export const toggleConversationStatus = async (req, res) => {
+  try {
+    const { userId } = req.auth();
+    const { target_user_id, action } = req.body;
+
+    if (!target_user_id)
+      return res.json({ success: false, message: "Thiếu ID." });
+
+    if (action === "move_to_inbox") {
+      await User.findByIdAndUpdate(userId, {
+        $pull: { pendingConversations: target_user_id },
+      });
+      return res.json({
+        success: true,
+        message: "Đã chuyển sang hộp thư chính.",
+      });
+    }
+
+    if (action === "move_to_pending") {
+      await User.findByIdAndUpdate(userId, {
+        $addToSet: { pendingConversations: target_user_id },
+      });
+      return res.json({
+        success: true,
+        message: "Đã chuyển vào tin nhắn chờ.",
+      });
+    }
+
+    return res.json({ success: false, message: "Hành động không hợp lệ." });
+  } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
@@ -203,9 +357,9 @@ export const getUserRecentMessages2 = async (req, res) => {
 export const getUserRecentMessages = async (req, res) => {
   try {
     const { userId } = req.auth();
-    
+
     const currentUser = await User.findById(userId).select(
-      "blockedUsers connections following followers"
+      "blockedUsers connections following followers pendingConversations"
     );
 
     if (!currentUser) {
@@ -213,10 +367,8 @@ export const getUserRecentMessages = async (req, res) => {
     }
 
     // 2. Tạo danh sách whitelist (Bạn bè + Đang theo dõi)
-    let validSenders = [
-      ...currentUser.connections,
-      ...currentUser.following
-    ];
+    let validSenders = [...currentUser.connections, ...currentUser.following, ...currentUser.followers];
+    validSenders = Array.from(new Set(validSenders.map((id) => id.toString()))); // Loại bỏ trùng lặp
 
     let validSenderIds = new Set(validSenders.map((id) => id.toString()));
 
@@ -226,16 +378,22 @@ export const getUserRecentMessages = async (req, res) => {
       });
     }
 
+    if (currentUser.pendingConversations && currentUser.pendingConversations.length > 0) {
+      currentUser.pendingConversations.forEach((pendingId) => {
+        validSenderIds.delete(pendingId.toString());
+      });
+    }
+
     const allowedSenderIdsArray = Array.from(validSenderIds);
 
     const messages = await Message.find({
       to_user_id: userId,
       deletedBy: { $ne: userId },
-      from_user_id: { $in: allowedSenderIdsArray }, 
+      from_user_id: { $in: allowedSenderIdsArray },
     })
       .populate({
         path: "from_user_id",
-        select: "full_name username profile_picture status", 
+        select: "full_name username profile_picture status",
       })
       .sort({ createdAt: -1 });
 
@@ -283,7 +441,6 @@ export const markSeen = async (req, res) => {
 export const deleteChat = async (req, res) => {
   try {
     const { userId } = req.auth();
-    // hỗ trợ nhiều cách truyền id: body.to_user_id, body.id, params.id
     const otherId = req.body?.to_user_id || req.body?.id || req.params?.id;
     if (!otherId)
       return res
@@ -299,9 +456,6 @@ export const deleteChat = async (req, res) => {
       },
       { $addToSet: { deletedBy: userId } }
     );
-
-    // TÙY CHỌN (không bắt buộc): nếu bạn muốn xóa document khi cả hai đã xóa
-    // await Message.deleteMany({ deletedBy: { $all: [userId, otherId] } });
 
     res.json({ success: true, message: "Đã xóa chat bên bạn." });
   } catch (error) {

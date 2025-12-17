@@ -211,7 +211,6 @@ export const handleBlock = async (userId, getToken, dispatch) => {
   }
 };
 
-// === BỎ CHẶN ===
 export const handleUnblock = async (userId, getToken, dispatch) => {
   try {
     if (!window.confirm("Bạn muốn bỏ chặn người dùng này?")) return false;
@@ -257,22 +256,24 @@ export const handleReport = async (userId, getToken) => {
   }
 };
 
-// === 5. CHUYỂN VÀO TIN NHẮN CHỜ ===
-export const handleMoveToPending = async (userId, getToken) => {
+export const handleToggleConversation = async (userId, action, getToken) => {
   try {
     const { data } = await postWithToken(
-      "/api/message/move-to-pending",
-      { userId },
+      "/api/message/toggle-status",
+      { target_user_id: userId, action },
       getToken
     );
 
     if (data.success) {
-      toast.success("Đã chuyển cuộc trò chuyện sang tin nhắn chờ.");
+      toast.success(data.message);
       return true;
     }
-    return handleError({ message: data.message }, "Lỗi khi chuyển tin nhắn.");
+    toast.error(data.message || "Lỗi khi thực hiện thao tác.");
+    return false;
   } catch (err) {
-    return handleError(err, "Không thể chuyển sang tin nhắn chờ.");
+    console.error(err);
+    toast.error(err.response?.data?.message || "Lỗi kết nối server.");
+    return false;
   }
 };
 

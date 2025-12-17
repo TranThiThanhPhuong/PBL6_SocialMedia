@@ -11,7 +11,9 @@ const MenuItems = ({ setSidebarOpen }) => {
   const userId = currentUser?._id;
   const { getToken } = useAuth();
   const location = useLocation();
-  const [hasUnread, setHasUnread] = useState(false);
+
+  const [hasUnreadNoti, setHasUnreadNoti] = useState(false);
+  const [hasUnreadMsg, setHasUnreadMsg] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -22,57 +24,90 @@ const MenuItems = ({ setSidebarOpen }) => {
     const handleNewNotification = (data) => {
       console.log("🔔 MenuItems received:", data);
       if (location.pathname !== "/notifications") {
-        setHasUnread(true);
+        setHasUnreadNoti(true);
       }
     };
+
+    const handleNewMessage = (data) => {
+      const senderId = data.from_user_id?._id || data.from_user_id;
+      if (senderId === userId) return;
+      if (!location.pathname.startsWith("/messages")) {
+        console.log("💬 MenuItems received Msg");
+        setHasUnreadMsg(true);
+      }
+    };
+
     socket.on("new_notification", handleNewNotification);
+    socket.on("receive_message", handleNewMessage);
     return () => {
       socket.off("new_notification", handleNewNotification);
+      socket.off("receive_message", handleNewMessage);
     };
-  }, [userId, location.pathname]); 
+  }, [userId, location.pathname]);
 
   useEffect(() => {
-    const fetchUnread = async () => {
+    const fetchInitialStatus = async () => {
       try {
         const token = await getToken();
-        if (!token) return; 
-        
-        const { data } = await api.get("/api/notifications", {
+        if (!token) return;
+
+        // Fetch Notifications
+        const notiRes = await api.get("/api/notifications", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (data.success) {
-          const unread = data.notifications.some((n) => !n.isRead);
-          setHasUnread(unread);
+        if (notiRes.data.success) {
+          const unread = notiRes.data.notifications.some((n) => !n.isRead);
+          setHasUnreadNoti(unread);
+        }
+
+        // --- MỚI: Fetch Messages để xem có tin chưa đọc không ---
+        // Ta dùng API lấy tin nhắn gần đây để check
+        const msgRes = await api.get("/api/user/recent-messages", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (msgRes.data.success) {
+          // Kiểm tra xem có bất kỳ tin nhắn nào mà mình (userId) chưa xem (seen = false) và người gửi khác mình
+          const hasUnread = msgRes.data.messages.some((m) => {
+            const senderId = m.from_user_id._id || m.from_user_id;
+            return !m.seen && senderId !== userId;
+          });
+          setHasUnreadMsg(hasUnread);
         }
       } catch (err) {
-        console.error("Lỗi lấy thông báo:", err);
+        console.error("Lỗi lấy trạng thái unread:", err);
       }
     };
-    
+
     if (userId) {
-        fetchUnread();
+      fetchInitialStatus();
     }
   }, [getToken, userId]);
 
   useEffect(() => {
-    const markAllAsRead = async () => {
+    const handlePageVisit = async () => {
+      const token = await getToken();
+      if (!token) return;
+
       if (location.pathname === "/notifications") {
         try {
-          const token = await getToken();
-          if (!token) return;
-
           await api.patch(
             "/api/notifications/read-all",
             {},
             { headers: { Authorization: `Bearer ${token}` } }
           );
-          setHasUnread(false);
+          setHasUnreadNoti(false);
         } catch (err) {
-          console.error("Lỗi khi mark all as read:", err);
+          console.error("Lỗi mark notifications read:", err);
         }
       }
+
+      if (location.pathname.startsWith("/messages")) {
+        setHasUnreadMsg(false);
+      }
     };
-    markAllAsRead();
+
+    handlePageVisit();
   }, [location.pathname, getToken]);
 
   return (
@@ -93,7 +128,10 @@ const MenuItems = ({ setSidebarOpen }) => {
         >
           <div className="relative flex items-center justify-center">
             <Icon className="w-6 h-6" />
-            {to === "/notifications" && hasUnread && (
+            {to === "/notifications" && hasUnreadNoti && (
+              <span className="absolute top-0 right-0 block w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white transform translate-x-1/4 -translate-y-1/4"></span>
+            )}
+            {to === "/messages" && hasUnreadMsg && (
               <span className="absolute top-0 right-0 block w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white transform translate-x-1/4 -translate-y-1/4"></span>
             )}
           </div>

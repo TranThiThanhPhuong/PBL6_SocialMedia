@@ -6,16 +6,12 @@ import socket from "../sockethandler/socket";
 
 const RecentMessages = ({ onUserSelect }) => {
   const [messages, setMessages] = useState([]);
-  const [onlineUsers, setOnlineUsers] = useState(new Set()); // Lưu ID các user đang online
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
   const { user } = useUser();
   const { getToken } = useAuth();
 
-  // Hàm kiểm tra status ban đầu cho danh sách tin nhắn
   const checkInitialOnlineStatus = async (msgs) => {
      const uniqueUserIds = [...new Set(msgs.map(m => m.from_user_id._id))];
-     // Vì backend bạn là check từng người, ta sẽ loop (số lượng ít nên không sao)
-     // Hoặc nếu backend có api check bulk (check nhiều user 1 lúc) thì tốt hơn.
-     // Ở đây mình giả lập check từng user cho đồng bộ với ChatBox
      try {
         const token = await getToken();
         const onlineSet = new Set(onlineUsers);
@@ -70,13 +66,11 @@ const RecentMessages = ({ onUserSelect }) => {
   useEffect(() => {
     if (user) {
       fetchRecentMessages();
-      // Polling tin nhắn mới mỗi 15s (để cập nhật last message)
-      const interval = setInterval(fetchRecentMessages, 15000);
+      const interval = setInterval(fetchRecentMessages, 5000);
       return () => clearInterval(interval);
     }
   }, [user]);
 
-  // Lắng nghe Socket để cập nhật chấm xanh Realtime
   useEffect(() => {
       const handleUserOnline = (id) => {
           setOnlineUsers(prev => new Set(prev).add(id));
@@ -147,9 +141,7 @@ const RecentMessages = ({ onUserSelect }) => {
                       {truncateText(message.text || "📷 Đã gửi một hình ảnh", 22)}
                     </p>
                     {!message.seen && (
-                      <p className="bg-indigo-500 text-white w-4 h-4 flex items-center justify-center rounded-full text-[10px]">
-                        1
-                      </p>
+                      <span className="w-3 h-3 bg-indigo-600 rounded-full flex-shrink-0 ml-1"></span>
                     )}
                   </div>
                 </div>
