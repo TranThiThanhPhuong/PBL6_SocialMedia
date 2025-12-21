@@ -11,23 +11,23 @@ const RecentMessages = ({ onUserSelect }) => {
   const { getToken } = useAuth();
 
   const checkInitialOnlineStatus = async (msgs) => {
-     const uniqueUserIds = [...new Set(msgs.map(m => m.from_user_id._id))];
-     try {
-        const token = await getToken();
-        const onlineSet = new Set(onlineUsers);
-        
-        await Promise.all(uniqueUserIds.map(async (id) => {
-            try {
-                const res = await api.get(`/api/message/last-seen/${id}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                if (res.data.online) onlineSet.add(id);
-            } catch (e) { /* ignore error */ }
-        }));
-        setOnlineUsers(onlineSet);
-     } catch (err) {
-         console.error(err);
-     }
+    const uniqueUserIds = [...new Set(msgs.map(m => m.from_user_id._id))];
+    try {
+      const token = await getToken();
+      const onlineSet = new Set(onlineUsers);
+
+      await Promise.all(uniqueUserIds.map(async (id) => {
+        try {
+          const res = await api.get(`/api/message/last-seen/${id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.data.online) onlineSet.add(id);
+        } catch (e) { /* ignore error */ }
+      }));
+      setOnlineUsers(onlineSet);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const fetchRecentMessages = async () => {
@@ -54,7 +54,7 @@ const RecentMessages = ({ onUserSelect }) => {
           .slice(0, 3);
 
         setMessages(sortedMessages);
-        
+
         // Sau khi lấy tin nhắn xong, check online status ngay
         checkInitialOnlineStatus(sortedMessages);
       }
@@ -72,25 +72,25 @@ const RecentMessages = ({ onUserSelect }) => {
   }, [user]);
 
   useEffect(() => {
-      const handleUserOnline = (id) => {
-          setOnlineUsers(prev => new Set(prev).add(id));
-      };
-      
-      const handleUserOffline = (data) => {
-          setOnlineUsers(prev => {
-              const newSet = new Set(prev);
-              newSet.delete(data.userId);
-              return newSet;
-          });
-      };
+    const handleUserOnline = (id) => {
+      setOnlineUsers(prev => new Set(prev).add(id));
+    };
 
-      socket.on("user_online", handleUserOnline);
-      socket.on("user_offline", handleUserOffline);
+    const handleUserOffline = (data) => {
+      setOnlineUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(data.userId);
+        return newSet;
+      });
+    };
 
-      return () => {
-          socket.off("user_online", handleUserOnline);
-          socket.off("user_offline", handleUserOffline);
-      };
+    socket.on("user_online", handleUserOnline);
+    socket.on("user_offline", handleUserOffline);
+
+    return () => {
+      socket.off("user_online", handleUserOnline);
+      socket.off("user_offline", handleUserOffline);
+    };
   }, []);
 
   const truncateText = (text, length = 25) => {
@@ -115,15 +115,15 @@ const RecentMessages = ({ onUserSelect }) => {
               >
                 {/* Avatar Wrapper */}
                 <div className="relative flex-shrink-0">
-                    <img
+                  <img
                     src={message.from_user_id.profile_picture}
                     alt={message.from_user_id.full_name}
                     className="w-9 h-9 rounded-full object-cover"
-                    />
-                    {/* 👇 CHẤM XANH ONLINE */}
-                    {isOnline && (
-                        <span className="absolute bottom-0 right-0 block w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white"></span>
-                    )}
+                  />
+                  {/* 👇 CHẤM XANH ONLINE */}
+                  {isOnline && (
+                    <span className="absolute bottom-0 right-0 block w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white"></span>
+                  )}
                 </div>
 
                 <div className="w-full min-w-0">

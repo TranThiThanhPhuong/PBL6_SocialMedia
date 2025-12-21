@@ -5,6 +5,7 @@ import { useAuth } from "@clerk/clerk-react";
 import api from "../api/axios";
 import Loading from "../components/Loading";
 import StoriesBar from "../components/StoriesBar";
+import CreatePost from "../components/CreatePost";
 import PostCard from "../components/PostCard";
 import RecentMessages from "../components/RecentMessages";
 import MiniChatBox from "../components/MiniChatBox";
@@ -64,6 +65,8 @@ const Feed = () => {
         <StoriesBar />
 
         <div className="p-4 space-y-6">
+          <CreatePost onPostCreated={(post) => setFeeds((prev) => [post, ...prev])} />
+
           {feeds.map((post) => (
             <PostCard
               key={post._id}
@@ -95,9 +98,9 @@ const Feed = () => {
         <RecentMessages onUserSelect={(user) => setActiveChatUser(user)} />
       </div>
       {activeChatUser && (
-        <MiniChatBox 
-            targetUser={activeChatUser} 
-            onClose={() => setActiveChatUser(null)} 
+        <MiniChatBox
+          targetUser={activeChatUser}
+          onClose={() => setActiveChatUser(null)}
         />
       )}
     </div>

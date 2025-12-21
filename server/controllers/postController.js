@@ -75,14 +75,22 @@ export const addPost = async (req, res) => {
       );
     }
 
-    await Post.create({
+    const newPost = await Post.create({
       user: userId,
       content,
       image_urls,
       post_type,
     });
 
-    res.json({ success: true, message: "Tạo bài viết thành công", aiResult });
+    // Populate user info before returning
+    const populatedPost = await newPost.populate("user");
+
+    res.json({ 
+      success: true, 
+      message: "Tạo bài viết thành công", 
+      post: populatedPost,
+      aiResult 
+    });
   } catch (error) {
     console.error(error);
     res
