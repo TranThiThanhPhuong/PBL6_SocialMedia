@@ -80,19 +80,6 @@ const Feed = () => {
 
       {/* Right Sidebar */}
       <div className="max-xl:hidden sticky w-80 space-y-6">
-        {/* <div className="max-w-xs bg-white text-xs p-4 rounded-md inline-flex flex-col gap-2 shadow">
-          <h3 className="text-slate-800 font-semibold">Được tài trợ</h3>
-          <img
-            src={assets.sponsored_img}
-            className="w-75px h-50px rounded-md"
-            alt=""
-          />
-          <p className="text-slate-600">Tiếp thị qua Email</p>
-          <p className="text-slate-400">
-            Tăng cường hiệu quả tiếp thị của bạn với một nền tảng mạnh mẽ, dễ sử
-            dụng và được xây dựng để mang lại kết quả.
-          </p>
-        </div> */}
         <SuggestedUsers />
 
         <RecentMessages onUserSelect={(user) => setActiveChatUser(user)} />

@@ -20,9 +20,11 @@ export const getUserData = async (req, res) => {
     const user = await User.findById(userId);
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Không tìm thấy người dùng",
+      user = await User.create({
+        _id: userId,
+        email: req.auth().sessionClaims?.email,
+        full_name: req.auth().sessionClaims?.name || "New User",
+        password: "CLERK_AUTH", // dummy
       });
     }
 

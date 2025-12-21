@@ -1,18 +1,23 @@
 import { Server } from "socket.io";
 
 let io;
-const onlineUsers = new Map();      // userId -> socketId
-const lastSeen = new Map();         // userId -> timestamp
+const onlineUsers = new Map(); // userId -> socketId
+const lastSeen = new Map(); // userId -> timestamp
 
 export const initSocket = (server) => {
   io = new Server(server, {
+    connectionStateRecovery: {
+      // Tính năng mới của Socket.io v4.6+ giúp khôi phục kết nối khi rớt mạng
+      maxDisconnectionDuration: 2 * 60 * 1000,
+      skipMiddlewares: true,
+    },
     cors: {
       // 👇 Hàm này cho phép kết nối từ Local, Prod và các link Preview của Vercel
       origin: (origin, callback) => {
         const allowedOrigins = [
-          "http://localhost:5173",           // Local Frontend
-          process.env.FRONTEND_URL,          // Prod Frontend (từ .env)
-          process.env.ADMIN_URL              // Admin (nếu có)
+          "http://localhost:5173", // Local Frontend
+          process.env.FRONTEND_URL, // Prod Frontend (từ .env)
+          process.env.ADMIN_URL, // Admin (nếu có)
         ];
 
         // Cho phép request không có origin (như Postman/Server-to-Server)
@@ -32,6 +37,7 @@ export const initSocket = (server) => {
       methods: ["GET", "POST"],
       credentials: true,
     },
+    transports: ["websocket", "polling"],
   });
 
   io.on("connection", (socket) => {
@@ -40,11 +46,22 @@ export const initSocket = (server) => {
     // 1. Đăng ký user
     socket.on("register_user", (userId) => {
       if (userId) {
+        // Kiểm tra xem user này đã online trước đó chưa
+        const isAlreadyOnline = onlineUsers.has(userId);
+
+        // Cập nhật socket ID mới nhất (để nhắn tin riêng vẫn nhận được)
         socket.userId = userId;
         onlineUsers.set(userId, socket.id);
         lastSeen.delete(userId);
-        console.log(`✅ User Online: ${userId}`);
-        io.emit("user_online", userId);
+
+        // CHỈ thông báo cho cả làng biết NẾU trước đó họ chưa online
+        if (!isAlreadyOnline) {
+          console.log(`✅ User Online: ${userId}`);
+          io.emit("user_online", userId);
+        } else {
+          // User chỉ refresh trang hoặc đổi tab, không cần spam thông báo
+          console.log(`ℹ️ User re-connected: ${userId}`);
+        }
       }
     });
 

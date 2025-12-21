@@ -390,12 +390,14 @@ export const getUserRecentMessages = async (req, res) => {
       to_user_id: userId,
       deletedBy: { $ne: userId },
       from_user_id: { $in: allowedSenderIdsArray },
+      seen: false,
     })
       .populate({
         path: "from_user_id",
         select: "full_name username profile_picture status",
       })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .limit(20);
 
     res.json({ success: true, messages });
   } catch (error) {
