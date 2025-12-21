@@ -12,7 +12,7 @@ import {
 export const sendMessage = async (req, res) => {
   try {
     const { userId } = req.auth();
-    const { to_user_id, text, storyId } = req.body;
+    const { to_user_id, text, storyId, reply_to_post } = req.body;
     const image = req.file;
 
     if (!to_user_id)
@@ -89,6 +89,9 @@ export const sendMessage = async (req, res) => {
     let message_type = image ? "image" : "text";
     let media_url = "";
 
+    // Allow passing an existing media_url in body (e.g., share post image preview)
+    const bodyMediaUrl = req.body?.media_url;
+
     if (image) {
       const buffer = fs.readFileSync(image.path);
       const uploaded = await imagekit.upload({
@@ -104,6 +107,10 @@ export const sendMessage = async (req, res) => {
         ],
       });
       fs.unlinkSync(image.path);
+    } else if (bodyMediaUrl) {
+      // use provided media URL as-is
+      media_url = bodyMediaUrl;
+      message_type = "image";
     }
 
     const message = await Message.create({
@@ -113,12 +120,20 @@ export const sendMessage = async (req, res) => {
       message_type,
       media_url,
       reply_to_story: storyId,
+      reply_to_post,
     });
 
     const populatedMsg = await Message.findById(message._id)
       .populate("from_user_id", "full_name username profile_picture")
       .populate("to_user_id", "full_name username profile_picture")
       .populate("reply_to_story")
+      .populate({
+        path: "reply_to_post",
+        populate: [
+          { path: "user", select: "full_name username profile_picture" },
+          { path: "shared_from", populate: { path: "user", select: "full_name username profile_picture" } },
+        ],
+      })
       .lean();
 
     const io = getIO();
@@ -188,11 +203,17 @@ export const getInboxMessages = async (req, res) => {
       { $sort: { createdAt: -1 } },
     ]);
 
-    // Populate thông tin user sau khi aggregate
-    await Message.populate(messages, {
-      path: "from_user_id to_user_id",
-      select: "full_name username profile_picture",
-    });
+    // Populate thông tin user và thông tin bài viết nếu có
+    await Message.populate(messages, [
+      { path: "from_user_id to_user_id", select: "full_name username profile_picture" },
+      {
+        path: "reply_to_post",
+        populate: [
+          { path: "user", select: "full_name username profile_picture" },
+          { path: "shared_from", populate: { path: "user", select: "full_name username profile_picture" } },
+        ],
+      },
+    ]);
 
     res.json({ success: true, messages });
   } catch (error) {
@@ -248,10 +269,16 @@ export const getPendingMessages = async (req, res) => {
       { $sort: { createdAt: -1 } },
     ]);
 
-    await Message.populate(messages, {
-      path: "from_user_id to_user_id",
-      select: "full_name username profile_picture",
-    });
+    await Message.populate(messages, [
+      { path: "from_user_id to_user_id", select: "full_name username profile_picture" },
+      {
+        path: "reply_to_post",
+        populate: [
+          { path: "user", select: "full_name username profile_picture" },
+          { path: "shared_from", populate: { path: "user", select: "full_name username profile_picture" } },
+        ],
+      },
+    ]);
 
     res.json({ success: true, messages });
   } catch (error) {
@@ -315,6 +342,12 @@ export const getChatMessages = async (req, res) => {
       ],
     }).sort({ createdAt: 1 });
 
+    // Populate sender/receiver and referenced post user for reply previews
+    await Message.populate(messages, [
+      { path: 'from_user_id to_user_id', select: 'full_name username profile_picture' },
+      { path: 'reply_to_post', populate: [ { path: 'user', select: 'full_name username profile_picture' }, { path: 'shared_from', populate: { path: 'user', select: 'full_name username profile_picture' } } ] },
+    ]);
+
     // Đánh dấu tin nhắn đã đọc (vẫn thực hiện bình thường)
     await Message.updateMany(
       { from_user_id: otherId, to_user_id: userId, seen: false },
@@ -345,6 +378,7 @@ export const getUserRecentMessages2 = async (req, res) => {
     })
       .populate("from_user_id", "full_name username profile_picture")
       .populate("to_user_id", "full_name username profile_picture")
+      .populate({ path: 'reply_to_post', populate: [ { path: 'user', select: 'full_name username profile_picture' }, { path: 'shared_from', populate: { path: 'user', select: 'full_name username profile_picture' } } ] })
       .sort({ createdAt: -1 });
 
     res.json({ success: true, messages });
@@ -395,6 +429,7 @@ export const getUserRecentMessages = async (req, res) => {
         path: "from_user_id",
         select: "full_name username profile_picture status",
       })
+      .populate({ path: 'reply_to_post', populate: [ { path: 'user', select: 'full_name username profile_picture' }, { path: 'shared_from', populate: { path: 'user', select: 'full_name username profile_picture' } } ] })
       .sort({ createdAt: -1 });
 
     res.json({ success: true, messages });

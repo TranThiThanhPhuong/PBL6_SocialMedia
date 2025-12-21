@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   X,
   Link,
@@ -12,11 +12,12 @@ import {
   Zap,
   BookUser,
   ArrowUpRight,
+  Check,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { assets, dummyConnectionsData } from "../assets/assets";
+import { assets } from "../assets/assets";
 import { useAuth } from "@clerk/clerk-react";
 import api from "../api/axios";
 
@@ -92,7 +93,50 @@ const SharePostModal = ({ post, onClose }) => {
     onClose();
   };
 
-  const connections = dummyConnectionsData.slice(0, 5);
+  const [recentRecipients, setRecentRecipients] = useState([]);
+  const [recipientsLoading, setRecipientsLoading] = useState(false);
+  const [selectedRecipient, setSelectedRecipient] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchRecent = async () => {
+      setRecipientsLoading(true);
+      try {
+        const token = await getToken();
+        const { data } = await api.get("/api/user/recent-messages", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (data.success && Array.isArray(data.messages)) {
+          // group by sender id and pick latest message per sender
+          const grouped = data.messages.reduce((acc, msg) => {
+            const sender = msg.from_user_id;
+            const id = sender._id;
+            if (!acc[id] || new Date(msg.createdAt) > new Date(acc[id].createdAt)) {
+              acc[id] = msg;
+            }
+            return acc;
+          }, {});
+
+          const sorted = Object.values(grouped)
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .map((m) => m.from_user_id)
+            .slice(0, 6);
+
+          if (mounted) setRecentRecipients(sorted);
+        }
+      } catch (err) {
+        console.error("Failed to fetch recent recipients", err);
+      } finally {
+        if (mounted) setRecipientsLoading(false);
+      }
+    };
+
+    fetchRecent();
+    return () => {
+      mounted = false;
+    };
+  }, [getToken]);
 
   return (
     <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 overflow-y-auto py-8">
@@ -149,23 +193,67 @@ const SharePostModal = ({ post, onClose }) => {
         {/* PHẦN GỬI QUA TIN NHẮN */}
         <div className="p-4 border-b border-gray-100">
           <h3 className="font-bold text-lg mb-4">Gửi qua tin nhắn</h3>
-          <div className="flex overflow-x-auto gap-4 no-scrollbar">
-            {connections.map((friend) => (
-              <div
-                key={friend._id}
-                className="flex-shrink-0 w-20 text-center cursor-pointer"
-              >
-                <img
-                  src={friend.profile_picture}
-                  className="w-16 h-16 rounded-full mx-auto"
-                />
-                <p className="text-sm mt-1 truncate">{friend.full_name}</p>
-              </div>
-            ))}
+          <div className="flex overflow-x-auto gap-4 no-scrollbar items-center">
+            {recipientsLoading ? (
+              <div className="text-sm text-gray-500">Đang tải...</div>
+            ) : recentRecipients.length > 0 ? (
+              recentRecipients.map((friend) => (
+                <div
+                  key={friend._id}
+                  className={`flex-shrink-0 w-20 text-center cursor-pointer transition-all ${selectedRecipient === friend._id ? 'scale-105' : ''}`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRecipient(selectedRecipient === friend._id ? null : friend._id)}
+                    className="relative mx-auto w-16 h-16 rounded-full overflow-hidden focus:outline-none"
+                  >
+                    <img
+                      src={friend.profile_picture}
+                      className={`w-16 h-16 rounded-full object-cover transition-shadow ${selectedRecipient === friend._id ? 'ring-4 ring-indigo-500 ring-offset-2 shadow-lg' : ''}`}
+                    />
+                    {selectedRecipient === friend._id && (
+                      <span className="absolute -bottom-1 -right-1 bg-indigo-600 rounded-full p-0.5">
+                        <Check size={14} className="text-white" />
+                      </span>
+                    )}
+                  </button>
+                  <p className="text-sm mt-1 truncate">{friend.full_name}</p>
+                </div>
+              ))
+            ) : (
+              <div className="text-sm text-gray-500">Chưa có người nhắn tin gần đây</div>
+            )}
+
             <div className="flex-shrink-0 w-20 flex items-center justify-center">
-              <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-300 transition">
+              <button
+                onClick={async () => {
+                  if (!selectedRecipient) return toast.error('Vui lòng chọn người nhận');
+                  try {
+                    const token = await getToken();
+                    const text = shareText
+                      ? shareText
+                      : `Đã chia sẻ bài viết cho bạn\n\n${(post.content || '').slice(0, 120)}`;
+
+                    const body = { to_user_id: selectedRecipient, text, reply_to_post: post._id };
+                    // include first image as media preview if available
+                    if (post.image_urls && post.image_urls.length > 0) body.media_url = post.image_urls[0];
+
+                    const { data } = await api.post('/api/message/send', body, { headers: { Authorization: `Bearer ${token}` } });
+                    if (data.success) {
+                      toast.success('Đã gửi tin nhắn riêng');
+                      onClose();
+                    } else {
+                      toast.error(data.message || 'Không thể gửi tin nhắn');
+                    }
+                  } catch (err) {
+                    console.error(err);
+                    toast.error('Lỗi khi gửi tin nhắn');
+                  }
+                }}
+                className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-300 transition"
+              >
                 <ArrowRight size={24} />
-              </div>
+              </button>
             </div>
           </div>
         </div>

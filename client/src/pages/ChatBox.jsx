@@ -197,20 +197,23 @@ const ChatBox = () => {
     }
     let mounted = true;
 
-    (async () => {
+    const checkRemoteStatus = async () => {
       try {
         const token = await getToken();
         const res = await api.get(`/api/message/last-seen/${userId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (mounted && res.data) {
-          setIsOnline(res.data.online);
-          setLastSeen(res.data.lastSeen);
+          setIsOnline(Boolean(res.data.online));
+          setLastSeen(res.data.lastSeen || null);
         }
       } catch (err) {
         console.error(err);
       }
-    })();
+    };
+
+    // initial check
+    checkRemoteStatus();
 
     const handleUserOnline = (id) => {
       if (id === userId) {
@@ -224,12 +227,17 @@ const ChatBox = () => {
         setLastSeen(data.lastSeen);
       }
     };
+    const handleSocketConnect = () => {
+      checkRemoteStatus();
+    };
     socket.on("user_online", handleUserOnline);
     socket.on("user_offline", handleUserOffline);
+    socket.on("connect", handleSocketConnect);
     return () => {
       socket.off("user_online");
       socket.off("user_offline");
     };
+    socket.off("connect", handleSocketConnect);
   }, [userId, isBlocked, isLocked, getToken]);
 
   useEffect(() => {
@@ -274,7 +282,7 @@ const ChatBox = () => {
     if (!timestamp) return "";
     const diff = Date.now() - timestamp;
     const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return "Vừa xong";
+    if (minutes < 1) return "30 giây trước";
     if (minutes < 60) return `${minutes} phút trước`;
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return `${hours} giờ trước`;
@@ -323,7 +331,9 @@ const ChatBox = () => {
               <p className="text-xs text-gray-500">
                 {lastSeen
                   ? `Hoạt động ${formatLastSeen(lastSeen)}`
-                  : "Không hoạt động"}
+                  : lastSeen
+                    ? `Hoạt động ${formatLastSeen(lastSeen)}`
+                    : "Hoạt động vài phút trước"}
               </p>
             )}
           </div>
@@ -420,9 +430,8 @@ const ChatBox = () => {
                     </div>
                   )}
                   <div
-                    className={`flex gap-2 ${
-                      isReceived ? "justify-start" : "justify-end"
-                    }`}
+                    className={`flex gap-2 ${isReceived ? "justify-start" : "justify-end"
+                      }`}
                   >
                     {isReceived && (
                       <div className="w-8 h-8 flex-shrink-0 flex items-end">
@@ -436,24 +445,55 @@ const ChatBox = () => {
                       </div>
                     )}
                     <div
-                      className={`flex flex-col ${
-                        isReceived ? "items-start" : "items-end"
-                      }`}
+                      className={`flex flex-col ${isReceived ? "items-start" : "items-end"
+                        }`}
                     >
                       <div
-                        className={`px-4 py-2.5 rounded-2xl max-w-md transition-all ${
-                          isReceived
-                            ? "bg-white text-gray-800 shadow-sm border border-gray-200"
-                            : "bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md"
-                        }`}
+                        className={`px-4 py-2.5 rounded-2xl max-w-md transition-all ${isReceived
+                          ? "bg-white text-gray-800 shadow-sm border border-gray-200"
+                          : "bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md"
+                          }`}
                       >
-                        {msg.message_type === "image" && (
-                          <img
-                            src={msg.media_url}
-                            className="max-w-xs rounded-lg mb-1"
-                            alt="Shared"
-                          />
-                        )}
+                        {(() => {
+                          const mediaUrl = msg.media_url;
+                          const mediaUrlValid = mediaUrl && typeof mediaUrl === 'string' && (mediaUrl.startsWith('http') || mediaUrl.startsWith('data:') || mediaUrl.startsWith('//'));
+
+                          const replyImage = msg.reply_to_post?.image_urls?.[0];
+                          const replyImageValid = replyImage && typeof replyImage === 'string' && (replyImage.startsWith('http') || replyImage.startsWith('data:') || replyImage.startsWith('//'));
+
+                          return (
+                            <>
+                              {msg.message_type === 'image' && mediaUrlValid && !msg.reply_to_post && (
+                                <img src={mediaUrl} className="max-w-xs rounded-lg mb-1" alt="Shared" />
+                              )}
+
+                              {msg.reply_to_post && (
+                                <div className="bg-gray-50 border border-gray-200 rounded-md p-3 mb-2">
+                                  <div className="flex items-center gap-2">
+                                    {(() => {
+                                      const post = msg.reply_to_post;
+                                      const postAuthor = post.post_type === 'shared' && post.shared_from?.user ? post.shared_from.user : post.user;
+                                      const authorAvatar = postAuthor?.profile_picture || '';
+                                      const authorName = postAuthor?.full_name || 'Người dùng';
+                                      return (
+                                        <>
+                                          <img src={authorAvatar} alt="author" className="w-8 h-8 rounded-full object-cover" />
+                                          <div className="text-sm">
+                                            <div className="font-semibold text-gray-800">{authorName}</div>
+                                            <div className="text-xs text-gray-600 truncate" style={{ maxWidth: '240px' }}>{post.content}</div>
+                                          </div>
+                                        </>
+                                      );
+                                    })()}
+                                  </div>
+                                  {replyImageValid && (
+                                    <img src={replyImage} alt="post_media" className="mt-2 rounded-md w-full object-cover max-h-48" />
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                         {msg.text && (
                           <p className="text-sm leading-relaxed break-words">
                             {msg.text}

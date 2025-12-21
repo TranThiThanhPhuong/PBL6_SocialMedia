@@ -114,7 +114,20 @@ const Notifications = () => {
               </UserAvatar>
               <div>
                 <p className="text-sm font-medium">
-                  <span className="font-bold">{noti.sender?.full_name}</span> {noti.content}
+                  {(() => {
+                    const senderName = noti.sender?.full_name || "";
+                    const content = noti.content || "";
+                    // Avoid duplicating sender name if backend already included it in content
+                    if (senderName && content.startsWith(senderName)) {
+                      return <span>{content}</span>;
+                    }
+                    return (
+                      <>
+                        <span className="font-bold">{senderName}</span>
+                        {content ? ` ${content}` : null}
+                      </>
+                    );
+                  })()}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
                   {formatPostTime(noti.createdAt)}

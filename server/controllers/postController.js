@@ -425,8 +425,8 @@ export const getAllPosts = async (req, res) => {
 // 🔴 [ADMIN] Xóa bài viết (Bỏ qua kiểm tra chính chủ)
 export const adminDeletePost = async (req, res) => {
   try {
-    const { id } = req.params;
-    const post = await Post.findById(id);
+    const { postId } = req.params;
+    const post = await Post.findById(postId);
 
     if (!post) return res.status(404).json({ success: false, message: "Không tìm thấy bài viết." });
 

@@ -138,18 +138,21 @@ const MiniChatBox = ({ targetUser, onClose }) => {
       return;
     }
 
-    (async () => {
+    const checkRemoteStatus = async () => {
       try {
         const token = await getToken();
         const res = await api.get(`/api/message/last-seen/${userId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setIsOnline(res.data.online);
-        setLastSeen(res.data.lastSeen);
+        setIsOnline(Boolean(res.data.online));
+        setLastSeen(res.data.lastSeen || null);
       } catch (err) {
         console.error("Lỗi check online:", err);
       }
-    })();
+    };
+
+    // initial check
+    checkRemoteStatus();
 
     const handleUserOnline = (id) => {
       if (id === userId) {
@@ -165,12 +168,19 @@ const MiniChatBox = ({ targetUser, onClose }) => {
       }
     };
 
+    // also re-check status when socket connects (covers missed events)
+    const handleSocketConnect = () => {
+      checkRemoteStatus();
+    };
+
     socket.on("user_online", handleUserOnline);
     socket.on("user_offline", handleUserOffline);
+    socket.on("connect", handleSocketConnect);
 
     return () => {
       socket.off("user_online", handleUserOnline);
       socket.off("user_offline", handleUserOffline);
+      socket.off("connect", handleSocketConnect);
     };
   }, [userId, getToken, isBlocked]);
 
@@ -264,7 +274,7 @@ const MiniChatBox = ({ targetUser, onClose }) => {
               <p className="text-[10px] text-indigo-100">Đang hoạt động</p>
             ) : (
               <p className="text-[10px] text-indigo-100">
-                Hoạt động {formatLastSeen(lastSeen)}
+                {lastSeen ? `Hoạt động ${formatLastSeen(lastSeen)}` : "Vừa truy cập"}
               </p>
             )}
           </div>
@@ -337,6 +347,18 @@ const MiniChatBox = ({ targetUser, onClose }) => {
             });
             // --- 👆 END: LOGIC TÍNH TOÁN THỜI GIAN ---
 
+            const replyImage = msg.reply_to_post?.image_urls?.[0];
+            const replyImageValid =
+              replyImage &&
+              typeof replyImage === "string" &&
+              (replyImage.startsWith("http") || replyImage.startsWith("data:") || replyImage.startsWith("//"));
+
+            const mediaUrl = msg.media_url;
+            const mediaUrlValid =
+              mediaUrl &&
+              typeof mediaUrl === "string" &&
+              (mediaUrl.startsWith("http") || mediaUrl.startsWith("data:") || mediaUrl.startsWith("//"));
+
             return (
               <React.Fragment key={i}>
                 {/* 👇 Hiển thị ngăn cách thời gian */}
@@ -353,15 +375,36 @@ const MiniChatBox = ({ targetUser, onClose }) => {
                   className={`flex ${isMe ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[75%] px-3 py-2 rounded-lg text-sm break-words ${
-                      isMe
-                        ? "bg-indigo-500 text-white"
-                        : "bg-white border border-gray-200 text-gray-800"
-                    }`}
+                    className={`max-w-[75%] px-3 py-2 rounded-lg text-sm break-words ${isMe
+                      ? "bg-indigo-500 text-white"
+                      : "bg-white border border-gray-200 text-gray-800"
+                      }`}
                   >
-                    {msg.message_type === "image" && (
+                    {/* If this message references a shared post, render a mini post card */}
+                    {msg.reply_to_post && (() => {
+                      const post = msg.reply_to_post;
+                      const postAuthor = post.post_type === 'shared' && post.shared_from?.user ? post.shared_from.user : post.user;
+                      const authorAvatar = postAuthor?.profile_picture || '';
+                      const authorName = postAuthor?.full_name || 'Người dùng';
+                      return (
+                        <div className="bg-gray-50 border border-gray-200 rounded-md p-2 mb-2">
+                          <div className="flex items-center gap-2">
+                            <img src={authorAvatar} alt="author" className="w-8 h-8 rounded-full object-cover" />
+                            <div className="text-sm">
+                              <div className="font-semibold text-gray-800">{authorName}</div>
+                              <div className="text-xs text-gray-600 truncate" style={{ maxWidth: '200px' }}>{post.content}</div>
+                            </div>
+                          </div>
+                          {replyImageValid && (
+                            <img src={replyImage} alt="post_media" className="mt-2 rounded-md w-full object-cover max-h-36" />
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {msg.message_type === "image" && mediaUrlValid && !msg.reply_to_post && (
                       <img
-                        src={msg.media_url}
+                        src={mediaUrl}
                         className="rounded-md mb-1 max-h-32 object-cover"
                         alt="sent"
                       />
