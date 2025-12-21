@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema(
   {
     _id: { type: String, required: true }, // Clerk userId sẽ được dùng làm _id trong MongoDB
     email: { type: String, required: true },
-    password: { type: String, required: true },// them pass de tu xac thuc nguoi dung 
+    password: { type: String, default: "CLERK_AUTH" },
     full_name: { type: String, required: true },
     username: { type: String, unique: true, sparse: true }, // thêm sparse để tránh lỗi unique khi null
     bio: { type: String, default: "I will succeed" },

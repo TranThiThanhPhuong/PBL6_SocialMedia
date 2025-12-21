@@ -29,7 +29,7 @@ const Connections = () => {
     let mounted = true;
     getToken().then((token) => {
       if (mounted) dispatch(fetchConnections(token));
-      console.log(token); 
+      console.log(token);
     });
     return () => { mounted = false; };
   }, [dispatch, getToken]);

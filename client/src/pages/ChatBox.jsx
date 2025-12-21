@@ -5,8 +5,6 @@ import {
   ImageIcon,
   SendHorizontal,
   X,
-  Phone,
-  Video,
   MoreVertical,
   Loader2,
   Ban,
@@ -343,12 +341,7 @@ const ChatBox = () => {
         <div className="flex items-center gap-2">
           {!isBlocked && !isLocked && (
             <>
-              <button className="p-2.5 rounded-full hover:bg-indigo-50 text-indigo-600 transition-colors">
-                <Phone size={20} />
-              </button>
-              <button className="p-2.5 rounded-full hover:bg-indigo-50 text-indigo-600 transition-colors">
-                <Video size={20} />
-              </button>
+              {/* Call buttons removed — feature not yet developed */}
             </>
           )}
           {/* Nút Menu luôn hiển thị (trừ khi bị Admin Lock hoàn toàn) */}

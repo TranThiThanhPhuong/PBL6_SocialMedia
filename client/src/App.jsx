@@ -47,30 +47,24 @@ const App = () => {
   }, [pathname]);
 
   useEffect(() => {
-    if (currentUserId) {
-      if (!socket.connected) {
-        socket.connect();
-        console.log("🔌 App: Socket connecting...");
-      }
-
-      socket.emit("register_user", currentUserId);
-
-      const onConnect = () => {
-        console.log("✅ App: Socket connected ID:", socket.id);
-        socket.emit("register_user", currentUserId);
-      };
-
-      socket.on("connect", onConnect);
-
-      return () => {
-        socket.off("connect", onConnect);
-      };
-    } else {
-      if (socket.connected) {
-        socket.disconnect();
-        console.log("🚫 App: Socket disconnected (No User)");
-      }
+    if (currentUserId && !socket.connected) {
+      socket.auth = { userId: currentUserId }; // Gửi userId qua handshake để bảo mật hơn
+      socket.connect();
     }
+
+    // Lắng nghe sự kiện connect
+    const onConnect = () => {
+       console.log("Connected:", socket.id);
+       socket.emit("register_user", currentUserId);
+    };
+
+    socket.on("connect", onConnect);
+
+    return () => {
+      socket.off("connect", onConnect);
+      // Không disconnect socket ở đây nếu bạn muốn giữ kết nối khi chuyển trang
+      // Chỉ disconnect khi user Logout
+    };
   }, [currentUserId]);
 
   if (!isLoaded) return null;

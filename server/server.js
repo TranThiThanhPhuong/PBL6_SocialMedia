@@ -64,20 +64,17 @@ app.use((req, res, next) => {
   next();
 });
 
-// Apply rate limiting only in production. During local development
-// the limiter can cause 429s when many client components poll frequently.
 if (process.env.NODE_ENV === "production") {
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 200,
-    message: "Too many requests from this IP, please try again later.",
+    max: 1000, // Tăng lên 1000 hoặc 2000
+    standardHeaders: true,
+    legacyHeaders: false,
+    // Bỏ qua request OPTIONS để tránh tính sai
+    skip: (req, res) => req.method === 'OPTIONS', 
+    message: "Too many requests, slow down!",
   });
   app.use("/api", limiter);
-} else {
-  // In development, use no limiter (or a very permissive one) to avoid false 429s.
-  // If you prefer a permissive limiter instead, uncomment below and adjust limits.
-  // const devLimiter = rateLimit({ windowMs: 60 * 1000, max: 1000 });
-  // app.use("/api", devLimiter);
 }
 
 await connectDB();

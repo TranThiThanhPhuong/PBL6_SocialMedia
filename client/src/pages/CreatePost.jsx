@@ -151,7 +151,6 @@ const CreatePost = () => {
         localStorage.removeItem('draft_post');
 
         setTimeout(() => {
-          toast.success("✅ Đăng bài thành công!");
           navigate("/");
         }, 2000);
       } else {
