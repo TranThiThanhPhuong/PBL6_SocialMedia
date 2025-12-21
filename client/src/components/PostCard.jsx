@@ -200,7 +200,7 @@ const PostCard = ({
         toast.error(data.message);
       }
     } catch (error) {
-      toast.error("Lỗi khi gửi báo cáo!");
+      toast.error("Bạn đã báo cáo bài viết này trước đó.");
     }
   };
 
@@ -222,7 +222,7 @@ const PostCard = ({
           {isProfileView ? (
             // Nếu là trang Profile: Chỉ hiện ảnh và tên bình thường (không bọc UserAvatar)
             <div className="flex items-center gap-3 cursor-pointer group"
-            onClick={() => handleUserClick(post.user)}>
+              onClick={() => handleUserClick(post.user)}>
               <img
                 src={post.user.profile_picture}
                 className="w-10 h-10 rounded-full shadow object-cover"
@@ -275,18 +275,18 @@ const PostCard = ({
           </button>
 
           {showOptions && (
-            <div className="absolute right-0 mt-2 bg-white shadow rounded-lg border text-sm z-50">
+            <div className="absolute right-0 mt-2 bg-white shadow rounded-lg border text-sm z-50 min-w-max">
               {post.user._id === currentUser._id ? (
                 <>
                   <button
                     onClick={startEditMode}
-                    className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full"
+                    className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 w-full whitespace-nowrap"
                   >
                     <Edit3 className="w-4 h-4" /> Sửa
                   </button>
                   <button
                     onClick={handleDelete}
-                    className="flex items-center gap-2 px-4 py-2 text-red-500 hover:bg-gray-100 w-full"
+                    className="flex items-center gap-2 px-4 py-2 text-red-500 hover:bg-gray-100 w-full whitespace-nowrap"
                   >
                     <Trash2 className="w-4 h-4" /> Xóa
                   </button>
@@ -297,7 +297,7 @@ const PostCard = ({
                     setShowReportModal(true);
                     setShowOptions(false);
                   }}
-                  className="flex items-center gap-2 px-4 py-2 text-red-500 hover:bg-gray-100 w-full"
+                  className="flex items-center gap-2 px-4 py-2 text-red-500 hover:bg-gray-100 w-full whitespace-nowrap"
                 >
                   <Flag className="w-4 h-4" /> Báo cáo bài viết
                 </button>
@@ -402,7 +402,7 @@ const PostCard = ({
               disabled={
                 post.post_type !== "shared"
                   ? keptImageUrls.length + newImageFiles.length === 0 &&
-                    !editContent?.trim()
+                  !editContent?.trim()
                   : !editContent?.trim()
               }
               className="bg-blue-500 text-white px-3 py-1 rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
@@ -426,9 +426,8 @@ const PostCard = ({
             <img
               src={img}
               key={index}
-              className={`w-full h-48 object-cover rounded-lg ${
-                post.image_urls.length === 1 && "col-span-2 h-auto"
-              }`}
+              className={`w-full h-48 object-cover rounded-lg ${post.image_urls.length === 1 && "col-span-2 h-auto"
+                }`}
             />
           ))}
         </div>
@@ -440,7 +439,7 @@ const PostCard = ({
             {isProfileView ? (
               // Nếu là trang Profile: Chỉ hiện ảnh và tên bình thường (không bọc UserAvatar)
               <div className="flex items-center gap-3 cursor-pointer group "
-              onClick={() => handleUserClick(post.shared_from.user)}>
+                onClick={() => handleUserClick(post.shared_from.user)}>
                 <img
                   src={post.shared_from.user?.profile_picture}
                   className="w-10 h-10 rounded-full shadow object-cover"
@@ -497,10 +496,9 @@ const PostCard = ({
                   key={index}
                   src={img}
                   alt=""
-                  className={`w-full h-40 object-cover rounded-lg ${
-                    post.shared_from.image_urls.length === 1 &&
+                  className={`w-full h-40 object-cover rounded-lg ${post.shared_from.image_urls.length === 1 &&
                     "col-span-2 h-auto"
-                  }`}
+                    }`}
                 />
               ))}
             </div>
@@ -523,9 +521,8 @@ const PostCard = ({
         {/* Like */}
         <button
           onClick={handleLike}
-          className={`flex items-center justify-center gap-2 w-1/3 py-2 rounded-lg hover:bg-gray-100 transition ${
-            likes.includes(currentUser._id) ? "text-red-500" : ""
-          }`}
+          className={`flex items-center justify-center gap-2 w-1/3 py-2 rounded-lg hover:bg-gray-100 transition ${likes.includes(currentUser._id) ? "text-red-500" : ""
+            }`}
         >
           <Heart
             className="w-5 h-5"
@@ -561,8 +558,8 @@ const PostCard = ({
       {/* Report Modal */}
       {showReportModal && (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50">
-          <div className="bg-white rounded-2xl shadow-lg w-[90%] max-w-md p-6 relative">
-            <h3 className="text-lg font-semibold mb-3 text-gray-800 text-center">
+          <div className="bg-white rounded-2xl shadow-lg w-[90%] max-w-2xl p-6 relative">
+            <h3 className="text-lg font-bold mb-3 text-gray-800 text-center">
               Báo cáo bài viết
             </h3>
             <p className="text-sm text-gray-500 mb-3 text-center">
@@ -573,11 +570,10 @@ const PostCard = ({
               {Object.entries(violationMessages).map(([key, text]) => (
                 <label
                   key={key}
-                  className={`flex items-center gap-2 border p-2 rounded-lg cursor-pointer ${
-                    selectedReason === key
-                      ? "border-red-500 bg-red-50"
-                      : "border-gray-200 hover:bg-gray-50"
-                  }`}
+                  className={`flex items-center gap-2 border p-2 rounded-lg cursor-pointer ${selectedReason === key
+                    ? "border-red-500 bg-red-50"
+                    : "border-gray-200 hover:bg-gray-50"
+                    }`}
                 >
                   <input
                     type="radio"
@@ -586,7 +582,7 @@ const PostCard = ({
                     checked={selectedReason === key}
                     onChange={() => setSelectedReason(key)}
                   />
-                  <span className="text-sm">
+                  <span className="text-sm whitespace-nowrap">
                     {violationIcons[key]} {text}
                   </span>
                 </label>
